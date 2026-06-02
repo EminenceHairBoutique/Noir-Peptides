@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <radialGradient id="glow" cx="78%" cy="12%" r="70%">
+      <stop offset="0%" stop-color="#00c2ff" stop-opacity="0.22"/>
+      <stop offset="60%" stop-color="#00c2ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="vial" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00c2ff" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#00c2ff" stop-opacity="0.30"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#05080f"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <g stroke="#1e2d40" stroke-width="1" opacity="0.5">
+    <line x1="0" y1="157" x2="1200" y2="157"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="472" x2="1200" y2="472"/>
+    <line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="900" y1="0" x2="900" y2="630"/>
+  </g>
+  <g transform="translate(910 170)">
+    <rect x="36" y="0" width="48" height="20" rx="3" fill="#00c2ff"/>
+    <path d="M30 20 L30 250 Q30 290 60 290 Q90 290 90 250 L90 20 Z" fill="url(#vial)" stroke="#00c2ff" stroke-width="2"/>
+    <circle cx="60" cy="250" r="9" fill="#00c2ff"/>
+  </g>
+  <text x="90" y="290" font-family="'Syne',sans-serif" font-size="86" font-weight="800" fill="#e8edf5" letter-spacing="2">NOIR · PEPTIDES</text>
+  <text x="92" y="345" font-family="'IBM Plex Mono',monospace" font-size="26" fill="#00c2ff" letter-spacing="6">PRECISION. PURITY. PERFORMANCE.</text>
+  <text x="92" y="402" font-family="'DM Sans',sans-serif" font-size="24" fill="#8a9ab3">Batch-documented research-grade peptide reference materials.</text>
+  <text x="92" y="520" font-family="'IBM Plex Mono',monospace" font-size="18" fill="#8a9ab3" letter-spacing="3">FOR RESEARCH USE ONLY — NOT FOR HUMAN OR VETERINARY USE</text>
+</svg>

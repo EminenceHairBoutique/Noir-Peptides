@@ -1,0 +1,575 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════
+   NOIR PEPTIDES — Design System
+   Research-Grade Peptide Reference Materials
+   Clinical authority meets dark luxury laboratory.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Design Tokens (CSS Custom Properties) ──────────────────────────── */
+:root {
+  --noir-bg: #05080f;
+  --noir-surface: #0d1420;
+  --noir-elevated: #131d2e;
+  --noir-border: #1e2d40;
+
+  --noir-accent: #00c2ff;
+  --noir-accent-dim: #007aab;
+  --noir-accent-glow: rgba(0, 194, 255, 0.12);
+
+  --noir-text: #e8edf5;
+  --noir-muted: #8a9ab3;
+  --noir-subtle: #2d3f55;
+
+  --noir-success: #10b981;
+  --noir-warning: #f59e0b;
+  --noir-danger: #ef4444;
+
+  --font-heading: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Legacy aliases — the codebase references --se-* and --font-* tokens
+     widely; they are remapped here onto the Noir system so every existing
+     utility/class rebrands without per-file churn. */
+  --se-black: var(--noir-bg);
+  --se-charcoal: var(--noir-surface);
+  --se-asphalt: var(--noir-elevated);
+  --se-concrete: var(--noir-border);
+  --se-steel: var(--noir-muted);
+  --se-bone: var(--noir-text);
+  --se-cream: #f4f7fc;
+  --se-white: #ffffff;
+  --se-gold: var(--noir-accent);
+  --se-gold-muted: var(--noir-accent-dim);
+  --se-red: var(--noir-danger);
+  --se-red-bright: #f87171;
+
+  --font-display: var(--font-heading);
+  --font-accent: var(--font-mono);
+  --font-signature: var(--font-heading);
+
+  /* Spacing rhythm */
+  --section-gap: clamp(4rem, 8vw, 8rem);
+  --content-max: 1280px;
+  --content-wide: 1440px;
+}
+
+/* ─── Tailwind v4 Theme Extension ────────────────────────────────────── */
+@theme {
+  --color-se-black: #05080f;
+  --color-se-charcoal: #0d1420;
+  --color-se-asphalt: #131d2e;
+  --color-se-concrete: #1e2d40;
+  --color-se-steel: #8a9ab3;
+  --color-se-bone: #e8edf5;
+  --color-se-cream: #f4f7fc;
+  --color-se-white: #ffffff;
+  --color-se-gold: #00c2ff;
+  --color-se-gold-muted: #007aab;
+  --color-se-red: #ef4444;
+  --color-se-red-bright: #f87171;
+
+  --color-noir-bg: #05080f;
+  --color-noir-surface: #0d1420;
+  --color-noir-elevated: #131d2e;
+  --color-noir-border: #1e2d40;
+  --color-noir-accent: #00c2ff;
+  --color-noir-accent-dim: #007aab;
+  --color-noir-text: #e8edf5;
+  --color-noir-muted: #8a9ab3;
+  --color-noir-success: #10b981;
+  --color-noir-warning: #f59e0b;
+  --color-noir-danger: #ef4444;
+
+  --font-family-display: 'Syne', sans-serif;
+  --font-family-body: 'DM Sans', sans-serif;
+  --font-family-accent: 'IBM Plex Mono', monospace;
+}
+
+/* ─── Base Styles ────────────────────────────────────────────────────── */
+body {
+  background-color: var(--noir-bg);
+  color: var(--noir-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle radial atmosphere + fine grid behind everything */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(900px circle at 75% -10%, rgba(0, 194, 255, 0.08), transparent 55%),
+    radial-gradient(700px circle at 5% 110%, rgba(0, 122, 171, 0.06), transparent 55%),
+    var(--noir-bg);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.4;
+  background-image:
+    linear-gradient(rgba(30, 45, 64, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 45, 64, 0.18) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 75%);
+}
+
+::selection {
+  background: var(--noir-accent);
+  color: var(--noir-bg);
+}
+
+/* ─── Typography Utilities ───────────────────────────────────────────── */
+.font-display {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.font-accent {
+  font-family: var(--font-mono);
+}
+
+.font-signature {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-style: italic;
+}
+
+.text-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.text-overline {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--noir-accent);
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Layout Utilities ───────────────────────────────────────────────── */
+.section-pad {
+  padding-top: var(--section-gap);
+  padding-bottom: var(--section-gap);
+}
+
+.content-wrap {
+  max-width: var(--content-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.content-wide {
+  max-width: var(--content-wide);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+/* ─── Glass Panel System ─────────────────────────────────────────────── */
+.glass-panel {
+  background: linear-gradient(180deg, rgba(19, 29, 46, 0.7), rgba(13, 20, 32, 0.7));
+  border: 1px solid var(--noir-border);
+  backdrop-filter: blur(12px);
+}
+
+.glow-accent {
+  box-shadow: 0 0 0 1px rgba(0, 194, 255, 0.15), 0 0 32px var(--noir-accent-glow);
+}
+
+.card-hover {
+  transition: transform 300ms cubic-bezier(0.2, 0, 0, 1),
+              box-shadow 300ms cubic-bezier(0.2, 0, 0, 1),
+              border-color 300ms ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 194, 255, 0.4);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5), 0 0 28px var(--noir-accent-glow);
+}
+
+/* ─── Product Card ───────────────────────────────────────────────────── */
+.product-card {
+  background: var(--noir-surface);
+  border: 1px solid var(--noir-border);
+  transition: border-color 300ms ease, transform 300ms cubic-bezier(0.2, 0, 0, 1),
+              box-shadow 300ms ease;
+}
+.product-card:hover {
+  border-color: rgba(0, 194, 255, 0.45);
+  transform: translateY(-3px);
+  box-shadow: 0 0 30px var(--noir-accent-glow);
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 2rem;
+  background: var(--noir-accent);
+  color: #04121b;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: none;
+  transition: background 200ms ease, transform 100ms ease, box-shadow 200ms ease;
+  cursor: pointer;
+}
+.btn-primary:hover {
+  background: #38d0ff;
+  box-shadow: 0 0 24px var(--noir-accent-glow);
+}
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 2rem;
+  background: transparent;
+  color: var(--noir-accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: 1px solid rgba(0, 194, 255, 0.4);
+  transition: border-color 200ms ease, background 200ms ease, transform 100ms ease;
+  cursor: pointer;
+}
+.btn-outline:hover {
+  border-color: var(--noir-accent);
+  background: rgba(0, 194, 255, 0.06);
+}
+.btn-outline:active {
+  transform: scale(0.98);
+}
+
+/* Legacy gold button -> accent */
+.btn-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 2rem;
+  background: var(--noir-accent);
+  color: #04121b;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: none;
+  transition: background 200ms ease, transform 100ms ease;
+  cursor: pointer;
+}
+.btn-gold:hover {
+  background: #38d0ff;
+}
+
+/* ─── Badge System ───────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.badge-new {
+  background: rgba(0, 194, 255, 0.12);
+  color: var(--noir-accent);
+  border-color: rgba(0, 194, 255, 0.35);
+}
+.badge-limited {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--noir-warning);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.badge-sold-out {
+  background: var(--noir-elevated);
+  color: var(--noir-muted);
+  border-color: var(--noir-border);
+}
+.badge-archive {
+  background: transparent;
+  border-color: var(--noir-muted);
+  color: var(--noir-muted);
+}
+.badge-success {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--noir-success);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+/* ─── Dividers ───────────────────────────────────────────────────────── */
+.divider {
+  border: none;
+  height: 1px;
+  background: var(--noir-border);
+}
+
+.divider-gold {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--noir-accent), transparent);
+}
+
+/* ─── Skeleton Loading ───────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.se-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--noir-surface) 0%,
+    var(--noir-elevated) 40%,
+    var(--noir-surface) 80%
+  );
+  background-size: 600px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* ─── Focus States (Accessible + On-brand) ───────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--noir-accent);
+  outline-offset: 3px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── Link Hover Underline ───────────────────────────────────────────── */
+.link-hover {
+  position: relative;
+  display: inline-block;
+}
+.link-hover::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 1px;
+  background: var(--noir-accent);
+  transition: width 300ms cubic-bezier(0.2, 0, 0, 1);
+}
+.link-hover:hover::after {
+  width: 100%;
+}
+
+/* ─── Dropdown Animation ─────────────────────────────────────────────── */
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-dropdown-in {
+  animation: dropdownIn 200ms ease-out forwards;
+}
+
+/* ─── Image Placeholder ──────────────────────────────────────────────── */
+.img-fallback {
+  background-color: var(--noir-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── Vial / Specimen Visual (CSS-only placeholder) ──────────────────── */
+.vial-visual {
+  position: relative;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(0, 194, 255, 0.10), transparent 60%),
+    linear-gradient(180deg, var(--noir-elevated), var(--noir-surface));
+  overflow: hidden;
+}
+.vial-visual::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 14%;
+  bottom: 14%;
+  width: 28%;
+  transform: translateX(-50%);
+  border: 1px solid rgba(0, 194, 255, 0.35);
+  border-radius: 6px 6px 10px 10px;
+  background: linear-gradient(180deg, rgba(0, 194, 255, 0.05) 0%, rgba(0, 194, 255, 0.18) 55%, rgba(0, 194, 255, 0.28) 100%);
+  box-shadow: inset 0 0 20px rgba(0, 194, 255, 0.15), 0 0 30px var(--noir-accent-glow);
+}
+.vial-visual::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 9%;
+  width: 14%;
+  height: 6%;
+  transform: translateX(-50%);
+  background: var(--noir-border);
+  border-radius: 3px;
+}
+
+/* ─── Mobile Tap Targets ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  button,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .tap-compact,
+  .tap-compact * {
+    min-height: unset;
+    min-width: unset;
+  }
+}
+
+/* ─── Scrollbar Styling ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--noir-bg); }
+::-webkit-scrollbar-thumb { background: var(--noir-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--noir-accent-dim); }
+
+/* ─── Grain Overlay (subtle cinematic texture) ───────────────────────── */
+.grain-overlay::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* ─── Tables ─────────────────────────────────────────────────────────── */
+table {
+  border-collapse: collapse;
+}
+
+/* ─── Tier / Card Glow ───────────────────────────────────────────────── */
+.tier-card-glow {
+  position: relative;
+  transition: box-shadow 300ms ease;
+}
+.tier-card-glow:hover {
+  box-shadow: 0 0 40px var(--noir-accent-glow);
+}
+
+/* ─── Scroll Hide ────────────────────────────────────────────────────── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Marquee ────────────────────────────────────────────────────────── */
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 36s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* ─── Image Reveal ───────────────────────────────────────────────────── */
+@keyframes imageReveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+.animate-image-reveal {
+  animation: imageReveal 1.2s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+/* ─── Product Card Image Swap ────────────────────────────────────────── */
+.product-card-img-swap .img-secondary {
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+.product-card-img-swap:hover .img-secondary {
+  opacity: 1;
+}
+.product-card-img-swap:hover .img-primary {
+  opacity: 0;
+}
+
+/* ─── Line Reveal ────────────────────────────────────────────────────── */
+@keyframes lineGrow {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+.animate-line-grow {
+  animation: lineGrow 1.2s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+/* ─── Subtle Pulse ───────────────────────────────────────────────────── */
+@keyframes subtlePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+.animate-subtle-pulse {
+  animation: subtlePulse 2.4s ease-in-out infinite;
+}
+
+/* ─── Accent Glow Pulse (hero) ───────────────────────────────────────── */
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.85; }
+}
+.animate-glow-pulse {
+  animation: glowPulse 6s ease-in-out infinite;
+}
+
+/* ─── Mega Dropdown ──────────────────────────────────────────────────── */
+@keyframes megaDropIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-mega-drop {
+  animation: megaDropIn 250ms ease-out forwards;
+}
+
+/* ─── Trust Bar ──────────────────────────────────────────────────────── */
+.trust-bar {
+  border-top: 1px solid var(--noir-border);
+  border-bottom: 1px solid var(--noir-border);
+}

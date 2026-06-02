@@ -1,0 +1,12 @@
+{
+  "name": "Noir Peptides",
+  "short_name": "Noir Peptides",
+  "description": "Research-grade peptide reference materials. For research use only.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05080f",
+  "theme_color": "#05080f",
+  "icons": [
+    { "src": "/noir-favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
