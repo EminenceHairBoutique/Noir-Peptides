@@ -207,6 +207,33 @@ export default function AccountDashboard() {
               </p>
             </div>
 
+            {/* Research rewards + referral */}
+            <div className="glass-panel p-6">
+              <p className="text-overline mb-3">Research Rewards</p>
+              <div className="flex items-end justify-between mb-4">
+                <span className="text-se-steel text-[11px] uppercase tracking-[0.14em] font-accent">
+                  Points
+                </span>
+                <span className="font-display text-[22px] text-se-gold">
+                  {Number(user?.loyaltyPoints || 0).toLocaleString()}
+                </span>
+              </div>
+              {user?.referrals?.code && (
+                <div className="border-t border-se-concrete pt-4">
+                  <p className="text-se-steel text-[11px] uppercase tracking-[0.14em] font-accent mb-2">
+                    Your Referral Code
+                  </p>
+                  <code className="block text-[13px] text-se-bone font-accent tracking-[0.12em] bg-se-asphalt border border-se-concrete px-3 py-2">
+                    {user.referrals.code}
+                  </code>
+                </div>
+              )}
+              <p className="text-[10px] text-se-steel/80 font-accent mt-4 leading-relaxed">
+                Earn points on every order. First-purchase bonus applied
+                automatically at checkout.
+              </p>
+            </div>
+
             <div className="glass-panel p-6">
             <p className="text-overline mb-2">Quick Links</p>
             <h2 className="font-display text-[18px] tracking-[0.04em] mb-5">
