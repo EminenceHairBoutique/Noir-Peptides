@@ -63,7 +63,10 @@ export default function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 max-w-4xl mx-auto">
+    <div
+      className="fixed left-4 right-4 z-50 max-w-4xl mx-auto"
+      style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
+    >
       <div className="border border-white/10 bg-se-charcoal/95 backdrop-blur-xl shadow-[0_18px_40px_rgba(0,0,0,0.5)] p-6">
         <div className="space-y-4">
           <p className="text-[13px] text-se-bone/70 leading-relaxed">

@@ -132,6 +132,11 @@ export default function RegisterAttestation() {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder={CONFIRM_PHRASE}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            aria-label={`Type ${CONFIRM_PHRASE} to confirm`}
             className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent tracking-[0.12em] placeholder:text-se-steel focus:outline-none focus:border-se-gold transition"
           />
         </div>
