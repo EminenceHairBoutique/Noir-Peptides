@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 const SITE_NAME = "Noir Peptides";
 const DEFAULT_DESCRIPTION =
   "Batch-documented peptide reference materials for laboratory research. COA available. For research use only. Not for human or veterinary use.";
-const DEFAULT_IMAGE_PATH = "/assets/noir/noir_og_banner.svg";
+const DEFAULT_IMAGE_PATH = "/assets/noir/noir-og.png";
 
 const PRODUCTION_SITE_URL = "https://www.noirpeptides.com";
 

@@ -98,6 +98,42 @@ export async function getFeaturedProducts(limit = 8) {
 }
 
 /**
+ * Fetch volume/bundle price tiers for a product, ascending by min_quantity.
+ * RLS-gated (attested read). Returns [] when none are configured.
+ * @returns {Promise<Array<{min_quantity:number, unit_price:number, label?:string}>>}
+ */
+export async function getPriceTiers(productId) {
+  if (!supabase || !productId) return [];
+  try {
+    const { data, error } = await supabase
+      .from("price_tiers")
+      .select("min_quantity, unit_price, label")
+      .eq("product_id", productId)
+      .order("min_quantity", { ascending: true });
+    if (error || !Array.isArray(data)) return [];
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The unit price for a quantity given a product's base price + tiers.
+ * Mirrors the server's resolveUnitPriceDollars so displayed price == charged.
+ */
+export function unitPriceForQuantity(basePrice, tiers, qty) {
+  const base = Number(basePrice) || 0;
+  if (!Array.isArray(tiers) || !tiers.length) return base;
+  let price = base;
+  for (const t of tiers) {
+    if (qty >= Number(t.min_quantity) && Number.isFinite(Number(t.unit_price))) {
+      price = Number(t.unit_price);
+    }
+  }
+  return price;
+}
+
+/**
  * Fetch active research categories (excludes deprecated rows, sort_order >= 900).
  * @returns {Promise<Array>}
  */

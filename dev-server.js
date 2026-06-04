@@ -9,7 +9,7 @@ import cors from "cors";
 
 import createCheckoutSession from "./api/create-checkout-session.js";
 import stripeWebhook from "./api/stripe-webhook.js";
-import concierge from "./api/concierge.js";
+import contact from "./api/contact.js";
 
 const app = express();
 
@@ -31,11 +31,11 @@ app.post(
   createCheckoutSession
 );
 
-// ✅ Concierge requests — JSON body
+// ✅ Contact requests — JSON body
 app.post(
-  "/api/concierge",
+  "/api/contact",
   express.json(),
-  concierge
+  contact
 );
 
 app.listen(3000, () => {

@@ -364,9 +364,14 @@ body::after {
 }
 
 /* ─── Focus States (Accessible + On-brand) ───────────────────────────── */
+/* WCAG 2.2 Focus Appearance (2.4.11/2.4.13): a high-contrast ring plus a dark
+   halo so the indicator stays visible on both the near-black background and the
+   lighter glass surfaces. */
 :focus-visible {
-  outline: 2px solid var(--noir-accent);
-  outline-offset: 3px;
+  outline: 3px solid var(--noir-accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.55);
+  border-radius: 3px;
 }
 
 :focus:not(:focus-visible) {
