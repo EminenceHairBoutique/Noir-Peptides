@@ -40,7 +40,7 @@ async function safeInsertOrder(order) {
 
   // Fallback: remove user_id if column doesn't exist
   if (msg.includes('column "user_id"') && msg.includes("does not exist")) {
-    const { user_id, ...rest } = order;
+    const { user_id: _user_id, ...rest } = order;
     const { error: secondErr } = await supabaseServer.from("orders").insert(rest);
     if (!secondErr) return { ok: true, warned: "orders.user_id missing" };
     return { ok: false, error: secondErr };

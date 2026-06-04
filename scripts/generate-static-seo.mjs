@@ -27,6 +27,27 @@ const SITE_URL = String(
     "https://www.noirpeptides.com"
 ).replace(/\/+$/, "");
 
+// ── Build-time guard: never ship localhost canonicals/OG to production ──
+// A misconfigured VITE_SITE_URL is how the live site leaked localhost:3000
+// canonicals. Fail the build loudly rather than emit a broken absolute URL.
+(function assertSiteUrl() {
+  if (!SITE_URL) {
+    throw new Error(
+      "[seo] SITE_URL is empty. Set VITE_SITE_URL (or SITE_URL) to the production domain, e.g. https://www.noirpeptides.com"
+    );
+  }
+  if (/localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]/i.test(SITE_URL)) {
+    throw new Error(
+      `[seo] SITE_URL resolves to a local address (${SITE_URL}). Set VITE_SITE_URL to the public production domain before building for deploy.`
+    );
+  }
+  if (!/^https?:\/\//i.test(SITE_URL)) {
+    throw new Error(
+      `[seo] SITE_URL must be an absolute http(s) URL (got "${SITE_URL}").`
+    );
+  }
+})();
+
 const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/noir/noir_og_banner.svg`;
 
 const SEO_BEGIN = "<!-- SEO:BEGIN -->";
