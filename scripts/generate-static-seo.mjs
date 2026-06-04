@@ -48,7 +48,7 @@ const SITE_URL = String(
   }
 })();
 
-const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/noir/noir_og_banner.svg`;
+const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/noir/noir-og.png`;
 
 const SEO_BEGIN = "<!-- SEO:BEGIN -->";
 const SEO_END = "<!-- SEO:END -->";

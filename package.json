@@ -7,7 +7,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:vite": "vite",
     "dev:api": "node dev-server.js",
-    "build": "vite build && node scripts/generate-static-seo.mjs",
+    "build": "node scripts/generate-og-image.mjs && vite build && node scripts/generate-static-seo.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "audit:products": "node scripts/audit-products.mjs",
