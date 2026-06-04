@@ -1,4 +1,3 @@
-/* eslint-env node */
 
 import { sendConciergeRequestEmail } from "../lib/email.js";
 import { checkRateLimit } from "./_utils/rateLimit.js";

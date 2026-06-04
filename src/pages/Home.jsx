@@ -1,6 +1,6 @@
 // src/pages/Home.jsx — Noir Peptides Homepage
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import {
@@ -11,7 +11,7 @@ import {
   Snowflake,
   ShieldCheck,
 } from "lucide-react";
-import { categories, getFeaturedProducts } from "../data/products";
+import { getCategories, getFeaturedProducts } from "../lib/catalog";
 import ProductCard from "../components/ProductCard";
 import BrandPromise from "../components/BrandPromise";
 import DisclaimerBanner from "../components/DisclaimerBanner";
@@ -41,7 +41,20 @@ const FAQ_PREVIEW = [
 ];
 
 export default function Home() {
-  const featured = getFeaturedProducts().slice(0, 8);
+  const [featured, setFeatured] = useState([]);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([getFeaturedProducts(8), getCategories()]).then(([f, c]) => {
+      if (!active) return;
+      setFeatured(f);
+      setCategories(c);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <>

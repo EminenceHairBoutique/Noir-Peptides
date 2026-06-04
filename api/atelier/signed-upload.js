@@ -1,4 +1,3 @@
-/* eslint-env node */
 import crypto from "crypto";
 import { supabaseServer } from "../../lib/supabaseServer.js";
 

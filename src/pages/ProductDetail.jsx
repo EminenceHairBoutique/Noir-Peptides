@@ -1,10 +1,10 @@
 // src/pages/ProductDetail.jsx — Noir Peptides Research Material PDP
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ChevronLeft, Minus, Plus, FileText, Snowflake, XCircle } from "lucide-react";
 import { motion as Motion } from "framer-motion";
 
-import { products, categories } from "../data/products";
+import { getProduct, getProducts, getCategories } from "../lib/catalog";
 import { useCart } from "../context/CartContext";
 import SEO from "../components/SEO";
 import ProductCard from "../components/ProductCard";
@@ -26,29 +26,39 @@ export default function ProductDetail() {
   const { slug } = useParams();
   const { addToCart, openCart } = useCart();
 
-  const product = useMemo(
-    () => products.find((p) => p.slug === slug || p.id === slug),
-    [slug]
-  );
-
+  const [product, setProduct] = useState(null);
+  const [related, setRelated] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
+    let active = true;
+    setLoading(true);
     setQuantity(1);
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    (async () => {
+      const [p, cats] = await Promise.all([getProduct(slug), getCategories()]);
+      if (!active) return;
+      setProduct(p);
+      setCategories(cats);
+      if (p) {
+        const sameDomain = await getProducts({ category: p.category_slug });
+        if (!active) return;
+        setRelated(sameDomain.filter((x) => x.id !== p.id).slice(0, 4));
+      } else {
+        setRelated([]);
+      }
+      setLoading(false);
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [slug]);
 
   const isOut = product?.stock_status === "out_of_stock";
-
-  const related = useMemo(() => {
-    if (!product) return [];
-    return products
-      .filter(
-        (p) =>
-          p.id !== product.id && p.category_slug === product.category_slug
-      )
-      .slice(0, 4);
-  }, [product]);
 
   const handleAddToCart = useCallback(() => {
     if (!product || isOut) return;
@@ -64,6 +74,21 @@ export default function ProductDetail() {
     );
     openCart();
   }, [product, quantity, isOut, addToCart, openCart]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-se-black flex items-center justify-center">
+        <div className="content-wide grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 pt-28 w-full">
+          <div className="aspect-square glass-panel se-skeleton" aria-hidden="true" />
+          <div className="space-y-4">
+            <div className="h-8 w-2/3 glass-panel se-skeleton" />
+            <div className="h-4 w-1/3 glass-panel se-skeleton" />
+            <div className="h-32 glass-panel se-skeleton" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!product) {
     return (

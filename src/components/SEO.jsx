@@ -6,9 +6,25 @@ const DEFAULT_DESCRIPTION =
   "Batch-documented peptide reference materials for laboratory research. COA available. For research use only. Not for human or veterinary use.";
 const DEFAULT_IMAGE_PATH = "/assets/noir/noir_og_banner.svg";
 
+const PRODUCTION_SITE_URL = "https://www.noirpeptides.com";
+
+// Never emit a localhost/loopback canonical or OG URL at runtime. If the build
+// was shipped with a misconfigured VITE_SITE_URL, prefer the live origin (when
+// it isn't itself localhost) and otherwise fall back to the production domain.
 function getSiteUrl() {
-  const raw = import.meta?.env?.VITE_SITE_URL || "https://www.noirpeptides.com";
-  return String(raw).replace(/\/+$/, "");
+  const raw = String(import.meta?.env?.VITE_SITE_URL || "").trim();
+  const isLocal = (val) => /localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]/i.test(val);
+
+  if (raw && /^https?:\/\//i.test(raw) && !isLocal(raw)) {
+    return raw.replace(/\/+$/, "");
+  }
+
+  if (typeof window !== "undefined" && window.location?.origin) {
+    const origin = window.location.origin;
+    if (!isLocal(origin)) return origin.replace(/\/+$/, "");
+  }
+
+  return PRODUCTION_SITE_URL;
 }
 
 function toAbsoluteUrl(pathOrUrl) {

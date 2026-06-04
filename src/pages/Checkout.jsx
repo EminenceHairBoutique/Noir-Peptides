@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { useCart } from "../context/CartContext";
-import { useUser } from "../context/UserContext";
+import { supabase } from "../lib/supabaseClient";
 import StripeProvider from "../components/StripeProvider";
 import SEO from "../components/SEO";
 import DisclaimerBanner from "../components/DisclaimerBanner";
@@ -15,7 +15,7 @@ const money = (n) =>
 
 const CONSENT_VERSION = "noir-v1.0";
 
-async function buildAndRedirectCheckout({ items, user, onError }) {
+async function buildAndRedirectCheckout({ items, onError }) {
   try {
     const total = items.reduce(
       (s, i) => s + Number(i.price || 0) * Number(i.quantity || 0),
@@ -38,9 +38,23 @@ async function buildAndRedirectCheckout({ items, user, onError }) {
 
     trackBeginCheckout({ items, value: total });
 
+    // Identity + attestation are enforced server-side from this bearer token;
+    // userId/email are no longer trusted from the request body.
+    let token = null;
+    if (supabase) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      token = sessionData?.session?.access_token || null;
+    }
+    if (!token) {
+      throw new Error("Please sign in again to continue to payment.");
+    }
+
     const res = await fetch("/api/create-checkout-session", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
         items: items.map((i) => ({
           id: i.id,
@@ -49,8 +63,6 @@ async function buildAndRedirectCheckout({ items, user, onError }) {
           image: i.image,
           quantity: Number(i.quantity) || 1,
         })),
-        userId: user?.id || null,
-        customerEmail: user?.email || null,
         consentVersion: CONSENT_VERSION,
         researchUseAcknowledged: true,
         qualifiedPurchaserConfirmed: true,
@@ -74,7 +86,6 @@ async function buildAndRedirectCheckout({ items, user, onError }) {
 
 export default function Checkout() {
   const { items = [], total = 0 } = useCart();
-  const { user } = useUser();
 
   const [pageLoading, setPageLoading] = useState(true);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -100,7 +111,7 @@ export default function Checkout() {
     if (!items.length || !acknowledged) return;
     setCheckoutError(null);
     setSubmitting(true);
-    await buildAndRedirectCheckout({ items, user, onError });
+    await buildAndRedirectCheckout({ items, onError });
   }
 
   const canCheckout = items.length > 0 && acknowledged && !submitting;
@@ -220,6 +231,9 @@ export default function Checkout() {
                   <span className="text-se-bone/60">Shipping</span>
                   <span className="text-se-steel">At checkout</span>
                 </div>
+                <p className="text-[10px] text-se-steel font-accent uppercase tracking-[0.14em]">
+                  Ships within the United States only
+                </p>
                 <div className="divider" />
                 <div className="flex justify-between text-[15px] font-accent font-medium">
                   <span>Total</span>

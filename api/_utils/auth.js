@@ -1,4 +1,3 @@
-/* eslint-env node */
 /**
  * api/_utils/auth.js
  * Centralized server-side authentication helpers for Vercel serverless functions.
@@ -76,7 +75,13 @@ export async function requireUser(req, res) {
 }
 
 /**
- * Require the caller to be an admin (email must be in ADMIN_EMAILS env var).
+ * Require the caller to be an admin.
+ *
+ * Source of truth is `profiles.role === 'admin'` — the SAME signal the client
+ * uses (UserContext.isAdmin), so client and server always agree. The
+ * ADMIN_EMAILS env var remains only as a bootstrap fallback so the very first
+ * admin can be granted before any profile row is flipped to 'admin'.
+ *
  * On failure: sends 401 or 403 and returns null.
  */
 export async function requireAdmin(req, res) {
@@ -86,15 +91,28 @@ export async function requireAdmin(req, res) {
     return null;
   }
 
+  let role = "customer";
+  try {
+    const { data: profile } = await supabaseServer
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    role = String(profile?.role || "customer").toLowerCase();
+  } catch {
+    role = "customer";
+  }
+
   const allow = adminEmailAllowlist();
   const email = String(user.email || "").toLowerCase();
+  const isAdmin = role === "admin" || (allow.length > 0 && allow.includes(email));
 
-  if (!allow.length || !allow.includes(email)) {
+  if (!isAdmin) {
     json(res, 403, { error: "Forbidden" });
     return null;
   }
 
-  return user;
+  return { ...user, role };
 }
 
 /**

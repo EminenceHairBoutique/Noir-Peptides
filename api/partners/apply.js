@@ -1,73 +1,42 @@
-/* eslint-env node */
 import { sendConciergeRequestEmail } from "../../lib/email.js";
 import { supabaseServer } from "../../lib/supabaseServer.js";
-
-function json(res, status, body) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(body));
-}
-
-function getBearerToken(req) {
-  const auth = req.headers?.authorization || req.headers?.Authorization;
-  if (!auth) return null;
-  const tokenMatch = String(auth).match(/^Bearer\s+(.+)$/i);
-  return tokenMatch ? tokenMatch[1] : null;
-}
-
-async function parseJsonBody(req) {
-  const rawBody = req.body;
-  if (rawBody && typeof rawBody === "object") return rawBody;
-  if (typeof rawBody === "string") {
-    try {
-      return JSON.parse(rawBody);
-    } catch {
-      return null;
-    }
-  }
-
-  // Vercel/Node fallback: read the request stream
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  if (!chunks.length) return null;
-
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  } catch {
-    return null;
-  }
-}
-
-async function getUserFromReq(req) {
-  const token = getBearerToken(req);
-  if (!token) return { token: null, user: null };
-
-  try {
-    const { data, error } = await supabaseServer.auth.getUser(token);
-    if (error) return { token, user: null };
-    return { token, user: data?.user || null };
-  } catch {
-    return { token, user: null };
-  }
-}
+import { getUserFromReq } from "../_utils/auth.js";
+import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
+import { validateBody } from "../_utils/validate.js";
+import { checkRateLimit } from "../_utils/rateLimit.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
 
-  const body = await parseJsonBody(req);
+  const allowed = await checkRateLimit(req, res, {
+    endpoint: "partner-apply",
+    max: 5,
+    windowMs: 60_000,
+  });
+  if (!allowed) return;
+
+  const body = await readJsonBody(req);
   if (!body) return json(res, 400, { error: "Invalid JSON" });
 
   const payload = body.payload || {};
 
-  // Basic honeypot: bots fill this field.
+  // Honeypot: bots fill this hidden field.
   if (payload.website && String(payload.website).trim() !== "") {
     return json(res, 200, { ok: true });
   }
 
-  const { user } = await getUserFromReq(req);
+  // Identity is optional here (public application form) but used when present.
+  const user = await getUserFromReq(req);
 
   const email = String(payload.email || user?.email || "").trim().toLowerCase();
-  if (!email) return json(res, 400, { error: "Email is required" });
+  const { ok, errors } = validateBody(
+    { email, fullName: payload.fullName },
+    {
+      email: { type: "string", required: true, email: true, max: 320 },
+      fullName: { type: "string", required: true, min: 2, max: 200 },
+    }
+  );
+  if (!ok) return json(res, 400, { error: "Invalid request", details: errors });
 
   const row = {
     user_id: user?.id || null,
@@ -84,29 +53,19 @@ export default async function handler(req, res) {
   };
 
   try {
-    // Store in DB (if the table exists). Safe: service role bypasses RLS.
     const { error: upsertErr } = await supabaseServer
       .from("partner_applications")
       .upsert(row, { onConflict: "email" });
+    if (upsertErr) console.warn("Partner apply: DB upsert failed", upsertErr);
 
-    if (upsertErr) {
-      // If the SQL migration isn't run yet, this will fail.
-      console.warn("Partner apply: DB upsert failed", upsertErr);
-    }
-
-    // Mark profile as pending (if logged in + columns exist).
     if (user?.id) {
       const { error: profErr } = await supabaseServer
         .from("profiles")
         .update({ partner_status: "pending", account_tier: "partner_pending" })
         .eq("id", user.id);
-
-      if (profErr) {
-        console.warn("Partner apply: profile update failed", profErr);
-      }
+      if (profErr) console.warn("Partner apply: profile update failed", profErr);
     }
 
-    // Email concierge
     await sendConciergeRequestEmail({
       type: "partner_application",
       payload: {

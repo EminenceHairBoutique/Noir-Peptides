@@ -1,4 +1,3 @@
-/* eslint-env node */
 import Stripe from "stripe";
 import { supabaseServer } from "../lib/supabaseServer.js";
 import { generateOrderNumber } from "../lib/orderNumber.js";
@@ -11,11 +10,19 @@ export const config = {
   },
 };
 
+// Pin the Stripe API version so webhook payload shapes are stable across SDK
+// upgrades (must match api/create-checkout-session.js).
+const STRIPE_API_VERSION = "2024-06-20";
+
 // Lazy-init: guard against missing key in local dev
 let _stripe = null;
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) return null;
-  if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: STRIPE_API_VERSION,
+    });
+  }
   return _stripe;
 }
 
@@ -30,23 +37,13 @@ async function getRawBody(req) {
   return Buffer.concat(chunks);
 }
 
-async function safeInsertOrder(order) {
-  // Some deployments may not have newer columns yet.
-  // Try full insert; if it fails due to unknown columns, retry with a reduced payload.
-  const { error: firstErr } = await supabaseServer.from("orders").insert(order);
-  if (!firstErr) return { ok: true };
-
-  const msg = String(firstErr.message || "");
-
-  // Fallback: remove user_id if column doesn't exist
-  if (msg.includes('column "user_id"') && msg.includes("does not exist")) {
-    const { user_id, ...rest } = order;
-    const { error: secondErr } = await supabaseServer.from("orders").insert(rest);
-    if (!secondErr) return { ok: true, warned: "orders.user_id missing" };
-    return { ok: false, error: secondErr };
-  }
-
-  return { ok: false, error: firstErr };
+async function insertOrder(order) {
+  // The orders schema is now canonical (migration 0004 matches this shape
+  // exactly), so the legacy "missing user_id column" fallback is no longer
+  // needed.
+  const { error } = await supabaseServer.from("orders").insert(order);
+  if (error) return { ok: false, error };
+  return { ok: true };
 }
 
 async function awardLoyalty({ userId, email, amountTotalCents, orderNumber, stripeSessionId }) {
@@ -188,24 +185,35 @@ export default async function handler(req, res) {
 
         const userId = session.client_reference_id || session.metadata?.user_id || null;
 
+        // Shipping address (US-only, collected by Stripe). The field name moved
+        // across Stripe API versions, so read both shapes defensively.
+        const shippingDetails =
+          session.shipping_details ||
+          session.collected_information?.shipping_details ||
+          null;
+
         const order = {
           order_number: orderNumber,
           stripe_session_id: session.id,
           stripe_payment_intent: session.payment_intent,
           user_id: userId,
           email,
-          customer_name: session.customer_details?.name || null,
+          customer_name:
+            shippingDetails?.name || session.customer_details?.name || null,
           amount_total: session.amount_total,
           currency: session.currency,
 
           // Purchased items
           items: lineItems.data,
 
+          // Shipping address snapshot for fulfillment.
+          shipping_address: shippingDetails?.address || null,
+
           consent: session.metadata || {},
           status: "paid",
         };
 
-        const inserted = await safeInsertOrder(order);
+        const inserted = await insertOrder(order);
 
         if (!inserted.ok) {
           console.error("❌ Failed to save order:", inserted.error);

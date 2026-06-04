@@ -14,8 +14,6 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "^0.10.32",
-    "@sentry/react": "^10.46.0",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.6.0",
     "@supabase/supabase-js": "^2.89.0",
@@ -29,8 +27,7 @@
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.11.0",
     "resend": "^6.6.0",
-    "stripe": "^20.1.0",
-    "twilio": "^5.11.1"
+    "stripe": "^20.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
