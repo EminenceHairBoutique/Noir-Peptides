@@ -13,6 +13,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { researchArticles } from "../src/data/research.js";
 
 const ROOT = process.cwd();
 const DIST_DIR = path.join(ROOT, "dist");
@@ -254,10 +255,27 @@ async function main() {
     },
   ];
 
+  // Public, indexable education pages (no price, no buy button) — the only SEO
+  // surface compatible with the auth wall. These funnel to registration.
+  const researchRoutes = [
+    {
+      pathname: "/research",
+      title: "Research & Education",
+      description:
+        "Educational articles on certificates of analysis, HPLC purity, and how peptide reference materials are studied in the laboratory. For research use only.",
+    },
+    ...researchArticles.map((a) => ({
+      pathname: `/research/${a.slug}`,
+      title: a.title,
+      description: a.summary,
+      ogType: "article",
+    })),
+  ];
+
   // The gated storefront is intentionally not prerendered. Direct requests fall
   // through Vercel's SPA rewrite to the root document; the client guard then
   // redirects unauthenticated visitors to /login.
-  const routes = [...staticRoutes];
+  const routes = [...staticRoutes, ...researchRoutes];
 
   for (const route of routes) {
     const pathname = route.pathname;
@@ -299,6 +317,7 @@ async function main() {
     "User-agent: *",
     "Allow: /$",
     "Allow: /legal/",
+    "Allow: /research",
     "",
     "Disallow: /api/",
     "Disallow: /home",
