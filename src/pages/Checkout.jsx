@@ -231,6 +231,9 @@ export default function Checkout() {
                   <span className="text-se-bone/60">Shipping</span>
                   <span className="text-se-steel">At checkout</span>
                 </div>
+                <p className="text-[10px] text-se-steel font-accent uppercase tracking-[0.14em]">
+                  Ships within the United States only
+                </p>
                 <div className="divider" />
                 <div className="flex justify-between text-[15px] font-accent font-medium">
                   <span>Total</span>

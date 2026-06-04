@@ -188,18 +188,29 @@ export default async function handler(req, res) {
 
         const userId = session.client_reference_id || session.metadata?.user_id || null;
 
+        // Shipping address (US-only, collected by Stripe). The field name moved
+        // across Stripe API versions, so read both shapes defensively.
+        const shippingDetails =
+          session.shipping_details ||
+          session.collected_information?.shipping_details ||
+          null;
+
         const order = {
           order_number: orderNumber,
           stripe_session_id: session.id,
           stripe_payment_intent: session.payment_intent,
           user_id: userId,
           email,
-          customer_name: session.customer_details?.name || null,
+          customer_name:
+            shippingDetails?.name || session.customer_details?.name || null,
           amount_total: session.amount_total,
           currency: session.currency,
 
           // Purchased items
           items: lineItems.data,
+
+          // Shipping address snapshot for fulfillment.
+          shipping_address: shippingDetails?.address || null,
 
           consent: session.metadata || {},
           status: "paid",
