@@ -1,4 +1,3 @@
-/* eslint-env node */
 /**
  * api/atelier/tryon/save.js
  * Saves the try-on result (composite image URL + adjustments) and optionally

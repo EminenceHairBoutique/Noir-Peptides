@@ -1,4 +1,3 @@
-/* eslint-env node */
 /**
  * api/atelier/tryon/create.js
  * Creates a new try-on session record in Supabase.

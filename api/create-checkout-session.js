@@ -1,4 +1,3 @@
-/* eslint-env node */
 import Stripe from "stripe";
 import { products as staticProducts } from "../src/data/products.js";
 import { supabaseServer } from "../lib/supabaseServer.js";

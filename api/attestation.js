@@ -1,4 +1,3 @@
-/* eslint-env node */
 // api/attestation.js
 // Records a research-use attestation with a server-derived audit trail
 // (IP + user-agent come from request headers, not the client, so the consent

@@ -1,4 +1,3 @@
-/* eslint-env node */
 /**
  * api/atelier/tryon/concierge.js
  *

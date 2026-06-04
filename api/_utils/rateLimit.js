@@ -1,4 +1,3 @@
-/* eslint-env node */
 /**
  * api/_utils/rateLimit.js
  * Distributed rate limiting for Vercel serverless API endpoints.

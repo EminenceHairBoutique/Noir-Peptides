@@ -1,4 +1,3 @@
-/* eslint-env node */
 
 import { supabaseServer } from "../lib/supabaseServer.js";
 import { sendConciergeRequestEmail } from "../lib/email.js";
@@ -73,7 +72,7 @@ export default async function handler(req, res) {
 
   // 1) Try to store in Supabase (recommended)
   try {
-    const { error } = await supabaseServer.from("email_signups").insert([
+    const { error } = await supabaseServer.from("email_subscribers").insert([
       {
         email,
         first_name: firstName || null,
