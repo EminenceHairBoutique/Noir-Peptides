@@ -22,32 +22,46 @@ const SITE_NAME = "Noir Peptides";
 const DEFAULT_DESCRIPTION =
   "Batch-documented peptide reference materials for laboratory research. COA available. For research use only. Not for human or veterinary use.";
 
-const SITE_URL = String(
-  process.env.VITE_SITE_URL ||
-    process.env.SITE_URL ||
-    "https://www.noirpeptides.com"
-).replace(/\/+$/, "");
+const PRODUCTION_DEFAULT = "https://www.noirpeptides.com";
 
-// ── Build-time guard: never ship localhost canonicals/OG to production ──
-// A misconfigured VITE_SITE_URL is how the live site leaked localhost:3000
-// canonicals. Fail the build loudly rather than emit a broken absolute URL.
-(function assertSiteUrl() {
-  if (!SITE_URL) {
+// ── Resolve a SAFE absolute site URL ────────────────────────────────────────
+// The guard's purpose is to never ship localhost/empty canonicals or OG URLs.
+// A misconfigured VITE_SITE_URL (the live site had it set to localhost:3000) is
+// recoverable: rather than HARD-FAIL the build — which bricks the Vercel
+// deploy — we warn loudly and fall back to the production domain so canonicals
+// stay correct AND the deploy succeeds. Set SEO_STRICT_SITE_URL=1 to restore the
+// fail-the-build behavior (useful in CI that should block on a misconfig).
+function isLocalAddress(u) {
+  return /localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]/i.test(u);
+}
+
+function resolveSiteUrl() {
+  const raw = String(process.env.VITE_SITE_URL || process.env.SITE_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
+
+  if (raw && /^https?:\/\//i.test(raw) && !isLocalAddress(raw)) return raw;
+
+  const strict = /^(1|true|yes)$/i.test(process.env.SEO_STRICT_SITE_URL || "");
+  if (strict) {
     throw new Error(
-      "[seo] SITE_URL is empty. Set VITE_SITE_URL (or SITE_URL) to the production domain, e.g. https://www.noirpeptides.com"
+      `[seo] VITE_SITE_URL is "${raw || "(empty)"}" — empty, local, or not absolute. ` +
+        `Set it to the public production domain (e.g. ${PRODUCTION_DEFAULT}). ` +
+        `(SEO_STRICT_SITE_URL is on, so the build fails instead of falling back.)`
     );
   }
-  if (/localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]/i.test(SITE_URL)) {
-    throw new Error(
-      `[seo] SITE_URL resolves to a local address (${SITE_URL}). Set VITE_SITE_URL to the public production domain before building for deploy.`
+
+  if (raw) {
+    console.warn(
+      `[seo] WARNING: VITE_SITE_URL is "${raw}" (empty, local, or not absolute). ` +
+        `Falling back to ${PRODUCTION_DEFAULT} so the deploy is not blocked and no ` +
+        `localhost canonicals are emitted. Set VITE_SITE_URL in Vercel to your real domain.`
     );
   }
-  if (!/^https?:\/\//i.test(SITE_URL)) {
-    throw new Error(
-      `[seo] SITE_URL must be an absolute http(s) URL (got "${SITE_URL}").`
-    );
-  }
-})();
+  return PRODUCTION_DEFAULT;
+}
+
+const SITE_URL = resolveSiteUrl();
 
 const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/noir/noir-og.png`;
 
