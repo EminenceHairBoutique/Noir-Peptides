@@ -137,7 +137,7 @@ if (isJson) {
 } else {
   const { summary } = report;
   console.log("\n╔═══════════════════════════════════════════════════════╗");
-  console.log("║         Eminence Hair — Product Image Audit           ║");
+  console.log("║         Noir Peptides — Product Image Audit            ║");
   console.log("╚═══════════════════════════════════════════════════════╝\n");
 
   console.log(`Total products:           ${summary.totalProducts}`);

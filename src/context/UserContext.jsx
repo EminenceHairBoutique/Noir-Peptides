@@ -48,7 +48,7 @@ const generateReferralCode = (idOrEmail = "") => {
   const base =
     idOrEmail.replace(/[^A-Za-z0-9]/g, "").slice(-5).toUpperCase() ||
     Date.now().toString().slice(-5);
-  return `SE-${base}`;
+  return `NP-${base}`;
 };
 
 const hydrateUser = (raw) => {

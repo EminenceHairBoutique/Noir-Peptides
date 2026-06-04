@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import SEO from "../components/SEO";
 
-const STORAGE_KEY = "se_cookie_consent";
+const STORAGE_KEY = "np_cookie_consent";
 
 function safeParse(json) {
   try { return JSON.parse(json); } catch { return null; }

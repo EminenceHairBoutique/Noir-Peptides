@@ -1,5 +1,5 @@
 const UTM_KEY = "se_utm";
-const CONSENT_KEY = "se_cookie_consent";
+const CONSENT_KEY = "np_cookie_consent";
 
 function readJsonFromStorage(key) {
   try {

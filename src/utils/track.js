@@ -9,7 +9,7 @@
 // with no architectural change. Meta Pixel works the same way on marketing
 // consent. Adding a third destination = adding one provider object below.
 
-const CONSENT_KEY = "se_cookie_consent";
+const CONSENT_KEY = "np_cookie_consent";
 
 function readConsent() {
   try {

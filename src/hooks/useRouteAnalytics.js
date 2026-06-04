@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
-const CONSENT_KEY = "se_cookie_consent";
+const CONSENT_KEY = "np_cookie_consent";
 const UTM_KEY = "se_utm";
 const REFERRAL_KEY = "se_referral";
 
