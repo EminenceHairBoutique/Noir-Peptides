@@ -4,7 +4,13 @@ import { useParams, Link } from "react-router-dom";
 import { ChevronLeft, Minus, Plus, FileText, Snowflake, XCircle } from "lucide-react";
 import { motion as Motion } from "framer-motion";
 
-import { getProduct, getProducts, getCategories } from "../lib/catalog";
+import {
+  getProduct,
+  getProducts,
+  getCategories,
+  getPriceTiers,
+  unitPriceForQuantity,
+} from "../lib/catalog";
 import { useCart } from "../context/CartContext";
 import SEO from "../components/SEO";
 import ProductCard from "../components/ProductCard";
@@ -29,6 +35,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [tiers, setTiers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
 
@@ -36,6 +43,7 @@ export default function ProductDetail() {
     let active = true;
     setLoading(true);
     setQuantity(1);
+    setTiers([]);
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     (async () => {
@@ -44,9 +52,13 @@ export default function ProductDetail() {
       setProduct(p);
       setCategories(cats);
       if (p) {
-        const sameDomain = await getProducts({ category: p.category_slug });
+        const [sameDomain, priceTiers] = await Promise.all([
+          getProducts({ category: p.category_slug }),
+          getPriceTiers(p.id),
+        ]);
         if (!active) return;
         setRelated(sameDomain.filter((x) => x.id !== p.id).slice(0, 4));
+        setTiers(priceTiers);
       } else {
         setRelated([]);
       }
@@ -58,6 +70,11 @@ export default function ProductDetail() {
     };
   }, [slug]);
 
+  // Tier-aware unit price for the chosen quantity (mirrors the checkout server).
+  const unitPrice = product
+    ? unitPriceForQuantity(product.price, tiers, quantity)
+    : 0;
+
   const isOut = product?.stock_status === "out_of_stock";
 
   const handleAddToCart = useCallback(() => {
@@ -67,13 +84,13 @@ export default function ProductDetail() {
         id: product.id,
         slug: product.slug,
         name: product.name,
-        price: product.price,
+        price: unitPrice,
         image: product.image_url || product.images?.[0] || null,
       },
       { quantity }
     );
     openCart();
-  }, [product, quantity, isOut, addToCart, openCart]);
+  }, [product, quantity, unitPrice, isOut, addToCart, openCart]);
 
   if (loading) {
     return (
@@ -269,12 +286,43 @@ export default function ProductDetail() {
                     </div>
                   </div>
 
+                  {tiers.length > 0 && (
+                    <div className="mb-5 border border-se-concrete">
+                      <p className="text-[10px] font-accent uppercase tracking-[0.16em] text-se-gold px-4 pt-3">
+                        Volume Pricing
+                      </p>
+                      <table className="w-full text-[12px] font-accent">
+                        <tbody>
+                          <tr className="text-se-bone/60">
+                            <td className="px-4 py-2">1+ unit</td>
+                            <td className="px-4 py-2 text-right">${product.price} ea</td>
+                          </tr>
+                          {tiers.map((t) => (
+                            <tr
+                              key={t.min_quantity}
+                              className={
+                                quantity >= t.min_quantity
+                                  ? "text-se-gold"
+                                  : "text-se-bone/60"
+                              }
+                            >
+                              <td className="px-4 py-2">
+                                {t.label || `${t.min_quantity}+ units`}
+                              </td>
+                              <td className="px-4 py-2 text-right">${t.unit_price} ea</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={handleAddToCart}
                     className="btn-primary w-full py-4 text-[12px] tracking-[0.2em] mb-4"
                   >
-                    Add to Cart — ${product.price * quantity}
+                    Add to Cart — ${unitPrice * quantity}
                   </button>
                 </>
               ) : (

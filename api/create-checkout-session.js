@@ -45,6 +45,30 @@ async function resolvePricedProduct({ id, slug }) {
   return p || null;
 }
 
+// Server-trusted unit price for a quantity. Applies volume/bundle pricing from
+// the price_tiers table (the best tier whose min_quantity <= qty wins); falls
+// back to the product's base price. This is what guarantees a displayed tier
+// discount is the price actually charged.
+async function resolveUnitPriceDollars(product, qty) {
+  const base = Number(product.price);
+  try {
+    const { data, error } = await supabaseServer
+      .from("price_tiers")
+      .select("min_quantity, unit_price")
+      .eq("product_id", product.id)
+      .lte("min_quantity", qty)
+      .order("min_quantity", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!error && data && Number.isFinite(Number(data.unit_price))) {
+      return Number(data.unit_price);
+    }
+  } catch {
+    /* no tiers configured — use base price */
+  }
+  return base;
+}
+
 export default async function handler(req, res) {
   return await createHandler(req, res);
 }
@@ -137,13 +161,14 @@ export async function createHandler(req, res) {
           throw new Error(`Out of stock: ${product.name}`);
         }
 
-        // Flat, server-trusted pricing.
-        const unitAmount = Math.round(Number(product.price) * 100);
+        const qty = Math.max(1, Math.min(99, Math.floor(Number(item.quantity))));
+
+        // Server-trusted, tier-aware pricing (volume discounts honored here).
+        const unitDollars = await resolveUnitPriceDollars(product, qty);
+        const unitAmount = Math.round(Number(unitDollars) * 100);
         if (!Number.isFinite(unitAmount) || unitAmount <= 0) {
           throw new Error(`Invalid price for ${product.id}`);
         }
-
-        const qty = Math.max(1, Math.min(99, Math.floor(Number(item.quantity))));
 
         const imgPath = product.image_url || item.image || null;
         const image = imgPath
