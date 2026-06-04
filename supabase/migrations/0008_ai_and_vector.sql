@@ -49,6 +49,24 @@ create index if not exists idx_embeddings_vector
   on public.embeddings using ivfflat (embedding vector_cosine_ops) with (lists = 100);
 create index if not exists idx_embeddings_type on public.embeddings (content_type);
 
+-- Cosine-similarity match function used by api/ai/semantic-search.js. Called
+-- via the service role (bypasses RLS); returns the closest chunks.
+create or replace function public.match_embeddings(
+  query_embedding vector(1024),
+  match_count int default 8
+)
+returns table (content_type text, ref_id text, content text, similarity float)
+language sql
+stable
+as $$
+  select e.content_type, e.ref_id, e.content,
+         1 - (e.embedding <=> query_embedding) as similarity
+  from public.embeddings e
+  where e.embedding is not null
+  order by e.embedding <=> query_embedding
+  limit match_count;
+$$;
+
 -- ── 5. RLS ───────────────────────────────────────────────────────────────
 alter table public.ai_conversations enable row level security;
 alter table public.ai_feedback      enable row level security;
