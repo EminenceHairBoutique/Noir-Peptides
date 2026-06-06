@@ -235,6 +235,37 @@ function renderSeoMeta({
   return lines.join("\n");
 }
 
+// Claim-safe FAQ for the home page (no human-use/efficacy claims).
+const HOME_FAQ = {
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "Are Noir Peptides products for human use?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "No. All products are supplied for laboratory research use only and are not for human or veterinary use.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Are these products drugs or supplements?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "No. They are research reference materials, not drugs, supplements, food, or cosmetics, and are not intended to diagnose, treat, cure, or prevent any condition.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "What is a Certificate of Analysis (COA)?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "A batch-specific document reporting analytical testing — identity and purity (HPLC/MS) — for the material as supplied.",
+      },
+    },
+  ],
+};
+
 async function main() {
   await fs.mkdir(DIST_DIR, { recursive: true });
 
@@ -358,6 +389,11 @@ async function main() {
         description: route.description,
         images: images.map(abs),
       });
+
+    // Attach the FAQPage to the home page graph.
+    if (pathname === "/" && Array.isArray(jsonLd["@graph"])) {
+      jsonLd["@graph"].push(HOME_FAQ);
+    }
 
     const seoBlock = renderSeoMeta({
       pathname,
