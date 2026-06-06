@@ -154,6 +154,27 @@ export function unitPriceForQuantity(basePrice, tiers, qty) {
 }
 
 /**
+ * Fetch published reviews for a product (RLS: attested read). Returns [].
+ * @returns {Promise<Array<{rating,aspect,title,body,verified_purchase,created_at}>>}
+ */
+export async function getReviews(productId) {
+  if (!supabase || !productId) return [];
+  try {
+    const { data, error } = await supabase
+      .from("product_reviews")
+      .select("rating, aspect, title, body, verified_purchase, created_at")
+      .eq("product_id", productId)
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error || !Array.isArray(data)) return [];
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Fetch active research categories (excludes deprecated rows, sort_order >= 900).
  * @returns {Promise<Array>}
  */

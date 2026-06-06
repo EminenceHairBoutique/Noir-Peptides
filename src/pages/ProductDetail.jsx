@@ -16,6 +16,7 @@ import { useCart } from "../context/CartContext";
 import SEO from "../components/SEO";
 import ProductCard from "../components/ProductCard";
 import PeptideSpecsPanel from "../components/PeptideSpecsPanel";
+import ProductReviews from "../components/ProductReviews";
 import COABadge from "../components/COABadge";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import { PRODUCT_IS_NOT, STORAGE_GUIDANCE } from "../config/compliance";
@@ -523,6 +524,8 @@ export default function ProductDetail() {
             </Motion.div>
           </div>
         </div>
+
+        <ProductReviews productId={product.id} />
 
         {related.length > 0 && (
           <section className="section-pad border-t border-se-concrete">
