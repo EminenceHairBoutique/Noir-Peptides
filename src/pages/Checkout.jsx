@@ -16,7 +16,7 @@ const money = (n) =>
 
 const CONSENT_VERSION = "noir-v1.0";
 
-async function buildAndRedirectCheckout({ items, discountCode, redeemPoints, onError }) {
+async function buildAndRedirectCheckout({ items, discountCode, redeemPoints, referralCode, onError }) {
   try {
     const total = items.reduce(
       (s, i) => s + Number(i.price || 0) * Number(i.quantity || 0),
@@ -71,6 +71,7 @@ async function buildAndRedirectCheckout({ items, discountCode, redeemPoints, onE
         brand: "Noir Peptides",
         discountCode: discountCode || undefined,
         redeemPoints: redeemPoints || undefined,
+        referralCode: referralCode || undefined,
       }),
     });
 
@@ -105,6 +106,7 @@ export default function Checkout() {
   const [checkoutError, setCheckoutError] = useState(null);
   const [promoCode, setPromoCode] = useState("");
   const [redeemPoints, setRedeemPoints] = useState(0);
+  const [referralCode, setReferralCode] = useState("");
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -129,6 +131,7 @@ export default function Checkout() {
       items,
       discountCode: promoCode.trim(),
       redeemPoints,
+      referralCode: referralCode.trim(),
       onError,
     });
   }
@@ -242,6 +245,30 @@ export default function Checkout() {
                       </p>
                     </div>
                   )}
+
+                  <div>
+                    <label
+                      htmlFor="referral"
+                      className="text-[10px] font-accent uppercase tracking-[0.2em] text-se-steel block mb-2"
+                    >
+                      Referral code (optional)
+                    </label>
+                    <input
+                      id="referral"
+                      type="text"
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      placeholder="NP-XXXXX"
+                      className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent tracking-[0.12em] placeholder:text-se-steel focus:outline-none focus:border-se-gold transition"
+                    />
+                    <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
+                      You and the researcher who referred you each earn 200 points
+                      after this order.
+                    </p>
+                  </div>
                 </div>
               </StripeProvider>
             )}

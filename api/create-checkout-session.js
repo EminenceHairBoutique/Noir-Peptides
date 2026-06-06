@@ -121,6 +121,7 @@ export async function createHandler(req, res) {
       qualifiedPurchaserConfirmed,
       discountCode,
       redeemPoints,
+      referralCode,
     } = req.body || {};
 
     // Per-checkout acknowledgment (defense in depth on top of the gate).
@@ -289,6 +290,7 @@ export async function createHandler(req, res) {
         discount_amount: promoAmount ? String(promoAmount) : "",
         loyalty_points: loyaltyPoints ? String(loyaltyPoints) : "",
         loyalty_dollars: loyaltyDollars ? String(loyaltyDollars) : "",
+        referral_code: referralCode ? String(referralCode).trim().toUpperCase().slice(0, 32) : "",
       },
     });
 
