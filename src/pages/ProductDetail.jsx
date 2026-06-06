@@ -17,6 +17,7 @@ import SEO from "../components/SEO";
 import ProductCard from "../components/ProductCard";
 import PeptideSpecsPanel from "../components/PeptideSpecsPanel";
 import ProductReviews from "../components/ProductReviews";
+import BackInStockForm from "../components/BackInStockForm";
 import COABadge from "../components/COABadge";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import { PRODUCT_IS_NOT, STORAGE_GUIDANCE } from "../config/compliance";
@@ -417,13 +418,19 @@ export default function ProductDetail() {
                   </div>
                 </>
               ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="w-full py-4 bg-se-asphalt text-se-steel text-[12px] font-accent font-semibold tracking-[0.2em] uppercase cursor-not-allowed mb-4"
-                >
-                  Out of Stock
-                </button>
+                <>
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full py-4 bg-se-asphalt text-se-steel text-[12px] font-accent font-semibold tracking-[0.2em] uppercase cursor-not-allowed mb-4"
+                  >
+                    Out of Stock
+                  </button>
+                  <BackInStockForm
+                    productId={product.id}
+                    variantId={selectedVariant?.id}
+                  />
+                </>
               )}
 
               <DisclaimerBanner compact className="mb-8" />
