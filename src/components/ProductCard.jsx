@@ -1,7 +1,6 @@
 // src/components/ProductCard.jsx — Noir Peptides
 import React from "react";
 import { Link } from "react-router-dom";
-import { useCart } from "../context/CartContext";
 import COABadge from "./COABadge";
 
 const STOCK_LABEL = {
@@ -11,28 +10,9 @@ const STOCK_LABEL = {
 };
 
 const ProductCard = ({ product }) => {
-  const { addToCart, openCart } = useCart();
-
   const img = product.image_url || product.images?.[0] || null;
   const isOut = product.stock_status === "out_of_stock";
   const category = product.category_slug;
-
-  const handleQuickAdd = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isOut) return;
-    addToCart(
-      {
-        id: product.id,
-        slug: product.slug,
-        name: product.name,
-        price: Number(product.price ?? 0),
-        image: img,
-      },
-      { quantity: 1 }
-    );
-    openCart();
-  };
 
   return (
     <Link
@@ -73,16 +53,12 @@ const ProductCard = ({ product }) => {
           {STOCK_LABEL[product.stock_status] || "In Stock"}
         </div>
 
-        {/* Quick add */}
+        {/* Select dosage (navigates to PDP — dosage + bundle chosen there) */}
         {!isOut && (
           <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
-            <button
-              onClick={handleQuickAdd}
-              className="w-full py-3 bg-se-gold text-[#04121b] text-[10px] font-accent font-semibold tracking-[0.2em] uppercase hover:bg-[#38d0ff] transition-colors"
-              type="button"
-            >
-              Add to Cart
-            </button>
+            <div className="w-full py-3 bg-se-gold text-[#04121b] text-[10px] font-accent font-semibold tracking-[0.2em] uppercase text-center">
+              Select Dosage
+            </div>
           </div>
         )}
       </div>
@@ -98,16 +74,14 @@ const ProductCard = ({ product }) => {
         </h3>
 
         <p className="text-[11px] text-se-steel font-accent mb-3 line-clamp-1">
-          {product.form} · {product.vial_size_mg} mg vial
+          {product.form || "Lyophilized powder"}
         </p>
 
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2">
-            {product.compare_at_price && (
-              <span className="text-[12px] text-se-steel line-through font-accent">
-                ${product.compare_at_price}
-              </span>
-            )}
+            <span className="text-[11px] font-accent text-se-steel uppercase tracking-[0.12em]">
+              from
+            </span>
             <span className="text-[15px] font-accent font-semibold text-se-bone">
               ${product.price}
             </span>

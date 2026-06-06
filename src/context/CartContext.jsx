@@ -9,10 +9,11 @@ import React, {
   useEffect,
 } from "react";
 import { resolveProductImages } from "../utils/productMedia";
+import { unitPriceForQuantity } from "../lib/catalog";
 
 const CartContext = createContext(null);
 
-const STORAGE_KEY = "se_cart";
+const STORAGE_KEY = "np_cart";
 
 export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState(() => {
@@ -36,34 +37,39 @@ export function CartProvider({ children }) {
   const addToCart = (product, options = {}) => {
     if (!product?.id) return;
 
-    const size = options.size ?? product.size ?? null;
-    const colorway = options.colorway ?? product.colorway ?? null;
     const quantity = Number(options.quantity ?? 1) || 1;
 
-    const price = Number(
-      options.price ?? product.price ?? 0
-    );
+    // Variant + bundle-tier identity (the server re-prices from these).
+    const variantId = options.variantId ?? product.variantId ?? null;
+    const sku = options.sku ?? product.sku ?? null;
+    const sizeLabel = options.sizeLabel ?? product.sizeLabel ?? null;
+    const tiers = options.tiers ?? product.tiers ?? [];
+    const basePrice = Number(options.basePrice ?? options.price ?? product.price ?? 0);
+
+    // Unit price reflects the bundle tier for the chosen quantity (matches the
+    // server's authoritative price).
+    const price = unitPriceForQuantity(basePrice, tiers, quantity);
 
     const images = resolveProductImages(product);
     const image =
-      options.image ||
-      product.image ||
-      images?.[0] ||
-      product.images?.[0] ||
-      null;
+      options.image || product.image || images?.[0] || product.images?.[0] || null;
 
     const isPreorder = Boolean(options.isPreorder ?? product.isPreorder ?? false);
     const leadTimeDays = Number(options.leadTimeDays ?? product.leadTimeDays ?? 0);
 
-    const cartKey = `${product.id}::${size || ""}::${colorway || ""}`;
+    // One cart line per variant (each dosage is distinct).
+    const cartKey = variantId ? `v:${variantId}` : `${product.id}`;
 
     const normalized = {
       id: product.id,
       slug: product.slug,
       name: product.displayName || product.name,
       image,
-      size,
-      colorway,
+      variantId,
+      sku,
+      sizeLabel,
+      tiers,
+      basePrice,
       price,
       quantity,
       isPreorder,
@@ -76,7 +82,12 @@ export function CartProvider({ children }) {
       const idx = prev.findIndex((p) => p.cartKey === normalized.cartKey);
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], quantity: copy[idx].quantity + normalized.quantity };
+        const q = copy[idx].quantity + normalized.quantity;
+        copy[idx] = {
+          ...copy[idx],
+          quantity: q,
+          price: unitPriceForQuantity(copy[idx].basePrice, copy[idx].tiers, q),
+        };
         return copy;
       }
       return [...prev, normalized];
@@ -95,7 +106,9 @@ export function CartProvider({ children }) {
       prev.map((p) => {
         if (p.id !== id) return p;
         if (variant && p.variant !== variant) return p;
-        return { ...p, quantity: nextQty };
+        // Re-apply the bundle tier for the new quantity.
+        const price = unitPriceForQuantity(p.basePrice ?? p.price, p.tiers, nextQty);
+        return { ...p, quantity: nextQty, price };
       })
     );
   };

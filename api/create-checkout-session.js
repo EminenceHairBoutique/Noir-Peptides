@@ -1,9 +1,10 @@
 import Stripe from "stripe";
-import { products as staticProducts } from "../src/data/products.js";
 import { supabaseServer } from "../lib/supabaseServer.js";
 import { requireUser } from "./_utils/auth.js";
 import { checkRateLimit } from "./_utils/rateLimit.js";
 import { ATTESTATION_VERSION } from "../lib/attestationStatements.js";
+import { validateDiscount } from "../lib/discounts.js";
+import { validateLoyaltyRedemption } from "../lib/rewards.js";
 
 // Pin the Stripe API version so behavior is stable across SDK upgrades.
 const STRIPE_API_VERSION = "2024-06-20";
@@ -20,53 +21,44 @@ function getStripe() {
   return _stripe;
 }
 
-// ── Server-trusted price source ──────────────────────────────────────────
-// Prices are resolved server-side and NEVER read from the client body. We
-// prefer the RLS-gated Supabase `products` table (authoritative); if a row is
-// not found (e.g. local dev without a seeded DB) we fall back to the static
-// catalog, which is imported ONLY here on the server and is therefore never
-// shipped in the client bundle.
-async function resolvePricedProduct({ id, slug }) {
-  // 1) Authoritative: Supabase products (service role bypasses RLS).
+// ── Single server-trusted pricing path (variant + bundle tier) ────────────
+// Identity + price are resolved from the RLS-gated Supabase tables via the
+// service role — NEVER from the client body. The cart sends only stable
+// identifiers (variantId / sku, quantity); the server re-prices.
+async function resolveVariant({ variantId, sku }) {
   try {
     let query = supabaseServer
-      .from("products")
-      .select("id, slug, name, price, stock_status, batch_number, cas_number, image_url")
+      .from("product_variants")
+      .select(
+        "id, product_id, sku, price, stock_status, vial_size_mg, size_label, " +
+          "products ( name, image_url, batch_number, cas_number, is_bundle )"
+      )
       .limit(1);
-    query = id ? query.eq("id", id) : query.eq("slug", slug);
+    query = variantId ? query.eq("id", variantId) : query.eq("sku", sku);
     const { data, error } = await query.maybeSingle();
-    if (!error && data) return data;
+    if (error || !data) return null;
+    return data;
   } catch {
-    /* fall through to static */
+    return null;
   }
-
-  // 2) Fallback: static server-side catalog.
-  const p = staticProducts.find((x) => x.id === id || x.slug === slug);
-  return p || null;
 }
 
-// Server-trusted unit price for a quantity. Applies volume/bundle pricing from
-// the price_tiers table (the best tier whose min_quantity <= qty wins); falls
-// back to the product's base price. This is what guarantees a displayed tier
-// discount is the price actually charged.
-async function resolveUnitPriceDollars(product, qty) {
-  const base = Number(product.price);
+// Best bundle tier whose min_quantity <= qty; null if none (caller uses base).
+async function resolveVariantUnitPrice(variantId, qty) {
   try {
-    const { data, error } = await supabaseServer
+    const { data } = await supabaseServer
       .from("price_tiers")
-      .select("min_quantity, unit_price")
-      .eq("product_id", product.id)
+      .select("unit_price")
+      .eq("variant_id", variantId)
       .lte("min_quantity", qty)
       .order("min_quantity", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!error && data && Number.isFinite(Number(data.unit_price))) {
-      return Number(data.unit_price);
-    }
+    if (data && Number.isFinite(Number(data.unit_price))) return Number(data.unit_price);
   } catch {
-    /* no tiers configured — use base price */
+    /* no tiers — caller falls back to base */
   }
-  return base;
+  return null;
 }
 
 export default async function handler(req, res) {
@@ -123,8 +115,14 @@ export async function createHandler(req, res) {
   }
 
   try {
-    const { items, researchUseAcknowledged, qualifiedPurchaserConfirmed } =
-      req.body || {};
+    const {
+      items,
+      researchUseAcknowledged,
+      qualifiedPurchaserConfirmed,
+      discountCode,
+      redeemPoints,
+      referralCode,
+    } = req.body || {};
 
     // Per-checkout acknowledgment (defense in depth on top of the gate).
     if (!researchUseAcknowledged) {
@@ -144,32 +142,42 @@ export async function createHandler(req, res) {
       req.headers.origin ||
       `https://${req.headers["x-forwarded-host"] || req.headers.host}`;
 
+    // Eligible subtotal for promo codes that exclude bundles, and the full
+    // subtotal (loyalty applies to the whole order). Both server-trusted.
+    let eligibleSubtotal = 0;
+    let fullSubtotal = 0;
+
     const line_items = await Promise.all(
       items.map(async (item) => {
-        if ((!item?.id && !item?.slug) || !item.quantity) {
-          throw new Error("Missing item fields");
+        if ((!item?.variantId && !item?.sku) || !item.quantity) {
+          throw new Error("Missing item fields (variantId/sku + quantity)");
         }
 
-        const product = await resolvePricedProduct({
-          id: item.id,
-          slug: item.slug,
+        const variant = await resolveVariant({
+          variantId: item.variantId,
+          sku: item.sku,
         });
-        if (!product) {
-          throw new Error(`Unknown product: ${item.id || item.slug}`);
+        if (!variant) {
+          throw new Error(`Unknown variant: ${item.variantId || item.sku}`);
         }
-        if (product.stock_status === "out_of_stock") {
-          throw new Error(`Out of stock: ${product.name}`);
+        if (variant.stock_status === "out_of_stock") {
+          throw new Error(`Out of stock: ${variant.products?.name || variant.id}`);
         }
 
         const qty = Math.max(1, Math.min(99, Math.floor(Number(item.quantity))));
 
-        // Server-trusted, tier-aware pricing (volume discounts honored here).
-        const unitDollars = await resolveUnitPriceDollars(product, qty);
+        // Server-trusted, tier-aware pricing for THIS variant (volume discounts
+        // honored here — what's charged equals the displayed bundle price).
+        const tierPrice = await resolveVariantUnitPrice(variant.id, qty);
+        const unitDollars = tierPrice ?? Number(variant.price);
         const unitAmount = Math.round(Number(unitDollars) * 100);
         if (!Number.isFinite(unitAmount) || unitAmount <= 0) {
-          throw new Error(`Invalid price for ${product.id}`);
+          throw new Error(`Invalid price for ${variant.id}`);
         }
 
+        const product = variant.products || {};
+        fullSubtotal += unitDollars * qty;
+        if (!product.is_bundle) eligibleSubtotal += unitDollars * qty;
         const imgPath = product.image_url || item.image || null;
         const image = imgPath
           ? String(imgPath).startsWith("http")
@@ -177,15 +185,17 @@ export async function createHandler(req, res) {
             : `${origin}${imgPath}`
           : null;
 
+        const dose = variant.size_label || `${variant.vial_size_mg} mg`;
         return {
           price_data: {
             currency: "usd",
             product_data: {
-              name: `${product.name} — Research Use Only`,
+              name: `${product.name || "Research material"} ${dose} — Research Use Only`,
               description:
                 "Lyophilized research reference material. Not for human or veterinary use.",
               images: image ? [image] : [],
               metadata: {
+                sku: variant.sku || "",
                 batch_number: product.batch_number || "",
                 cas_number: product.cas_number || "",
                 research_use_only: "true",
@@ -197,6 +207,42 @@ export async function createHandler(req, res) {
         };
       })
     );
+
+    // ── Server-validated promo code + loyalty redemption → ONE Stripe coupon ──
+    // Promo amount is computed off the eligible (non-bundle) subtotal; loyalty
+    // applies to the full subtotal. All amounts are derived server-side.
+    let appliedDiscount = null;
+    let promoCode = "";
+    let promoAmount = 0;
+    let loyaltyPoints = 0;
+    let loyaltyDollars = 0;
+
+    if (discountCode) {
+      const v = await validateDiscount({ code: discountCode, userId, eligibleSubtotal });
+      if (!v.ok) return res.status(400).json({ error: v.error });
+      promoCode = v.code;
+      promoAmount = Math.min(v.amount, eligibleSubtotal);
+    }
+
+    if (redeemPoints) {
+      const maxDollars = Math.max(0, fullSubtotal - promoAmount);
+      const r = await validateLoyaltyRedemption({ userId, points: redeemPoints, maxDollars });
+      if (!r.ok) return res.status(400).json({ error: r.error });
+      loyaltyPoints = r.points;
+      loyaltyDollars = r.dollars;
+    }
+
+    const couponDollars = Math.min(promoAmount + loyaltyDollars, fullSubtotal);
+    const couponCents = Math.round(couponDollars * 100);
+    if (couponCents > 0) {
+      const coupon = await stripe.coupons.create({
+        amount_off: couponCents,
+        currency: "usd",
+        duration: "once",
+        name: promoCode ? `${promoCode} + rewards` : "Research rewards",
+      });
+      appliedDiscount = { couponId: coupon.id, amount: couponDollars };
+    }
 
     // ── US-only shipping ────────────────────────────────────────────────────
     // Restrict the address Stripe collects to the US, and attach a shipping
@@ -221,7 +267,10 @@ export async function createHandler(req, res) {
       mode: "payment",
       success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/cancel`,
-      allow_promotion_codes: true,
+      // A server-applied coupon and allow_promotion_codes are mutually exclusive.
+      ...(appliedDiscount
+        ? { discounts: [{ coupon: appliedDiscount.couponId }] }
+        : { allow_promotion_codes: true }),
       client_reference_id: String(userId),
       customer_email: customerEmail ? String(customerEmail) : undefined,
       shipping_address_collection: { allowed_countries: ["US"] },
@@ -237,6 +286,11 @@ export async function createHandler(req, res) {
         attestation_version: ATTESTATION_VERSION,
         user_id: String(userId),
         customer_email: customerEmail ? String(customerEmail) : "",
+        discount_code: promoCode || "",
+        discount_amount: promoAmount ? String(promoAmount) : "",
+        loyalty_points: loyaltyPoints ? String(loyaltyPoints) : "",
+        loyalty_dollars: loyaltyDollars ? String(loyaltyDollars) : "",
+        referral_code: referralCode ? String(referralCode).trim().toUpperCase().slice(0, 32) : "",
       },
     });
 

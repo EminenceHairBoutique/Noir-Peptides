@@ -139,6 +139,43 @@ function renderJsonLd({ url, title, description, images, product }) {
   return { "@context": "https://schema.org", "@graph": graph };
 }
 
+// Article + BreadcrumbList graph for the public research/education pages (the
+// GEO/AI-search surface). Never Drug/MedicalEntity schema.
+function renderArticleJsonLd({ url, title, description }) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: `${SITE_URL}/`,
+        logo: DEFAULT_OG_IMAGE,
+      },
+      {
+        "@type": "Article",
+        "@id": `${url}#article`,
+        headline: title,
+        description,
+        url,
+        image: DEFAULT_OG_IMAGE,
+        author: { "@id": `${SITE_URL}/#organization` },
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        inLanguage: "en-US",
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+          { "@type": "ListItem", position: 2, name: "Research", item: `${SITE_URL}/research` },
+          { "@type": "ListItem", position: 3, name: title, item: url },
+        ],
+      },
+    ],
+  };
+}
+
 function renderSeoMeta({
   pathname,
   title,
@@ -278,11 +315,28 @@ async function main() {
       description:
         "Educational articles on certificates of analysis, HPLC purity, and how peptide reference materials are studied in the laboratory. For research use only.",
     },
+    {
+      pathname: "/calculator",
+      title: "Reconstitution Concentration Calculator",
+      description:
+        "A pure mass-per-volume (mg ÷ mL) laboratory aliquoting reference for research reference material. For research use only.",
+    },
+    {
+      pathname: "/deals",
+      title: "Deals & Bundle Pricing",
+      description:
+        "Current promo codes and volume bundle pricing for research reference materials. For research use only. Not for human or veterinary use.",
+    },
     ...researchArticles.map((a) => ({
       pathname: `/research/${a.slug}`,
       title: a.title,
       description: a.summary,
       ogType: "article",
+      jsonLd: renderArticleJsonLd({
+        url: ensureSiteUrl(`/research/${a.slug}`),
+        title: a.title,
+        description: a.summary,
+      }),
     })),
   ];
 
@@ -332,6 +386,8 @@ async function main() {
     "Allow: /$",
     "Allow: /legal/",
     "Allow: /research",
+    "Allow: /calculator",
+    "Allow: /deals",
     "",
     "Disallow: /api/",
     "Disallow: /home",

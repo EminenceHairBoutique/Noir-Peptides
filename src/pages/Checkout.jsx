@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { useUser } from "../context/UserContext";
 import { supabase } from "../lib/supabaseClient";
 import StripeProvider from "../components/StripeProvider";
 import SEO from "../components/SEO";
@@ -15,7 +16,7 @@ const money = (n) =>
 
 const CONSENT_VERSION = "noir-v1.0";
 
-async function buildAndRedirectCheckout({ items, onError }) {
+async function buildAndRedirectCheckout({ items, discountCode, redeemPoints, referralCode, onError }) {
   try {
     const total = items.reduce(
       (s, i) => s + Number(i.price || 0) * Number(i.quantity || 0),
@@ -56,9 +57,10 @@ async function buildAndRedirectCheckout({ items, onError }) {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
+        // Server re-prices from these stable identifiers; client price is never trusted.
         items: items.map((i) => ({
-          id: i.id,
-          slug: i.slug,
+          variantId: i.variantId,
+          sku: i.sku,
           name: i.name,
           image: i.image,
           quantity: Number(i.quantity) || 1,
@@ -67,12 +69,21 @@ async function buildAndRedirectCheckout({ items, onError }) {
         researchUseAcknowledged: true,
         qualifiedPurchaserConfirmed: true,
         brand: "Noir Peptides",
+        discountCode: discountCode || undefined,
+        redeemPoints: redeemPoints || undefined,
+        referralCode: referralCode || undefined,
       }),
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(errText || "Checkout API error");
+      let msg = "Checkout API error";
+      try {
+        const j = await res.json();
+        msg = j?.error || msg;
+      } catch {
+        /* non-JSON */
+      }
+      throw new Error(msg);
     }
 
     const data = await res.json();
@@ -86,11 +97,16 @@ async function buildAndRedirectCheckout({ items, onError }) {
 
 export default function Checkout() {
   const { items = [], total = 0 } = useCart();
+  const { user } = useUser();
+  const pointsBalance = Number(user?.loyaltyPoints || 0);
 
   const [pageLoading, setPageLoading] = useState(true);
   const [acknowledged, setAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [redeemPoints, setRedeemPoints] = useState(0);
+  const [referralCode, setReferralCode] = useState("");
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -111,7 +127,13 @@ export default function Checkout() {
     if (!items.length || !acknowledged) return;
     setCheckoutError(null);
     setSubmitting(true);
-    await buildAndRedirectCheckout({ items, onError });
+    await buildAndRedirectCheckout({
+      items,
+      discountCode: promoCode.trim(),
+      redeemPoints,
+      referralCode: referralCode.trim(),
+      onError,
+    });
   }
 
   const canCheckout = items.length > 0 && acknowledged && !submitting;
@@ -169,6 +191,84 @@ export default function Checkout() {
                     checked={acknowledged}
                     onChange={setAcknowledged}
                   />
+
+                  <div>
+                    <label
+                      htmlFor="promo"
+                      className="text-[10px] font-accent uppercase tracking-[0.2em] text-se-steel block mb-2"
+                    >
+                      Promo code (optional)
+                    </label>
+                    <input
+                      id="promo"
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      placeholder="WELCOME10"
+                      className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent tracking-[0.12em] placeholder:text-se-steel focus:outline-none focus:border-se-gold transition"
+                    />
+                    <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
+                      Applied and validated at payment. Bundles &amp; kits are
+                      excluded.
+                    </p>
+                  </div>
+
+                  {pointsBalance >= 100 && (
+                    <div>
+                      <label
+                        htmlFor="redeem"
+                        className="text-[10px] font-accent uppercase tracking-[0.2em] text-se-steel block mb-2"
+                      >
+                        Redeem rewards · {pointsBalance.toLocaleString()} pts available
+                      </label>
+                      <select
+                        id="redeem"
+                        value={redeemPoints}
+                        onChange={(e) => setRedeemPoints(Number(e.target.value))}
+                        className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent focus:outline-none focus:border-se-gold transition"
+                      >
+                        <option value={0}>Don&apos;t redeem points</option>
+                        {Array.from(
+                          { length: Math.floor(pointsBalance / 100) },
+                          (_, i) => (i + 1) * 100
+                        ).map((p) => (
+                          <option key={p} value={p}>
+                            {p.toLocaleString()} pts — ${((p / 100) * 5).toLocaleString()} off
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
+                        100 pts = $5. Validated against your balance at payment.
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label
+                      htmlFor="referral"
+                      className="text-[10px] font-accent uppercase tracking-[0.2em] text-se-steel block mb-2"
+                    >
+                      Referral code (optional)
+                    </label>
+                    <input
+                      id="referral"
+                      type="text"
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      placeholder="NP-XXXXX"
+                      className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent tracking-[0.12em] placeholder:text-se-steel focus:outline-none focus:border-se-gold transition"
+                    />
+                    <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
+                      You and the researcher who referred you each earn 200 points
+                      after this order.
+                    </p>
+                  </div>
                 </div>
               </StripeProvider>
             )}
