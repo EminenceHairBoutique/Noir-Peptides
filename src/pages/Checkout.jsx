@@ -15,7 +15,7 @@ const money = (n) =>
 
 const CONSENT_VERSION = "noir-v1.0";
 
-async function buildAndRedirectCheckout({ items, onError }) {
+async function buildAndRedirectCheckout({ items, discountCode, onError }) {
   try {
     const total = items.reduce(
       (s, i) => s + Number(i.price || 0) * Number(i.quantity || 0),
@@ -68,12 +68,19 @@ async function buildAndRedirectCheckout({ items, onError }) {
         researchUseAcknowledged: true,
         qualifiedPurchaserConfirmed: true,
         brand: "Noir Peptides",
+        discountCode: discountCode || undefined,
       }),
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(errText || "Checkout API error");
+      let msg = "Checkout API error";
+      try {
+        const j = await res.json();
+        msg = j?.error || msg;
+      } catch {
+        /* non-JSON */
+      }
+      throw new Error(msg);
     }
 
     const data = await res.json();
@@ -92,6 +99,7 @@ export default function Checkout() {
   const [acknowledged, setAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
+  const [promoCode, setPromoCode] = useState("");
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -112,7 +120,7 @@ export default function Checkout() {
     if (!items.length || !acknowledged) return;
     setCheckoutError(null);
     setSubmitting(true);
-    await buildAndRedirectCheckout({ items, onError });
+    await buildAndRedirectCheckout({ items, discountCode: promoCode.trim(), onError });
   }
 
   const canCheckout = items.length > 0 && acknowledged && !submitting;
@@ -170,6 +178,30 @@ export default function Checkout() {
                     checked={acknowledged}
                     onChange={setAcknowledged}
                   />
+
+                  <div>
+                    <label
+                      htmlFor="promo"
+                      className="text-[10px] font-accent uppercase tracking-[0.2em] text-se-steel block mb-2"
+                    >
+                      Promo code (optional)
+                    </label>
+                    <input
+                      id="promo"
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      placeholder="WELCOME10"
+                      className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent tracking-[0.12em] placeholder:text-se-steel focus:outline-none focus:border-se-gold transition"
+                    />
+                    <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
+                      Applied and validated at payment. Bundles &amp; kits are
+                      excluded.
+                    </p>
+                  </div>
                 </div>
               </StripeProvider>
             )}

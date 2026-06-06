@@ -3,6 +3,7 @@ import { supabaseServer } from "../lib/supabaseServer.js";
 import { requireUser } from "./_utils/auth.js";
 import { checkRateLimit } from "./_utils/rateLimit.js";
 import { ATTESTATION_VERSION } from "../lib/attestationStatements.js";
+import { validateDiscount } from "../lib/discounts.js";
 
 // Pin the Stripe API version so behavior is stable across SDK upgrades.
 const STRIPE_API_VERSION = "2024-06-20";
@@ -29,7 +30,7 @@ async function resolveVariant({ variantId, sku }) {
       .from("product_variants")
       .select(
         "id, product_id, sku, price, stock_status, vial_size_mg, size_label, " +
-          "products ( name, image_url, batch_number, cas_number )"
+          "products ( name, image_url, batch_number, cas_number, is_bundle )"
       )
       .limit(1);
     query = variantId ? query.eq("id", variantId) : query.eq("sku", sku);
@@ -113,8 +114,12 @@ export async function createHandler(req, res) {
   }
 
   try {
-    const { items, researchUseAcknowledged, qualifiedPurchaserConfirmed } =
-      req.body || {};
+    const {
+      items,
+      researchUseAcknowledged,
+      qualifiedPurchaserConfirmed,
+      discountCode,
+    } = req.body || {};
 
     // Per-checkout acknowledgment (defense in depth on top of the gate).
     if (!researchUseAcknowledged) {
@@ -133,6 +138,10 @@ export async function createHandler(req, res) {
     const origin =
       req.headers.origin ||
       `https://${req.headers["x-forwarded-host"] || req.headers.host}`;
+
+    // Eligible subtotal for promo codes that exclude bundles (computed from the
+    // server-trusted prices, never the client).
+    let eligibleSubtotal = 0;
 
     const line_items = await Promise.all(
       items.map(async (item) => {
@@ -163,6 +172,7 @@ export async function createHandler(req, res) {
         }
 
         const product = variant.products || {};
+        if (!product.is_bundle) eligibleSubtotal += unitDollars * qty;
         const imgPath = product.image_url || item.image || null;
         const image = imgPath
           ? String(imgPath).startsWith("http")
@@ -193,6 +203,28 @@ export async function createHandler(req, res) {
       })
     );
 
+    // ── Server-validated promo code → ephemeral Stripe coupon ────────────────
+    // All seeded codes exclude bundles, so the coupon is computed off the
+    // eligible (non-bundle) subtotal. The amount is derived server-side.
+    let appliedDiscount = null;
+    if (discountCode) {
+      const v = await validateDiscount({ code: discountCode, userId, eligibleSubtotal });
+      if (!v.ok) return res.status(400).json({ error: v.error });
+      const couponCents = Math.min(
+        Math.round(v.amount * 100),
+        Math.round(eligibleSubtotal * 100)
+      );
+      if (couponCents > 0) {
+        const coupon = await stripe.coupons.create({
+          amount_off: couponCents,
+          currency: "usd",
+          duration: "once",
+          name: `${v.code} — research SKUs`,
+        });
+        appliedDiscount = { code: v.code, amount: couponCents / 100, couponId: coupon.id };
+      }
+    }
+
     // ── US-only shipping ────────────────────────────────────────────────────
     // Restrict the address Stripe collects to the US, and attach a shipping
     // rate (a pre-created rate id when available, else an inline flat rate).
@@ -216,7 +248,10 @@ export async function createHandler(req, res) {
       mode: "payment",
       success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/cancel`,
-      allow_promotion_codes: true,
+      // A server-applied coupon and allow_promotion_codes are mutually exclusive.
+      ...(appliedDiscount
+        ? { discounts: [{ coupon: appliedDiscount.couponId }] }
+        : { allow_promotion_codes: true }),
       client_reference_id: String(userId),
       customer_email: customerEmail ? String(customerEmail) : undefined,
       shipping_address_collection: { allowed_countries: ["US"] },
@@ -232,6 +267,8 @@ export async function createHandler(req, res) {
         attestation_version: ATTESTATION_VERSION,
         user_id: String(userId),
         customer_email: customerEmail ? String(customerEmail) : "",
+        discount_code: appliedDiscount?.code || "",
+        discount_amount: appliedDiscount ? String(appliedDiscount.amount) : "",
       },
     });
 

@@ -30,6 +30,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 // ── Public education (indexable, non-commerce) ──
 const Research = lazy(() => import("./pages/Research"));
 const ResearchArticle = lazy(() => import("./pages/ResearchArticle"));
+const Calculator = lazy(() => import("./pages/Calculator"));
 
 // ── Public legal docs ──
 const Terms = lazy(() => import("./pages/Terms"));
@@ -112,6 +113,7 @@ export default function App() {
               {/* ── PUBLIC EDUCATION (indexable, non-commerce) ── */}
               <Route path="/research" element={<Page><Research /></Page>} />
               <Route path="/research/:slug" element={<Page><ResearchArticle /></Page>} />
+              <Route path="/calculator" element={<Page><Calculator /></Page>} />
 
               {/* ── PUBLIC LEGAL ── */}
               <Route path="/legal/terms" element={<Page><Terms /></Page>} />

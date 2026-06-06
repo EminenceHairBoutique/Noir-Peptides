@@ -278,6 +278,12 @@ async function main() {
       description:
         "Educational articles on certificates of analysis, HPLC purity, and how peptide reference materials are studied in the laboratory. For research use only.",
     },
+    {
+      pathname: "/calculator",
+      title: "Reconstitution Concentration Calculator",
+      description:
+        "A pure mass-per-volume (mg ÷ mL) laboratory aliquoting reference for research reference material. For research use only.",
+    },
     ...researchArticles.map((a) => ({
       pathname: `/research/${a.slug}`,
       title: a.title,
@@ -332,6 +338,7 @@ async function main() {
     "Allow: /$",
     "Allow: /legal/",
     "Allow: /research",
+    "Allow: /calculator",
     "",
     "Disallow: /api/",
     "Disallow: /home",

@@ -1,0 +1,33 @@
+# Noir Peptides
+
+> Noir Peptides supplies batch-documented peptide reference materials for
+> laboratory research use only. All products are sold strictly for in-vitro
+> research by qualified purchasers and are NOT for human or veterinary use, and
+> are not drugs, supplements, or medical products. Access to the product catalog
+> requires an account and a research-use attestation.
+
+## Public, indexable content
+
+- [Home](https://www.noirpeptides.com/): brand overview (research-use only).
+- [Research & Education](https://www.noirpeptides.com/research): claim-safe
+  educational articles on certificates of analysis, HPLC purity, and how
+  peptide reference materials are studied in the laboratory.
+- [Concentration Calculator](https://www.noirpeptides.com/calculator): a pure
+  mass-per-volume (mg ÷ mL) laboratory aliquoting reference — no dosing.
+- [Research-Use Policy](https://www.noirpeptides.com/legal/research-use-policy)
+- [FDA Disclaimer](https://www.noirpeptides.com/legal/fda-disclaimer)
+- [Terms](https://www.noirpeptides.com/legal/terms) ·
+  [Privacy](https://www.noirpeptides.com/legal/privacy) ·
+  [Shipping & Refunds](https://www.noirpeptides.com/legal/shipping)
+
+## Not available to crawlers
+
+The product catalog, certificates of analysis, account, cart, checkout, and AI
+research tools are behind an authentication + attestation wall and are
+intentionally excluded from indexing (see /robots.txt).
+
+## Compliance
+
+Educational content is descriptive and claim-safe: it never makes human-use,
+dosing, therapeutic, or disease-treatment claims, and never implies FDA
+approval. Materials are for research use only.

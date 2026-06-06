@@ -3,6 +3,7 @@ import { supabaseServer } from "../lib/supabaseServer.js";
 import { generateOrderNumber } from "../lib/orderNumber.js";
 import { sendOrderConfirmationEmail } from "../lib/email.js";
 import { LOYALTY, pointsForPurchaseCents } from "../src/utils/loyalty.js";
+import { recordRedemption } from "../lib/discounts.js";
 
 export const config = {
   api: {
@@ -221,6 +222,16 @@ export default async function handler(req, res) {
         }
 
         console.log("✅ Order saved:", orderNumber);
+
+        // Record a promo-code redemption (only counts paid orders).
+        if (session.metadata?.discount_code) {
+          await recordRedemption({
+            code: session.metadata.discount_code,
+            userId,
+            orderNumber,
+            amount: session.metadata.discount_amount,
+          });
+        }
 
         // Loyalty award (safe: never blocks webhook)
         await awardLoyalty({
