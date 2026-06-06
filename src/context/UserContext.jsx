@@ -48,7 +48,7 @@ const generateReferralCode = (idOrEmail = "") => {
   const base =
     idOrEmail.replace(/[^A-Za-z0-9]/g, "").slice(-5).toUpperCase() ||
     Date.now().toString().slice(-5);
-  return `SE-${base}`;
+  return `NP-${base}`;
 };
 
 const hydrateUser = (raw) => {
@@ -156,11 +156,25 @@ export const UserProvider = ({ children }) => {
     })();
 
     if (!supabase) return () => {};
-    const res = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const res = supabase.auth.onAuthStateChange((_event, session) => {
       const supaUser = session?.user;
       if (!mounted) return;
-      if (supaUser) {
+      if (!supaUser) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      // CRITICAL: never `await` a Supabase call directly inside this callback.
+      // The auth client holds an internal lock while the callback runs, so a
+      // nested query (fetchAccountAccess -> supabase.from) deadlocks and never
+      // resolves — the symptom is login getting stuck on "Signing in…".
+      // Defer the profile fetch to a fresh macrotask so the lock is released
+      // first. Keep loading=true until access is known so the attestation
+      // redirect uses the real value (no false bounce to /register/attestation).
+      setTimeout(async () => {
+        if (!mounted) return;
         const access = await fetchAccountAccess(supaUser.id);
+        if (!mounted) return;
         setUser(
           hydrateUser({
             id: supaUser.id,
@@ -169,10 +183,8 @@ export const UserProvider = ({ children }) => {
             ...access,
           })
         );
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
+        setLoading(false);
+      }, 0);
     });
 
     // handle different return shapes across supabase clients
