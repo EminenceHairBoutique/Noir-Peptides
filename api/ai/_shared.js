@@ -17,9 +17,10 @@ import { requireUser } from "../_utils/auth.js";
 import { checkRateLimit } from "../_utils/rateLimit.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
 
-// Default to the most capable model. Operators may override with a cheaper
-// model (e.g. claude-haiku-4-5) via env — a business cost decision, not ours.
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-4-8";
+// Centralized model selection. Default is claude-sonnet-4-6 (best balance of
+// quality, latency, and cost for these research/COA/concierge endpoints).
+// Override with ANTHROPIC_MODEL to change it in one place.
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
 let _client = null;
 function getClient() {
