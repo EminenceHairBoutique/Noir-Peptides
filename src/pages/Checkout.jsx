@@ -16,7 +16,14 @@ const money = (n) =>
 
 const CONSENT_VERSION = "noir-v1.0";
 
-async function buildAndRedirectCheckout({ items, discountCode, redeemPoints, referralCode, onError }) {
+async function buildAndRedirectCheckout({
+  items,
+  discountCode,
+  redeemPoints,
+  referralCode,
+  endpoint = "/api/create-checkout-session",
+  onError,
+}) {
   try {
     const total = items.reduce(
       (s, i) => s + Number(i.price || 0) * Number(i.quantity || 0),
@@ -50,7 +57,7 @@ async function buildAndRedirectCheckout({ items, discountCode, redeemPoints, ref
       throw new Error("Please sign in again to continue to payment.");
     }
 
-    const res = await fetch("/api/create-checkout-session", {
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -132,6 +139,20 @@ export default function Checkout() {
       discountCode: promoCode.trim(),
       redeemPoints,
       referralCode: referralCode.trim(),
+      onError,
+    });
+  }
+
+  async function handleCrypto() {
+    if (!items.length || !acknowledged) return;
+    setCheckoutError(null);
+    setSubmitting(true);
+    await buildAndRedirectCheckout({
+      items,
+      discountCode: promoCode.trim(),
+      redeemPoints,
+      referralCode: referralCode.trim(),
+      endpoint: "/api/btcpay/create-invoice",
       onError,
     });
   }
@@ -374,6 +395,17 @@ export default function Checkout() {
                 type="button"
               >
                 {submitting ? "Redirecting…" : "Continue to Payment"}
+              </button>
+
+              <button
+                disabled={!canCheckout}
+                onClick={handleCrypto}
+                className={`mt-3 w-full ${
+                  !canCheckout ? "btn-outline opacity-50 cursor-not-allowed" : "btn-outline"
+                }`}
+                type="button"
+              >
+                Pay with crypto — save 5%
               </button>
 
               {!acknowledged && items.length > 0 && (
