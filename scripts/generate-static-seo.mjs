@@ -284,6 +284,12 @@ async function main() {
       description:
         "A pure mass-per-volume (mg ÷ mL) laboratory aliquoting reference for research reference material. For research use only.",
     },
+    {
+      pathname: "/deals",
+      title: "Deals & Bundle Pricing",
+      description:
+        "Current promo codes and volume bundle pricing for research reference materials. For research use only. Not for human or veterinary use.",
+    },
     ...researchArticles.map((a) => ({
       pathname: `/research/${a.slug}`,
       title: a.title,
@@ -339,6 +345,7 @@ async function main() {
     "Allow: /legal/",
     "Allow: /research",
     "Allow: /calculator",
+    "Allow: /deals",
     "",
     "Disallow: /api/",
     "Disallow: /home",

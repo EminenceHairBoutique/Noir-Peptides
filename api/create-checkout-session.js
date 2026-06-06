@@ -4,6 +4,7 @@ import { requireUser } from "./_utils/auth.js";
 import { checkRateLimit } from "./_utils/rateLimit.js";
 import { ATTESTATION_VERSION } from "../lib/attestationStatements.js";
 import { validateDiscount } from "../lib/discounts.js";
+import { validateLoyaltyRedemption } from "../lib/rewards.js";
 
 // Pin the Stripe API version so behavior is stable across SDK upgrades.
 const STRIPE_API_VERSION = "2024-06-20";
@@ -119,6 +120,7 @@ export async function createHandler(req, res) {
       researchUseAcknowledged,
       qualifiedPurchaserConfirmed,
       discountCode,
+      redeemPoints,
     } = req.body || {};
 
     // Per-checkout acknowledgment (defense in depth on top of the gate).
@@ -139,9 +141,10 @@ export async function createHandler(req, res) {
       req.headers.origin ||
       `https://${req.headers["x-forwarded-host"] || req.headers.host}`;
 
-    // Eligible subtotal for promo codes that exclude bundles (computed from the
-    // server-trusted prices, never the client).
+    // Eligible subtotal for promo codes that exclude bundles, and the full
+    // subtotal (loyalty applies to the whole order). Both server-trusted.
     let eligibleSubtotal = 0;
+    let fullSubtotal = 0;
 
     const line_items = await Promise.all(
       items.map(async (item) => {
@@ -172,6 +175,7 @@ export async function createHandler(req, res) {
         }
 
         const product = variant.products || {};
+        fullSubtotal += unitDollars * qty;
         if (!product.is_bundle) eligibleSubtotal += unitDollars * qty;
         const imgPath = product.image_url || item.image || null;
         const image = imgPath
@@ -203,26 +207,40 @@ export async function createHandler(req, res) {
       })
     );
 
-    // ── Server-validated promo code → ephemeral Stripe coupon ────────────────
-    // All seeded codes exclude bundles, so the coupon is computed off the
-    // eligible (non-bundle) subtotal. The amount is derived server-side.
+    // ── Server-validated promo code + loyalty redemption → ONE Stripe coupon ──
+    // Promo amount is computed off the eligible (non-bundle) subtotal; loyalty
+    // applies to the full subtotal. All amounts are derived server-side.
     let appliedDiscount = null;
+    let promoCode = "";
+    let promoAmount = 0;
+    let loyaltyPoints = 0;
+    let loyaltyDollars = 0;
+
     if (discountCode) {
       const v = await validateDiscount({ code: discountCode, userId, eligibleSubtotal });
       if (!v.ok) return res.status(400).json({ error: v.error });
-      const couponCents = Math.min(
-        Math.round(v.amount * 100),
-        Math.round(eligibleSubtotal * 100)
-      );
-      if (couponCents > 0) {
-        const coupon = await stripe.coupons.create({
-          amount_off: couponCents,
-          currency: "usd",
-          duration: "once",
-          name: `${v.code} — research SKUs`,
-        });
-        appliedDiscount = { code: v.code, amount: couponCents / 100, couponId: coupon.id };
-      }
+      promoCode = v.code;
+      promoAmount = Math.min(v.amount, eligibleSubtotal);
+    }
+
+    if (redeemPoints) {
+      const maxDollars = Math.max(0, fullSubtotal - promoAmount);
+      const r = await validateLoyaltyRedemption({ userId, points: redeemPoints, maxDollars });
+      if (!r.ok) return res.status(400).json({ error: r.error });
+      loyaltyPoints = r.points;
+      loyaltyDollars = r.dollars;
+    }
+
+    const couponDollars = Math.min(promoAmount + loyaltyDollars, fullSubtotal);
+    const couponCents = Math.round(couponDollars * 100);
+    if (couponCents > 0) {
+      const coupon = await stripe.coupons.create({
+        amount_off: couponCents,
+        currency: "usd",
+        duration: "once",
+        name: promoCode ? `${promoCode} + rewards` : "Research rewards",
+      });
+      appliedDiscount = { couponId: coupon.id, amount: couponDollars };
     }
 
     // ── US-only shipping ────────────────────────────────────────────────────
@@ -267,8 +285,10 @@ export async function createHandler(req, res) {
         attestation_version: ATTESTATION_VERSION,
         user_id: String(userId),
         customer_email: customerEmail ? String(customerEmail) : "",
-        discount_code: appliedDiscount?.code || "",
-        discount_amount: appliedDiscount ? String(appliedDiscount.amount) : "",
+        discount_code: promoCode || "",
+        discount_amount: promoAmount ? String(promoAmount) : "",
+        loyalty_points: loyaltyPoints ? String(loyaltyPoints) : "",
+        loyalty_dollars: loyaltyDollars ? String(loyaltyDollars) : "",
       },
     });
 

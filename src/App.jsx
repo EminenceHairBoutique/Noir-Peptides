@@ -31,6 +31,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Research = lazy(() => import("./pages/Research"));
 const ResearchArticle = lazy(() => import("./pages/ResearchArticle"));
 const Calculator = lazy(() => import("./pages/Calculator"));
+const Deals = lazy(() => import("./pages/Deals"));
 
 // ── Public legal docs ──
 const Terms = lazy(() => import("./pages/Terms"));
@@ -114,6 +115,7 @@ export default function App() {
               <Route path="/research" element={<Page><Research /></Page>} />
               <Route path="/research/:slug" element={<Page><ResearchArticle /></Page>} />
               <Route path="/calculator" element={<Page><Calculator /></Page>} />
+              <Route path="/deals" element={<Page><Deals /></Page>} />
 
               {/* ── PUBLIC LEGAL ── */}
               <Route path="/legal/terms" element={<Page><Terms /></Page>} />

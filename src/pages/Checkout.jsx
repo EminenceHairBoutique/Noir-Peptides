@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { useUser } from "../context/UserContext";
 import { supabase } from "../lib/supabaseClient";
 import StripeProvider from "../components/StripeProvider";
 import SEO from "../components/SEO";
@@ -15,7 +16,7 @@ const money = (n) =>
 
 const CONSENT_VERSION = "noir-v1.0";
 
-async function buildAndRedirectCheckout({ items, discountCode, onError }) {
+async function buildAndRedirectCheckout({ items, discountCode, redeemPoints, onError }) {
   try {
     const total = items.reduce(
       (s, i) => s + Number(i.price || 0) * Number(i.quantity || 0),
@@ -69,6 +70,7 @@ async function buildAndRedirectCheckout({ items, discountCode, onError }) {
         qualifiedPurchaserConfirmed: true,
         brand: "Noir Peptides",
         discountCode: discountCode || undefined,
+        redeemPoints: redeemPoints || undefined,
       }),
     });
 
@@ -94,12 +96,15 @@ async function buildAndRedirectCheckout({ items, discountCode, onError }) {
 
 export default function Checkout() {
   const { items = [], total = 0 } = useCart();
+  const { user } = useUser();
+  const pointsBalance = Number(user?.loyaltyPoints || 0);
 
   const [pageLoading, setPageLoading] = useState(true);
   const [acknowledged, setAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
   const [promoCode, setPromoCode] = useState("");
+  const [redeemPoints, setRedeemPoints] = useState(0);
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -120,7 +125,12 @@ export default function Checkout() {
     if (!items.length || !acknowledged) return;
     setCheckoutError(null);
     setSubmitting(true);
-    await buildAndRedirectCheckout({ items, discountCode: promoCode.trim(), onError });
+    await buildAndRedirectCheckout({
+      items,
+      discountCode: promoCode.trim(),
+      redeemPoints,
+      onError,
+    });
   }
 
   const canCheckout = items.length > 0 && acknowledged && !submitting;
@@ -202,6 +212,36 @@ export default function Checkout() {
                       excluded.
                     </p>
                   </div>
+
+                  {pointsBalance >= 100 && (
+                    <div>
+                      <label
+                        htmlFor="redeem"
+                        className="text-[10px] font-accent uppercase tracking-[0.2em] text-se-steel block mb-2"
+                      >
+                        Redeem rewards · {pointsBalance.toLocaleString()} pts available
+                      </label>
+                      <select
+                        id="redeem"
+                        value={redeemPoints}
+                        onChange={(e) => setRedeemPoints(Number(e.target.value))}
+                        className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent focus:outline-none focus:border-se-gold transition"
+                      >
+                        <option value={0}>Don&apos;t redeem points</option>
+                        {Array.from(
+                          { length: Math.floor(pointsBalance / 100) },
+                          (_, i) => (i + 1) * 100
+                        ).map((p) => (
+                          <option key={p} value={p}>
+                            {p.toLocaleString()} pts — ${((p / 100) * 5).toLocaleString()} off
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
+                        100 pts = $5. Validated against your balance at payment.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </StripeProvider>
             )}

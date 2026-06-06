@@ -4,6 +4,7 @@ import { generateOrderNumber } from "../lib/orderNumber.js";
 import { sendOrderConfirmationEmail } from "../lib/email.js";
 import { LOYALTY, pointsForPurchaseCents } from "../src/utils/loyalty.js";
 import { recordRedemption } from "../lib/discounts.js";
+import { deductLoyaltyPoints } from "../lib/rewards.js";
 
 export const config = {
   api: {
@@ -230,6 +231,15 @@ export default async function handler(req, res) {
             userId,
             orderNumber,
             amount: session.metadata.discount_amount,
+          });
+        }
+
+        // Deduct redeemed loyalty points (only on paid orders).
+        if (session.metadata?.loyalty_points) {
+          await deductLoyaltyPoints({
+            userId,
+            points: Number(session.metadata.loyalty_points),
+            orderNumber,
           });
         }
 
