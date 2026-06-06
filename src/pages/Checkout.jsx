@@ -56,9 +56,10 @@ async function buildAndRedirectCheckout({ items, onError }) {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
+        // Server re-prices from these stable identifiers; client price is never trusted.
         items: items.map((i) => ({
-          id: i.id,
-          slug: i.slug,
+          variantId: i.variantId,
+          sku: i.sku,
           name: i.name,
           image: i.image,
           quantity: Number(i.quantity) || 1,

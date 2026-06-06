@@ -98,17 +98,37 @@ export async function getFeaturedProducts(limit = 8) {
 }
 
 /**
- * Fetch volume/bundle price tiers for a product, ascending by min_quantity.
- * RLS-gated (attested read). Returns [] when none are configured.
- * @returns {Promise<Array<{min_quantity:number, unit_price:number, label?:string}>>}
+ * Fetch dosage variants for a product, ascending by sort_order.
+ * RLS-gated (attested read). Returns [] when none / no access.
+ * @returns {Promise<Array<{id,sku,vial_size_mg,price,size_label,sort_order,stock_status}>>}
  */
-export async function getPriceTiers(productId) {
+export async function getVariants(productId) {
   if (!supabase || !productId) return [];
   try {
     const { data, error } = await supabase
-      .from("price_tiers")
-      .select("min_quantity, unit_price, label")
+      .from("product_variants")
+      .select("id, sku, vial_size_mg, price, size_label, sort_order, stock_status")
       .eq("product_id", productId)
+      .order("sort_order", { ascending: true });
+    if (error || !Array.isArray(data)) return [];
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch the bundle/volume price tiers for a VARIANT, ascending by quantity.
+ * RLS-gated (attested read). Returns [] when none configured.
+ * @returns {Promise<Array<{min_quantity,unit_price,savings_pct,label}>>}
+ */
+export async function getTiers(variantId) {
+  if (!supabase || !variantId) return [];
+  try {
+    const { data, error } = await supabase
+      .from("price_tiers")
+      .select("min_quantity, unit_price, savings_pct, label")
+      .eq("variant_id", variantId)
       .order("min_quantity", { ascending: true });
     if (error || !Array.isArray(data)) return [];
     return data;

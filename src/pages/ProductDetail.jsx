@@ -1,14 +1,15 @@
 // src/pages/ProductDetail.jsx — Noir Peptides Research Material PDP
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronLeft, Minus, Plus, FileText, Snowflake, XCircle } from "lucide-react";
+import { ChevronLeft, FileText, Snowflake, XCircle, Truck } from "lucide-react";
 import { motion as Motion } from "framer-motion";
 
 import {
   getProduct,
   getProducts,
   getCategories,
-  getPriceTiers,
+  getVariants,
+  getTiers,
   unitPriceForQuantity,
 } from "../lib/catalog";
 import { useCart } from "../context/CartContext";
@@ -18,6 +19,9 @@ import PeptideSpecsPanel from "../components/PeptideSpecsPanel";
 import COABadge from "../components/COABadge";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import { PRODUCT_IS_NOT, STORAGE_GUIDANCE } from "../config/compliance";
+
+const FREE_SHIP_THRESHOLD = 200;
+const money = (n) => `$${Number(n || 0).toLocaleString()}`;
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -30,20 +34,24 @@ const fadeUp = {
 
 export default function ProductDetail() {
   const { slug } = useParams();
-  const { addToCart, openCart } = useCart();
+  const { addToCart } = useCart();
 
   const [product, setProduct] = useState(null);
+  const [variants, setVariants] = useState([]);
   const [related, setRelated] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [variantId, setVariantId] = useState(null);
   const [tiers, setTiers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const [loading, setLoading] = useState(true);
 
+  // Load product + its dosage variants.
   useEffect(() => {
     let active = true;
     setLoading(true);
     setQuantity(1);
     setTiers([]);
+    setVariantId(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     (async () => {
@@ -52,14 +60,16 @@ export default function ProductDetail() {
       setProduct(p);
       setCategories(cats);
       if (p) {
-        const [sameDomain, priceTiers] = await Promise.all([
+        const [vars, sameDomain] = await Promise.all([
+          getVariants(p.id),
           getProducts({ category: p.category_slug }),
-          getPriceTiers(p.id),
         ]);
         if (!active) return;
+        setVariants(vars);
+        setVariantId(vars[0]?.id || null);
         setRelated(sameDomain.filter((x) => x.id !== p.id).slice(0, 4));
-        setTiers(priceTiers);
       } else {
+        setVariants([]);
         setRelated([]);
       }
       setLoading(false);
@@ -70,27 +80,63 @@ export default function ProductDetail() {
     };
   }, [slug]);
 
-  // Tier-aware unit price for the chosen quantity (mirrors the checkout server).
-  const unitPrice = product
-    ? unitPriceForQuantity(product.price, tiers, quantity)
-    : 0;
+  const selectedVariant = useMemo(
+    () => variants.find((v) => v.id === variantId) || variants[0] || null,
+    [variants, variantId]
+  );
 
-  const isOut = product?.stock_status === "out_of_stock";
+  // Load bundle tiers for the selected dosage variant.
+  useEffect(() => {
+    let active = true;
+    if (!selectedVariant?.id) {
+      setTiers([]);
+      return;
+    }
+    setQuantity(1);
+    getTiers(selectedVariant.id).then((t) => {
+      if (active) setTiers(t);
+    });
+    return () => {
+      active = false;
+    };
+  }, [selectedVariant?.id]);
+
+  const basePrice = Number(selectedVariant?.price || product?.price || 0);
+  const unitPrice = unitPriceForQuantity(basePrice, tiers, quantity);
+  const lineTotal = unitPrice * quantity;
+  const isOut =
+    selectedVariant?.stock_status === "out_of_stock" ||
+    product?.stock_status === "out_of_stock";
+
+  // Bundle options come from the tier ladder (1/2/3/5/10).
+  const bundleOptions = useMemo(() => {
+    if (!tiers.length) return [{ qty: 1, unit: basePrice, savings: 0 }];
+    return tiers.map((t) => ({
+      qty: Number(t.min_quantity),
+      unit: Number(t.unit_price),
+      savings: Number(t.savings_pct || 0),
+    }));
+  }, [tiers, basePrice]);
 
   const handleAddToCart = useCallback(() => {
-    if (!product || isOut) return;
+    if (!product || !selectedVariant || isOut) return;
     addToCart(
       {
         id: product.id,
         slug: product.slug,
         name: product.name,
-        price: unitPrice,
         image: product.image_url || product.images?.[0] || null,
       },
-      { quantity }
+      {
+        variantId: selectedVariant.id,
+        sku: selectedVariant.sku,
+        sizeLabel: selectedVariant.size_label,
+        basePrice,
+        tiers,
+        quantity,
+      }
     );
-    openCart();
-  }, [product, quantity, unitPrice, isOut, addToCart, openCart]);
+  }, [product, selectedVariant, isOut, addToCart, basePrice, tiers, quantity]);
 
   if (loading) {
     return (
@@ -126,25 +172,30 @@ export default function ProductDetail() {
   const categoryName =
     categories.find((c) => c.slug === product.category_slug)?.name ||
     "Research Material";
+  const remainingForFreeShip = Math.max(0, FREE_SHIP_THRESHOLD - lineTotal);
+  const specProduct = {
+    ...product,
+    vial_size_mg: selectedVariant?.vial_size_mg ?? product.vial_size_mg,
+    cas_number: product.cas_number ?? null,
+  };
 
   return (
     <>
       <SEO
         title={`${product.name} | COA-Documented Research Material | Noir Peptides`}
-        description={`${product.short_description} For research use only. Not for human or veterinary use.`}
+        description={`${product.short_description || product.name}. For research use only. Not for human or veterinary use.`}
         type="product"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Product",
           name: product.name,
-          description: `${product.description} For research use only. Not for human or veterinary use.`,
-          sku: product.id,
-          mpn: product.batch_number,
+          description: `${product.description || product.short_description || product.name} For research use only. Not for human or veterinary use.`,
+          sku: selectedVariant?.sku || product.id,
           category: categoryName,
           brand: { "@type": "Brand", name: "Noir Peptides" },
           offers: {
             "@type": "Offer",
-            price: product.price,
+            price: basePrice,
             priceCurrency: "USD",
             availability: isOut
               ? "https://schema.org/OutOfStock"
@@ -177,7 +228,7 @@ export default function ProductDetail() {
                 {product.image_url || product.images?.[0] ? (
                   <img
                     src={product.image_url || product.images[0]}
-                    alt={product.name}
+                    alt={`${product.name} research reference vial`}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -186,6 +237,11 @@ export default function ProductDetail() {
                 <div className="absolute top-4 left-4 badge badge-new">
                   ≥ {product.purity_percent}% PURE
                 </div>
+                {isOut && (
+                  <div className="absolute top-4 right-4 badge badge-archive">
+                    Out of stock
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-3 mt-3">
@@ -219,111 +275,145 @@ export default function ProductDetail() {
                 {product.name}
               </h1>
               <p className="text-[13px] font-accent text-se-bone/50 mt-2">
-                {product.subtitle}
+                {product.short_description}
               </p>
 
-              {/* Spec row */}
-              <div className="flex flex-wrap items-center gap-2 mt-5">
-                <span className="badge badge-success">
-                  {product.vial_size_mg} mg Vial
-                </span>
-                <span className="badge badge-new">
-                  ≥ {product.purity_percent}% HPLC
-                </span>
-                {product.coa_url ? (
-                  <COABadge
-                    coaUrl={product.coa_url}
-                    batchNumber={product.batch_number}
-                  />
-                ) : (
-                  <span className="badge badge-archive">COA on request</span>
-                )}
-              </div>
-
-              <div className="flex items-baseline gap-3 mt-6">
-                {product.compare_at_price && (
-                  <span className="text-lg text-se-steel line-through font-accent">
-                    ${product.compare_at_price}
-                  </span>
-                )}
+              <div className="flex items-baseline gap-3 mt-5">
                 <span className="text-2xl font-accent font-semibold text-se-bone">
-                  ${product.price}
+                  {money(unitPrice)}
                 </span>
                 <span className="text-[11px] font-accent text-se-steel uppercase tracking-[0.14em]">
-                  USD
+                  per vial · USD
                 </span>
               </div>
 
               <div className="divider my-6" />
 
-              {/* Quantity + Add */}
+              {/* Dosage selector */}
+              {variants.length > 0 && (
+                <div className="mb-6">
+                  <span
+                    id="dosage-label"
+                    className="text-label text-se-bone/80 mb-3 block"
+                  >
+                    Dosage
+                  </span>
+                  <div
+                    role="radiogroup"
+                    aria-labelledby="dosage-label"
+                    className="flex flex-wrap gap-2"
+                  >
+                    {variants.map((v) => {
+                      const active = v.id === selectedVariant?.id;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => setVariantId(v.id)}
+                          className={`min-h-[44px] px-4 border text-[13px] font-accent transition ${
+                            active
+                              ? "border-se-gold text-se-gold bg-se-gold/5"
+                              : "border-se-concrete text-se-bone/70 hover:border-se-gold/40"
+                          }`}
+                        >
+                          {v.size_label || `${v.vial_size_mg} mg`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedVariant?.sku && (
+                    <p className="text-[10px] text-se-steel font-accent mt-2 uppercase tracking-[0.14em]">
+                      SKU {selectedVariant.sku}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Bundle selector */}
               {!isOut ? (
                 <>
                   <div className="mb-5">
-                    <span className="text-label text-se-bone/80 mb-3 block">
-                      Quantity
+                    <span
+                      id="bundle-label"
+                      className="text-label text-se-bone/80 mb-3 block"
+                    >
+                      Bundle &amp; save
                     </span>
-                    <div className="inline-flex items-center border border-se-concrete">
-                      <button
-                        type="button"
-                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                        className="px-3.5 py-2.5 text-se-bone/60 hover:text-se-gold transition-colors"
-                        aria-label="Decrease quantity"
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span className="px-5 py-2.5 text-[13px] font-accent font-medium text-se-bone min-w-[3rem] text-center border-x border-se-concrete">
-                        {quantity}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setQuantity((q) => Math.min(20, q + 1))}
-                        className="px-3.5 py-2.5 text-se-bone/60 hover:text-se-gold transition-colors"
-                        aria-label="Increase quantity"
-                      >
-                        <Plus size={14} />
-                      </button>
+                    <div
+                      role="radiogroup"
+                      aria-labelledby="bundle-label"
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                    >
+                      {bundleOptions.map((b) => {
+                        const active = quantity === b.qty;
+                        return (
+                          <button
+                            key={b.qty}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            onClick={() => setQuantity(b.qty)}
+                            className={`min-h-[44px] px-4 py-2 border flex items-center justify-between gap-3 text-left transition ${
+                              active
+                                ? "border-se-gold bg-se-gold/5"
+                                : "border-se-concrete hover:border-se-gold/40"
+                            }`}
+                          >
+                            <span className="text-[13px] font-accent text-se-bone">
+                              {b.qty} {b.qty === 1 ? "vial" : "vials"}
+                            </span>
+                            <span className="text-right">
+                              <span className="block text-[13px] font-accent text-se-bone">
+                                {money(b.unit)} ea
+                              </span>
+                              {b.savings > 0 && (
+                                <span className="block text-[10px] font-accent text-se-gold uppercase tracking-[0.12em]">
+                                  save {b.savings}%
+                                </span>
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-
-                  {tiers.length > 0 && (
-                    <div className="mb-5 border border-se-concrete">
-                      <p className="text-[10px] font-accent uppercase tracking-[0.16em] text-se-gold px-4 pt-3">
-                        Volume Pricing
-                      </p>
-                      <table className="w-full text-[12px] font-accent">
-                        <tbody>
-                          <tr className="text-se-bone/60">
-                            <td className="px-4 py-2">1+ unit</td>
-                            <td className="px-4 py-2 text-right">${product.price} ea</td>
-                          </tr>
-                          {tiers.map((t) => (
-                            <tr
-                              key={t.min_quantity}
-                              className={
-                                quantity >= t.min_quantity
-                                  ? "text-se-gold"
-                                  : "text-se-bone/60"
-                              }
-                            >
-                              <td className="px-4 py-2">
-                                {t.label || `${t.min_quantity}+ units`}
-                              </td>
-                              <td className="px-4 py-2 text-right">${t.unit_price} ea</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
 
                   <button
                     type="button"
                     onClick={handleAddToCart}
-                    className="btn-primary w-full py-4 text-[12px] tracking-[0.2em] mb-4"
+                    className="btn-primary w-full py-4 text-[12px] tracking-[0.2em] mb-3"
                   >
-                    Add to Cart — ${unitPrice * quantity}
+                    Add to Cart — {money(lineTotal)}
                   </button>
+
+                  {/* Free-shipping progress */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 text-[11px] font-accent text-se-steel mb-2">
+                      <Truck className="w-3.5 h-3.5" />
+                      {remainingForFreeShip > 0 ? (
+                        <span>
+                          {money(remainingForFreeShip)} from free US shipping
+                        </span>
+                      ) : (
+                        <span className="text-se-gold">
+                          This order qualifies for free US shipping
+                        </span>
+                      )}
+                    </div>
+                    <div className="h-1 bg-se-concrete overflow-hidden">
+                      <div
+                        className="h-full bg-se-gold transition-all"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (lineTotal / FREE_SHIP_THRESHOLD) * 100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
                 </>
               ) : (
                 <button
@@ -340,41 +430,53 @@ export default function ProductDetail() {
               {/* Description */}
               <div className="mb-8">
                 <h2 className="text-[12px] font-accent uppercase tracking-[0.16em] text-se-gold mb-3">
-                  Description
+                  About this research compound
                 </h2>
                 <p className="text-[14px] text-se-bone/65 leading-relaxed font-accent">
                   {product.description}
                 </p>
               </div>
 
-              {/* Specs */}
+              {/* Specs (null-tolerant) */}
               <div className="mb-8">
-                <PeptideSpecsPanel product={product} />
+                <PeptideSpecsPanel product={specProduct} />
               </div>
 
-              {/* Batch documentation */}
+              {/* COA block */}
               <div className="glass-panel p-6 mb-6">
                 <div className="flex items-center gap-2 mb-3">
                   <FileText className="w-4 h-4 text-se-gold" />
                   <h2 className="text-[12px] font-accent uppercase tracking-[0.16em] text-se-gold">
-                    Batch Documentation
+                    Certificate of Analysis
                   </h2>
                 </div>
-                <p className="text-[13px] text-se-bone/55 leading-relaxed font-accent mb-4">
-                  This material is supplied under batch{" "}
-                  <span className="text-se-bone">{product.batch_number}</span>.
-                  Batch-specific analytical documentation (identity and purity)
-                  is third-party tested.
-                </p>
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[12px] font-accent mb-4">
+                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                    <dt className="text-se-steel">Purity</dt>
+                    <dd className="text-se-bone">≥ {product.purity_percent}% (HPLC)</dd>
+                  </div>
+                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                    <dt className="text-se-steel">Methods</dt>
+                    <dd className="text-se-bone">HPLC / MS</dd>
+                  </div>
+                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                    <dt className="text-se-steel">Endotoxin</dt>
+                    <dd className="text-se-bone">LAL tested</dd>
+                  </div>
+                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                    <dt className="text-se-steel">Lot</dt>
+                    <dd className="text-se-bone break-all">
+                      {product.batch_number || "per batch"}
+                    </dd>
+                  </div>
+                </dl>
                 {product.coa_url ? (
-                  <COABadge
-                    coaUrl={product.coa_url}
-                    batchNumber={product.batch_number}
-                  />
+                  <COABadge coaUrl={product.coa_url} batchNumber={product.batch_number} />
                 ) : (
                   <p className="text-[12px] text-se-steel font-accent">
-                    A batch-specific Certificate of Analysis is available to
-                    qualified researchers on request via{" "}
+                    The batch-specific Certificate of Analysis (lot, exact purity %,
+                    HPLC/MS, endotoxin) is provided with each batch and available to
+                    verified researchers on request via{" "}
                     <Link
                       to="/contact"
                       className="text-se-gold underline underline-offset-2"
