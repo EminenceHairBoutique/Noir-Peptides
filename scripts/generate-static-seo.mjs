@@ -139,6 +139,43 @@ function renderJsonLd({ url, title, description, images, product }) {
   return { "@context": "https://schema.org", "@graph": graph };
 }
 
+// Article + BreadcrumbList graph for the public research/education pages (the
+// GEO/AI-search surface). Never Drug/MedicalEntity schema.
+function renderArticleJsonLd({ url, title, description }) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: `${SITE_URL}/`,
+        logo: DEFAULT_OG_IMAGE,
+      },
+      {
+        "@type": "Article",
+        "@id": `${url}#article`,
+        headline: title,
+        description,
+        url,
+        image: DEFAULT_OG_IMAGE,
+        author: { "@id": `${SITE_URL}/#organization` },
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        inLanguage: "en-US",
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+          { "@type": "ListItem", position: 2, name: "Research", item: `${SITE_URL}/research` },
+          { "@type": "ListItem", position: 3, name: title, item: url },
+        ],
+      },
+    ],
+  };
+}
+
 function renderSeoMeta({
   pathname,
   title,
@@ -295,6 +332,11 @@ async function main() {
       title: a.title,
       description: a.summary,
       ogType: "article",
+      jsonLd: renderArticleJsonLd({
+        url: ensureSiteUrl(`/research/${a.slug}`),
+        title: a.title,
+        description: a.summary,
+      }),
     })),
   ];
 
