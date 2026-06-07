@@ -156,11 +156,23 @@ export const UserProvider = ({ children }) => {
     })();
 
     if (!supabase) return () => {};
-    const res = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // IMPORTANT: never `await` a Supabase call inside onAuthStateChange. The
+    // auth client holds a lock for the duration of the callback; an awaited DB
+    // query (whose RLS resolves via auth.uid()) waits on that same lock and
+    // deadlocks — which left login stuck on "Signing in…". Return synchronously
+    // and defer the profile fetch so the lock is released first.
+    const res = supabase.auth.onAuthStateChange((_event, session) => {
       const supaUser = session?.user;
       if (!mounted) return;
-      if (supaUser) {
+      if (!supaUser) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      setTimeout(async () => {
+        if (!mounted) return;
         const access = await fetchAccountAccess(supaUser.id);
+        if (!mounted) return;
         setUser(
           hydrateUser({
             id: supaUser.id,
@@ -169,10 +181,8 @@ export const UserProvider = ({ children }) => {
             ...access,
           })
         );
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
+        setLoading(false);
+      }, 0);
     });
 
     // handle different return shapes across supabase clients
