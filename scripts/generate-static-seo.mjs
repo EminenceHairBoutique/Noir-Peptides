@@ -14,6 +14,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { researchArticles } from "../src/data/research.js";
+import {
+  getAllProducts,
+  getCategories,
+  getProductsInCategory,
+} from "../src/data/tier1Catalog.js";
 
 const ROOT = process.cwd();
 const DIST_DIR = path.join(ROOT, "dist");
@@ -174,6 +179,119 @@ function renderArticleJsonLd({ url, title, description }) {
       },
     ],
   };
+}
+
+// Product structured data for each product page. Product schema ONLY — never
+// Drug / MedicalEntity / medicalCondition. offers carry price + availability.
+function renderProductJsonLd(p) {
+  const url = ensureSiteUrl(`/product/${p.slug}`);
+  const availability =
+    p.stock_status === "out_of_stock"
+      ? "https://schema.org/OutOfStock"
+      : "https://schema.org/InStock";
+  const offers = p.variants.map((v) => ({
+    "@type": "Offer",
+    sku: v.sku,
+    name: `${p.name} ${v.size_label}`,
+    price: Number(v.price).toFixed(2),
+    priceCurrency: "USD",
+    availability,
+    itemCondition: "https://schema.org/NewCondition",
+    url,
+  }));
+  const prices = p.variants.map((v) => Number(v.price));
+  const product = {
+    "@type": "Product",
+    "@id": `${url}#product`,
+    name: `${p.name} — Research Reference Material`,
+    description: p.description,
+    category: p.category_name,
+    sku: p.variants[0]?.sku,
+    brand: { "@type": "Brand", name: SITE_NAME },
+    image: DEFAULT_OG_IMAGE,
+    offers:
+      offers.length === 1
+        ? offers[0]
+        : {
+            "@type": "AggregateOffer",
+            priceCurrency: "USD",
+            lowPrice: Math.min(...prices).toFixed(2),
+            highPrice: Math.max(...prices).toFixed(2),
+            offerCount: offers.length,
+            availability,
+            offers,
+          },
+    additionalProperty: [
+      {
+        "@type": "PropertyValue",
+        name: "Intended use",
+        value: "Research use only — not for human or veterinary use",
+      },
+    ],
+  };
+  return renderJsonLd({
+    url,
+    title: `${p.name} — Research Reference Material`,
+    description: p.description,
+    images: [DEFAULT_OG_IMAGE],
+    product,
+  });
+}
+
+// ── Crawlable static BODY content ───────────────────────────────────────────
+// Injected into #root in the prerendered HTML. The SPA mounts with
+// createRoot().render(), which REPLACES #root's children on load — so crawlers
+// and no-JS clients get full server-side content while users get the live app.
+// (Not hydrateRoot, so there is no hydration-mismatch concern.) Keep it plain
+// semantic HTML; styling comes from the hydrated app.
+const RUO_LINE =
+  "For research use only. Not for human or veterinary use.";
+
+function fmtUsd(n) {
+  const s = Number(n).toFixed(2);
+  return `$${s.endsWith(".00") ? s.slice(0, -3) : s}`;
+}
+
+function renderProductBody(p) {
+  const from = Math.min(...p.variants.map((v) => Number(v.price)));
+  const sizes = p.variants
+    .map((v) => `<li>${escapeHtml(v.size_label)} — ${fmtUsd(v.price)}</li>`)
+    .join("");
+  return [
+    "<main>",
+    `<nav aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/shop">Shop</a> / ` +
+      `<a href="/shop/${escapeHtml(p.category_slug)}">${escapeHtml(p.category_name)}</a></nav>`,
+    `<h1>${escapeHtml(p.name)} — Research Reference Material</h1>`,
+    `<p>From ${fmtUsd(from)}</p>`,
+    `<p>${escapeHtml(p.description)}</p>`,
+    `<h2>Available sizes</h2><ul>${sizes}</ul>`,
+    `<p><strong>${RUO_LINE}</strong></p>`,
+    "</main>",
+  ].join("");
+}
+
+function renderListBody(heading, intro, prods) {
+  const items = prods
+    .map(
+      (p) =>
+        `<li><a href="/product/${escapeHtml(p.slug)}">${escapeHtml(p.name)}</a> — from ${fmtUsd(
+          p.fromPrice
+        )}</li>`
+    )
+    .join("");
+  return [
+    "<main>",
+    `<h1>${escapeHtml(heading)}</h1>`,
+    `<p>${escapeHtml(intro)}</p>`,
+    `<ul>${items}</ul>`,
+    `<p><strong>${RUO_LINE}</strong></p>`,
+    "</main>",
+  ].join("");
+}
+
+function injectBody(html, bodyHtml) {
+  if (!bodyHtml) return html;
+  return html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
 }
 
 function renderSeoMeta({
@@ -371,10 +489,57 @@ async function main() {
     })),
   ];
 
-  // The gated storefront is intentionally not prerendered. Direct requests fall
-  // through Vercel's SPA rewrite to the root document; the client guard then
-  // redirects unauthenticated visitors to /login.
-  const routes = [...staticRoutes, ...researchRoutes];
+  // ── Public catalog (indexable) ──
+  // Catalog reads are public at the data layer (migration 0013), so the shop
+  // index, every category, and every product page are prerendered with real
+  // title/description/canonical/OG + Product JSON-LD (offers/price/availability)
+  // and crawlable body content. PURCHASE stays gated (checkout requires auth +
+  // a current attestation, enforced server-side). Data is mirrored from the
+  // same source as the SQL seed (src/data/tier1Catalog.js) so HTML and DB never
+  // drift.
+  const catalogProducts = getAllProducts();
+  const catalogCategories = getCategories();
+
+  const shopRoutes = [
+    {
+      pathname: "/shop",
+      title: "Research Peptide Catalog",
+      description:
+        "Browse batch-documented peptide reference materials for laboratory research. Per-batch COA available. For research use only. Not for human or veterinary use.",
+      bodyHtml: renderListBody(
+        "Research Peptide Catalog",
+        "Batch-documented peptide reference materials for laboratory research. For research use only. Not for human or veterinary use.",
+        catalogProducts
+      ),
+    },
+    ...catalogCategories.map((cat) => ({
+      pathname: `/shop/${cat.slug}`,
+      title: `${cat.name} — Research Reference Materials`,
+      description: `${cat.description} For research use only. Not for human or veterinary use.`,
+      bodyHtml: renderListBody(
+        cat.name,
+        cat.description,
+        getProductsInCategory(cat.slug)
+      ),
+    })),
+  ];
+
+  const productRoutes = catalogProducts.map((p) => ({
+    pathname: `/product/${p.slug}`,
+    title: `${p.name} — Research Reference Material`,
+    description: `${p.blurb} For research use only. Not for human or veterinary use.`,
+    ogType: "product",
+    images: [DEFAULT_OG_IMAGE],
+    jsonLd: renderProductJsonLd(p),
+    bodyHtml: renderProductBody(p),
+  }));
+
+  const routes = [
+    ...staticRoutes,
+    ...researchRoutes,
+    ...shopRoutes,
+    ...productRoutes,
+  ];
 
   for (const route of routes) {
     const pathname = route.pathname;
@@ -405,7 +570,8 @@ async function main() {
       jsonLd,
     });
 
-    const finalHtml = replaceSeoBlock(baseHtml, seoBlock);
+    const withSeo = replaceSeoBlock(baseHtml, seoBlock);
+    const finalHtml = injectBody(withSeo, route.bodyHtml);
 
     const outFile =
       pathname === "/"
@@ -416,26 +582,16 @@ async function main() {
     await fs.writeFile(outFile, finalHtml, "utf8");
   }
 
-  // Gated storefront is behind the auth wall — keep it out of the index.
+  // The public catalog (shop, categories, products) + education + legal pages
+  // are indexable. Only private / commerce-action / auth routes are disallowed
+  // (no index value; keep crawlers out of user-specific and transactional flows).
   const robots = [
     "User-agent: *",
-    "Allow: /$",
-    "Allow: /legal/",
-    "Allow: /research",
-    "Allow: /calculator",
-    "Allow: /deals",
+    "Allow: /",
     "",
+    "# Private, transactional, and auth routes (no index value)",
     "Disallow: /api/",
     "Disallow: /home",
-    "Disallow: /shop",
-    "Disallow: /catalog",
-    "Disallow: /product",
-    "Disallow: /products",
-    "Disallow: /coa",
-    "Disallow: /quality",
-    "Disallow: /about",
-    "Disallow: /faq",
-    "Disallow: /contact",
     "Disallow: /account",
     "Disallow: /cart",
     "Disallow: /checkout",
@@ -443,6 +599,11 @@ async function main() {
     "Disallow: /cancel",
     "Disallow: /admin",
     "Disallow: /privacy-choices",
+    "Disallow: /login",
+    "Disallow: /register",
+    "Disallow: /verify",
+    "Disallow: /forgot-password",
+    "Disallow: /reset-password",
     "",
     `Sitemap: ${SITE_URL}/sitemap.xml`,
     "",

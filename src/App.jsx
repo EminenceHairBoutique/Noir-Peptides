@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from "react";
-import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { Routes, Route, useLocation, useParams, Navigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { useCart } from "./context/CartContext";
 import CookieBanner from "./components/legal/CookieBanner";
@@ -64,6 +64,12 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 // Routes that render their own full-page chrome (no global Navbar/Footer).
 const BARE_PREFIXES = ["/login", "/register", "/verify", "/forgot-password", "/reset-password"];
 
+// Redirect the legacy plural product path to the canonical singular one.
+function ProductAliasRedirect() {
+  const { slug } = useParams();
+  return <Navigate to={`/product/${slug}`} replace />;
+}
+
 function Page({ children }) {
   return (
     <Motion.div
@@ -125,21 +131,31 @@ export default function App() {
               <Route path="/legal/shipping" element={<Page><ShippingRefunds /></Page>} />
               <Route path="/legal/returns" element={<Page><ShippingRefunds /></Page>} />
 
+              {/* ── PUBLIC CATALOG (browse without login; purchase is gated) ──
+                   Catalog reads are public at the data layer (migration 0013)
+                   so these pages are crawlable/indexable. Adding to cart is
+                   allowed for anyone; CHECKOUT requires auth + a current
+                   research-use attestation (route guards below + the
+                   server-side attestation gate in the checkout endpoints). */}
+              <Route path="/shop" element={<Page><Shop /></Page>} />
+              <Route path="/shop/:category" element={<Page><Shop /></Page>} />
+              <Route path="/catalog" element={<Page><Shop /></Page>} />
+              <Route path="/catalog/:category" element={<Page><Shop /></Page>} />
+              <Route path="/product/:slug" element={<Page><ProductDetail /></Page>} />
+              {/* Plural alias → canonical singular (avoids duplicate content). */}
+              <Route path="/products/:slug" element={<ProductAliasRedirect />} />
+
+              {/* ── PUBLIC INFORMATIONAL (trust/SEO; no commerce action) ── */}
+              <Route path="/coa" element={<Page><CoaPolicy /></Page>} />
+              <Route path="/coa-policy" element={<Page><CoaPolicy /></Page>} />
+              <Route path="/quality" element={<Page><Quality /></Page>} />
+              <Route path="/about" element={<Page><About /></Page>} />
+              <Route path="/faq" element={<Page><Faqs /></Page>} />
+              <Route path="/faqs" element={<Page><Faqs /></Page>} />
+              <Route path="/contact" element={<Page><Contact /></Page>} />
+
               {/* ── GATED (auth + attestation) ── */}
               <Route path="/home" element={<Page><RequireAuth><Home /></RequireAuth></Page>} />
-              <Route path="/shop" element={<Page><RequireAuth><Shop /></RequireAuth></Page>} />
-              <Route path="/shop/:category" element={<Page><RequireAuth><Shop /></RequireAuth></Page>} />
-              <Route path="/catalog" element={<Page><RequireAuth><Shop /></RequireAuth></Page>} />
-              <Route path="/catalog/:category" element={<Page><RequireAuth><Shop /></RequireAuth></Page>} />
-              <Route path="/product/:slug" element={<Page><RequireAuth><ProductDetail /></RequireAuth></Page>} />
-              <Route path="/products/:slug" element={<Page><RequireAuth><ProductDetail /></RequireAuth></Page>} />
-              <Route path="/coa" element={<Page><RequireAuth><CoaPolicy /></RequireAuth></Page>} />
-              <Route path="/coa-policy" element={<Page><RequireAuth><CoaPolicy /></RequireAuth></Page>} />
-              <Route path="/quality" element={<Page><RequireAuth><Quality /></RequireAuth></Page>} />
-              <Route path="/about" element={<Page><RequireAuth><About /></RequireAuth></Page>} />
-              <Route path="/faq" element={<Page><RequireAuth><Faqs /></RequireAuth></Page>} />
-              <Route path="/faqs" element={<Page><RequireAuth><Faqs /></RequireAuth></Page>} />
-              <Route path="/contact" element={<Page><RequireAuth><Contact /></RequireAuth></Page>} />
               <Route path="/cart" element={<Page><RequireAuth><Cart /></RequireAuth></Page>} />
               <Route path="/checkout" element={<Page><RequireAuth><Checkout /></RequireAuth></Page>} />
               <Route path="/success" element={<Page><RequireAuth><Success /></RequireAuth></Page>} />
