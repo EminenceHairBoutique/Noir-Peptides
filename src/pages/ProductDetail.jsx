@@ -19,6 +19,8 @@ import PeptideSpecsPanel from "../components/PeptideSpecsPanel";
 import ProductReviews from "../components/ProductReviews";
 import BackInStockForm from "../components/BackInStockForm";
 import COABadge from "../components/COABadge";
+import CoaCard from "../components/CoaCard";
+import { getCoasForProduct } from "../lib/coas";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import { PRODUCT_IS_NOT, STORAGE_GUIDANCE } from "../config/compliance";
 
@@ -46,6 +48,7 @@ export default function ProductDetail() {
   const [tiers, setTiers] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [coas, setCoas] = useState([]);
 
   // Load product + its dosage variants.
   useEffect(() => {
@@ -54,6 +57,7 @@ export default function ProductDetail() {
     setQuantity(1);
     setTiers([]);
     setVariantId(null);
+    setCoas([]);
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     (async () => {
@@ -62,14 +66,16 @@ export default function ProductDetail() {
       setProduct(p);
       setCategories(cats);
       if (p) {
-        const [vars, sameDomain] = await Promise.all([
+        const [vars, sameDomain, productCoas] = await Promise.all([
           getVariants(p.id),
           getProducts({ category: p.category_slug }),
+          getCoasForProduct(p.id),
         ]);
         if (!active) return;
         setVariants(vars);
         setVariantId(vars[0]?.id || null);
         setRelated(sameDomain.filter((x) => x.id !== p.id).slice(0, 4));
+        setCoas(productCoas);
       } else {
         setVariants([]);
         setRelated([]);
@@ -478,20 +484,35 @@ export default function ProductDetail() {
                     </dd>
                   </div>
                 </dl>
-                {product.coa_url ? (
+                {coas.length > 0 ? (
+                  <div className="space-y-3">
+                    <CoaCard
+                      coa={coas[0]}
+                      productName={product.name}
+                      origin={
+                        typeof window !== "undefined" ? window.location.origin : ""
+                      }
+                    />
+                    <Link
+                      to="/test-results"
+                      className="inline-block text-[12px] text-se-gold underline underline-offset-2 font-accent"
+                    >
+                      View all certificates &amp; verify a lot →
+                    </Link>
+                  </div>
+                ) : product.coa_url ? (
                   <COABadge coaUrl={product.coa_url} batchNumber={product.batch_number} />
                 ) : (
                   <p className="text-[12px] text-se-steel font-accent">
-                    The batch-specific Certificate of Analysis (lot, exact purity %,
-                    HPLC/MS, endotoxin) is provided with each batch and available to
-                    verified researchers on request via{" "}
+                    Certificates of analysis are published per batch (lot, HPLC purity,
+                    mass-spec identity, endotoxin). Browse the{" "}
                     <Link
-                      to="/contact"
+                      to="/test-results"
                       className="text-se-gold underline underline-offset-2"
                     >
-                      our contact page
-                    </Link>
-                    .
+                      test-results library
+                    </Link>{" "}
+                    or verify the lot printed on your vial.
                   </p>
                 )}
               </div>

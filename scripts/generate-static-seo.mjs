@@ -476,6 +476,12 @@ async function main() {
       description:
         "Current promo codes and volume bundle pricing for research reference materials. For research use only. Not for human or veterinary use.",
     },
+    {
+      pathname: "/test-results",
+      title: "Test Results — Certificate of Analysis Library",
+      description:
+        "Batch-specific certificates of analysis (HPLC purity + mass-spec identity) for Noir Peptides research reference materials. Verify any lot. For research use only. Not for human or veterinary use.",
+    },
     ...researchArticles.map((a) => ({
       pathname: `/research/${a.slug}`,
       title: a.title,

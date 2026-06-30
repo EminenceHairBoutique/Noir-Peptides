@@ -69,31 +69,27 @@ const Footer = () => {
       {/* Main grid */}
       <div className="content-wide py-12 md:py-16">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 md:gap-8">
-          {/* Catalog — authed only (gated destinations) */}
-          {isAuthed && (
-            <div>
-              <p className="text-label text-se-gold mb-5">Catalog</p>
-              <div className="space-y-3 text-[13px] font-accent">
-                <Link to="/shop" className="block text-se-bone/60 hover:text-se-gold transition">Research Catalog</Link>
-                <Link to="/shop/tissue-research" className="block text-se-bone/60 hover:text-se-gold transition">Tissue Research</Link>
-                <Link to="/shop/gh-axis-research" className="block text-se-bone/60 hover:text-se-gold transition">GH-Axis Research</Link>
-                <Link to="/shop/neurochemical-research" className="block text-se-bone/60 hover:text-se-gold transition">Neurochemical Research</Link>
-                <Link to="/shop/metabolic-pathway-research" className="block text-se-bone/60 hover:text-se-gold transition">Metabolic Pathway Research</Link>
-              </div>
+          {/* Catalog — public (browse without login; purchase is gated) */}
+          <div>
+            <p className="text-label text-se-gold mb-5">Catalog</p>
+            <div className="space-y-3 text-[13px] font-accent">
+              <Link to="/shop" className="block text-se-bone/60 hover:text-se-gold transition">Research Catalog</Link>
+              <Link to="/shop/tissue-repair-research" className="block text-se-bone/60 hover:text-se-gold transition">Tissue &amp; Repair Research</Link>
+              <Link to="/shop/gh-secretagogue-research" className="block text-se-bone/60 hover:text-se-gold transition">GH-Secretagogue Research</Link>
+              <Link to="/shop/neuropeptide-research" className="block text-se-bone/60 hover:text-se-gold transition">Neuropeptide Research</Link>
+              <Link to="/shop/mitochondrial-metabolic-research" className="block text-se-bone/60 hover:text-se-gold transition">Mitochondrial &amp; Metabolic Research</Link>
+              <Link to="/test-results" className="block text-se-bone/60 hover:text-se-gold transition">Test Results (COA Library)</Link>
             </div>
-          )}
+          </div>
 
           {/* Compliance / trust */}
           <div>
             <p className="text-label text-se-gold mb-5">Compliance</p>
             <div className="space-y-3 text-[13px] font-accent">
-              {isAuthed && (
-                <>
-                  <Link to="/coa-policy" className="block text-se-bone/60 hover:text-se-gold transition">COA Policy</Link>
-                  <Link to="/quality" className="block text-se-bone/60 hover:text-se-gold transition">Quality &amp; Batch Standards</Link>
-                  <Link to="/faqs" className="block text-se-bone/60 hover:text-se-gold transition">FAQ</Link>
-                </>
-              )}
+              <Link to="/test-results" className="block text-se-bone/60 hover:text-se-gold transition">Test Results &amp; COAs</Link>
+              <Link to="/coa-policy" className="block text-se-bone/60 hover:text-se-gold transition">COA Policy</Link>
+              <Link to="/quality" className="block text-se-bone/60 hover:text-se-gold transition">Quality &amp; Batch Standards</Link>
+              <Link to="/faqs" className="block text-se-bone/60 hover:text-se-gold transition">FAQ</Link>
               <Link to="/legal/research-use-policy" className="block text-se-bone/60 hover:text-se-gold transition">Research-Use Policy</Link>
               <Link to="/legal/fda-disclaimer" className="block text-se-bone/60 hover:text-se-gold transition">FDA Disclaimer</Link>
             </div>
