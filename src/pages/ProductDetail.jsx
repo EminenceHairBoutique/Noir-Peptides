@@ -532,6 +532,32 @@ export default function ProductDetail() {
                 </p>
               </div>
 
+              {/* Shipping & support */}
+              <div className="glass-panel p-6 mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Truck className="w-4 h-4 text-se-gold" />
+                  <h2 className="text-[12px] font-accent uppercase tracking-[0.16em] text-se-gold">
+                    Shipping &amp; Support
+                  </h2>
+                </div>
+                <ul className="space-y-1.5 text-[13px] text-se-bone/60 leading-relaxed font-accent">
+                  <li>Orders placed before 2:00 PM ET ship same business day.</li>
+                  <li>Discreet, tamper-evident packaging with a cold-pack where needed.</li>
+                  <li>Tracking emailed on dispatch; free US shipping over ${FREE_SHIP_THRESHOLD}.</li>
+                  <li>
+                    Questions? See{" "}
+                    <Link to="/legal/shipping" className="text-se-gold underline underline-offset-2">
+                      shipping &amp; returns
+                    </Link>{" "}
+                    or{" "}
+                    <Link to="/contact" className="text-se-gold underline underline-offset-2">
+                      contact support
+                    </Link>
+                    .
+                  </li>
+                </ul>
+              </div>
+
               {/* What this product is NOT */}
               <div className="border border-se-red/40 bg-[#180a0d] p-6">
                 <h2 className="text-[12px] font-accent uppercase tracking-[0.16em] text-se-red-bright mb-4">
