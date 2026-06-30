@@ -4,6 +4,7 @@ import { motion as Motion } from "framer-motion";
 import { useCart } from "./context/CartContext";
 import CookieBanner from "./components/legal/CookieBanner";
 import TrackingScripts from "./components/TrackingScripts";
+import AgeGate from "./components/AgeGate";
 const CartDrawer = lazy(() => import("./components/CartDrawer"));
 import useRouteAnalytics from "./hooks/useRouteAnalytics";
 
@@ -95,6 +96,7 @@ export default function App() {
 
   return (
     <>
+      <AgeGate />
       <TrackingScripts />
       <Suspense fallback={null}>
         <CartDrawer />

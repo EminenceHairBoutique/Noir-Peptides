@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "audit:products": "node scripts/audit-products.mjs",
+    "test:guardrail": "node scripts/test-guardrail.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {

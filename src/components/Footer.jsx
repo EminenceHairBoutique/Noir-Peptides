@@ -132,6 +132,9 @@ const Footer = () => {
       {/* Mandatory legal copy */}
       <div className="border-t border-se-concrete bg-se-black">
         <div className="content-wide py-8">
+          <p className="text-[12px] text-se-bone/80 font-accent max-w-4xl mx-auto text-center mb-3 uppercase tracking-[0.12em]">
+            For research use only. Not for human or veterinary use.
+          </p>
           <p className="text-[11px] text-se-steel leading-relaxed font-accent max-w-4xl mx-auto text-center">
             {FOOTER_LEGAL}
           </p>

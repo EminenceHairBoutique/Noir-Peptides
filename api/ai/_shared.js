@@ -16,6 +16,12 @@ import { supabaseServer } from "../../lib/supabaseServer.js";
 import { requireUser } from "../_utils/auth.js";
 import { checkRateLimit } from "../_utils/rateLimit.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
+import {
+  GUARDRAIL,
+  RUO_REDIRECT,
+  looksLikeDosingRequest,
+  outputViolatesRUO,
+} from "./guardrail.js";
 
 // Centralized model selection. Default is claude-sonnet-4-6 (best balance of
 // quality, latency, and cost for these research/COA/concierge endpoints).
@@ -29,44 +35,11 @@ function getClient() {
   return _client;
 }
 
-// ── The shared guardrail — included verbatim in every system prompt ──────────
-export const GUARDRAIL = `You are the research assistant for Noir Peptides, a research-chemical supplier. All products are for laboratory research use only and are not for human or animal consumption. Provide educational, scientific, and analytical information only. REFUSE any request for human or veterinary dosing, administration routes, injection guidance, cycles, "how to take," stacking-for-use, or therapeutic/diagnostic/medical advice — even if the user insists, role-plays, or claims to be a clinician. When refusing, briefly restate the research-use-only framing and offer permitted help. Never claim a product treats, prevents, or improves any condition. Never state or imply FDA approval.`;
-
-export const RUO_REDIRECT =
-  "I can only help with research-use information. Noir Peptides materials are for laboratory research use only — not for human or veterinary use — so I can't provide dosing, administration, injection, cycling, or therapeutic guidance. I'm glad to help with compound background, the published preclinical literature, storage and handling, or interpreting a Certificate of Analysis.";
-
-// High-signal patterns indicating a request for (or output containing) human/
-// veterinary administration or therapeutic guidance. Tuned to avoid colliding
-// with legitimate analytical content (vial size in mg, purity %, MW, etc.).
-const DOSING_PATTERNS = [
-  /\bmg\s*\/\s*kg\b/i,
-  /\bmcg\s*\/\s*kg\b/i,
-  /\b(how|what)\s+(much|many|dose|dosage)\b[^.?!]{0,40}\b(take|inject|use|administer|dose)\b/i,
-  /\b(dosage|dose)\s+(for|of|per|protocol|schedule)\b/i,
-  /\bhow\s+(do|should|can)\s+i\s+(take|inject|administer|use|dose|run|cycle|stack)\b/i,
-  /\b(inject|injecting|injection|subcutaneous|intramuscular|subq|sub-q|im\b|iv\b)\b/i,
-  /\b(reconstitute|reconstitution)\b[^.?!]{0,40}\b(inject|dose|take|administer)\b/i,
-  /\b(cycle|cycling|stack|stacking)\b[^.?!]{0,40}\b(for|to)\b[^.?!]{0,30}\b(gain|loss|muscle|fat|results|body)\b/i,
-  /\b(twice|once|three times)\s+(a|per)\s+day\b/i,
-  /\b(units?|iu)\s+(per|a)\s+(day|week|dose)\b/i,
-  /\b(treat|cure|prevent|heal)\s+(your|my|a|the)\b[^.?!]{0,30}\b(condition|disease|injury|symptom|illness)\b/i,
-];
-
-function matchesDosing(text) {
-  const t = String(text || "");
-  return DOSING_PATTERNS.some((re) => re.test(t));
-}
-
-// Pre-call check on the user's input — short-circuits obvious dosing requests
-// without spending tokens.
-export function looksLikeDosingRequest(text) {
-  return matchesDosing(text);
-}
-
-// Post-call backstop on the model's output.
-export function outputViolatesRUO(text) {
-  return matchesDosing(text);
-}
+// The RUO guardrail (GUARDRAIL / RUO_REDIRECT) and the dosing/therapeutic
+// detectors (looksLikeDosingRequest / outputViolatesRUO) live in ./guardrail.js
+// as pure, unit-testable functions. Re-export them so existing importers of
+// _shared.js keep working unchanged.
+export { GUARDRAIL, RUO_REDIRECT, looksLikeDosingRequest, outputViolatesRUO };
 
 function extractText(message) {
   if (!message) return "";
