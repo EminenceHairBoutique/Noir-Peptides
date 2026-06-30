@@ -67,7 +67,14 @@ export default async function handler(req, res) {
   }
 
   const body = await readJsonBody(req);
-  const { items, researchUseAcknowledged, discountCode, redeemPoints } = body || {};
+  const {
+    items,
+    researchUseAcknowledged,
+    discountCode,
+    redeemPoints,
+    referralCode,
+    shippingAddress,
+  } = body || {};
   if (!researchUseAcknowledged) {
     return json(res, 400, { error: "Research-use acknowledgment is required." });
   }
@@ -76,7 +83,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { eligibleSubtotal, fullSubtotal } = await priceLines(items);
+    const { lines, eligibleSubtotal, fullSubtotal } = await priceLines(items);
     const adj = await computeAdjustments({
       userId: user.id,
       discountCode,
@@ -97,6 +104,15 @@ export default async function handler(req, res) {
       req.headers.origin ||
       `https://${req.headers["x-forwarded-host"] || req.headers.host}`;
 
+    // Snapshot the priced line items + consent into the invoice metadata so the
+    // settlement webhook can create the order WITHOUT trusting the client.
+    const orderItems = lines.map((l) => ({
+      name: `${l.product?.name || "Research material"} ${l.variant?.size_label || ""}`.trim(),
+      sku: l.variant?.sku || "",
+      quantity: l.qty,
+      unit_dollars: l.unitDollars,
+    }));
+
     const base = String(process.env.BTCPAY_URL).replace(/\/+$/, "");
     const resp = await fetch(
       `${base}/api/v1/stores/${process.env.BTCPAY_STORE_ID}/invoices`,
@@ -113,9 +129,25 @@ export default async function handler(req, res) {
             buyerEmail: user.email || profile?.email || "",
             userId: user.id,
             researchUseOnly: "true",
-            discountCode: adj.promoCode || "",
-            loyaltyPoints: adj.loyaltyPoints || 0,
             cryptoDiscountPct: CRYPTO_DISCOUNT_PCT,
+            // Carried to the settlement webhook (api/btcpay/webhook.js) so the
+            // fulfilled order matches the card rail exactly.
+            amountTotalCents: Math.round(amount * 100),
+            orderItems,
+            shippingAddress: shippingAddress || null,
+            consent: {
+              discount_code: adj.promoCode || "",
+              discount_amount: adj.promoAmount || "",
+              loyalty_points: adj.loyaltyPoints || "",
+              loyalty_dollars: adj.loyaltyDollars || "",
+              referral_code: referralCode
+                ? String(referralCode).trim().toUpperCase().slice(0, 32)
+                : "",
+              attestation_version: ATTESTATION_VERSION,
+              research_use_acknowledged: "true",
+              research_use_only: "true",
+              crypto_discount_pct: CRYPTO_DISCOUNT_PCT,
+            },
           },
           checkout: { redirectURL: `${origin}/success`, redirectAutomatically: true },
         }),
