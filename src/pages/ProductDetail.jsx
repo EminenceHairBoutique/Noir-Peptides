@@ -456,6 +456,42 @@ export default function ProductDetail() {
                 <PeptideSpecsPanel product={specProduct} />
               </div>
 
+              {/* Batch traceability */}
+              <div className="glass-panel p-6 mb-6">
+                <h2 className="text-[12px] font-accent uppercase tracking-[0.16em] text-se-gold mb-3">
+                  Batch Traceability
+                </h2>
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[12px] font-accent">
+                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                    <dt className="text-se-steel">Batch / Lot</dt>
+                    <dd className="text-se-bone break-all">
+                      {coas[0]?.lot || coas[0]?.lot_number || product.batch_number || "Assigned per lot"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                    <dt className="text-se-steel">Methods</dt>
+                    <dd className="text-se-bone">HPLC · MS</dd>
+                  </div>
+                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                    <dt className="text-se-steel">COA status</dt>
+                    <dd className={coas.length ? "text-emerald-300" : "text-se-bone"}>
+                      {coas.length ? "Published" : "Per batch"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                    <dt className="text-se-steel">Storage</dt>
+                    <dd className="text-se-bone">{product.storage_temp || "—"}</dd>
+                  </div>
+                </dl>
+                <p className="text-[11px] text-se-steel font-accent mt-3">
+                  Each unit is traceable to its batch. Verify the lot printed on your vial via{" "}
+                  <Link to="/verify-lot" className="text-se-gold underline underline-offset-2">
+                    lot verification
+                  </Link>
+                  .
+                </p>
+              </div>
+
               {/* COA block */}
               <div className="glass-panel p-6 mb-6">
                 <div className="flex items-center gap-2 mb-3">

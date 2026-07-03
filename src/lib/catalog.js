@@ -119,6 +119,25 @@ export async function getVariants(productId) {
 }
 
 /**
+ * Fetch ALL variants across the catalog (for shop-wide filters like vial size).
+ * Public read. Returns [] on error.
+ * @returns {Promise<Array<{id,product_id,vial_size_mg,size_label,price,stock_status}>>}
+ */
+export async function getAllVariants() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from("product_variants")
+      .select("id, product_id, vial_size_mg, size_label, price, stock_status")
+      .order("product_id", { ascending: true });
+    if (error || !Array.isArray(data)) return [];
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Fetch the bundle/volume price tiers for a VARIANT, ascending by quantity.
  * RLS-gated (attested read). Returns [] when none configured.
  * @returns {Promise<Array<{min_quantity,unit_price,savings_pct,label}>>}
