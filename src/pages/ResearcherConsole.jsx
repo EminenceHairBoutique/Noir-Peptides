@@ -237,7 +237,7 @@ export default function ResearcherConsole() {
                 title="AI research tools"
                 action={<span className="text-[10px] font-accent uppercase tracking-[0.16em] text-se-gold/70">RUO-safe</span>}
               >
-                <Link to="/research" className="group glass-panel card-hover p-5 flex items-start gap-3">
+                <Link to="/assistant" className="group glass-panel card-hover p-5 flex items-start gap-3">
                   <Sparkles className="w-5 h-5 text-se-gold shrink-0" strokeWidth={1.5} />
                   <div>
                     <p className="font-display text-[15px]">Research Concierge & COA tools</p>

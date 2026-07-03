@@ -45,6 +45,7 @@ const ShippingRefunds = lazy(() => import("./pages/ShippingRefunds"));
 
 // ── Gated tier (require auth + attestation) ──
 const ResearcherConsole = lazy(() => import("./pages/ResearcherConsole"));
+const Assistant = lazy(() => import("./pages/Assistant"));
 const About = lazy(() => import("./pages/About"));
 const Shop = lazy(() => import("./pages/Shop"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
@@ -162,6 +163,7 @@ export default function App() {
 
               {/* ── GATED (auth + attestation) ── */}
               <Route path="/home" element={<Page><RequireAuth><ResearcherConsole /></RequireAuth></Page>} />
+              <Route path="/assistant" element={<Page><RequireAuth><Assistant /></RequireAuth></Page>} />
               <Route path="/cart" element={<Page><RequireAuth><Cart /></RequireAuth></Page>} />
               <Route path="/checkout" element={<Page><RequireAuth><Checkout /></RequireAuth></Page>} />
               <Route path="/success" element={<Page><RequireAuth><Success /></RequireAuth></Page>} />
