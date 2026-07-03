@@ -32,3 +32,19 @@ export async function askAi(path, body) {
   if (!res.ok) throw new Error(data?.error || `Request failed (${res.status})`);
   return { reply: data.reply || "", refused: Boolean(data.refused), notConfigured: false };
 }
+
+/**
+ * POST to an AI endpoint and return the raw JSON (for non-chat shapes like
+ * semantic search). Returns { notConfigured: true } on 503.
+ */
+export async function postAiRaw(path, body) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(body || {}),
+  });
+  if (res.status === 503) return { notConfigured: true };
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `Request failed (${res.status})`);
+  return data;
+}

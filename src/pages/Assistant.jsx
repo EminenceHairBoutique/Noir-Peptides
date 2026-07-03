@@ -4,13 +4,15 @@
 // side (RUO guardrail + refusals + output post-processing). These tools never
 // provide dosing, administration, or therapeutic guidance.
 import { useState } from "react";
-import { MessagesSquare, FileSearch, BookOpen, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
+import { MessagesSquare, FileSearch, BookOpen, Sparkles, Search } from "lucide-react";
 import SEO from "../components/SEO";
 import AiChat from "../components/AiChat";
-import { askAi } from "../lib/aiApi";
+import { askAi, postAiRaw } from "../lib/aiApi";
 
 const TABS = [
   { id: "concierge", label: "Concierge", icon: MessagesSquare },
+  { id: "search", label: "Smart Search", icon: Search },
   { id: "coa", label: "COA Interpreter", icon: FileSearch },
   { id: "literature", label: "Literature Summarizer", icon: BookOpen },
 ];
@@ -103,6 +105,62 @@ function LiteratureSummarizer() {
   );
 }
 
+function SmartSearch() {
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [data, setData] = useState(null);
+  const [notice, setNotice] = useState(null);
+
+  const run = async (e) => {
+    e.preventDefault();
+    if (!q.trim() || busy) return;
+    setBusy(true); setNotice(null); setData(null);
+    try {
+      const r = await postAiRaw("/api/ai/semantic-search", { query: q });
+      if (r.notConfigured) setNotice("Search isn’t enabled on this environment yet.");
+      else setData(r);
+    } catch (err) {
+      setNotice(err.message || "Search failed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const hrefFor = (r) => (r.type === "article" ? `/research/${r.ref_id}` : `/product/${r.ref_id}`);
+
+  return (
+    <div className="max-w-3xl">
+      <form onSubmit={run} className="flex gap-2 mb-2">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the catalog & research library by meaning…" className={`${field} flex-1`} />
+        <button type="submit" disabled={busy || !q.trim()} className="btn-primary disabled:opacity-40">
+          {busy ? "Searching…" : "Search"}
+        </button>
+      </form>
+      {data?.mode && (
+        <p className="text-[11px] text-se-steel font-accent mb-4">
+          {data.mode === "semantic" ? "Semantic (embeddings) results" : "Keyword results"}
+        </p>
+      )}
+      {notice && <p className="text-[12px] text-amber-300 mb-3">{notice}</p>}
+      {data && (data.results?.length ? (
+        <div className="glass-panel divide-y divide-white/5">
+          {data.results.map((r, i) => (
+            <Link key={i} to={hrefFor(r)} className="block p-4 hover:bg-white/[0.02] transition">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] uppercase tracking-wide rounded-full border border-white/15 text-se-steel px-2 py-0.5">{r.type}</span>
+                <span className="font-mono text-[12px] text-se-gold">{r.ref_id}</span>
+              </div>
+              <p className="text-[13px] text-se-bone/70 font-accent line-clamp-2">{r.snippet}</p>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="glass-panel p-6 text-se-bone/50 text-sm">No matches. Try different terms.</div>
+      ))}
+    </div>
+  );
+}
+
 export default function Assistant() {
   const [tab, setTab] = useState("concierge");
   return (
@@ -144,6 +202,7 @@ export default function Assistant() {
               />
             </div>
           )}
+          {tab === "search" && <SmartSearch />}
           {tab === "coa" && <CoaInterpreter />}
           {tab === "literature" && <LiteratureSummarizer />}
 

@@ -17,6 +17,7 @@ import {
   Sparkles,
   Plus,
   RefreshCw,
+  Flag,
 } from "lucide-react";
 import SEO from "../components/SEO";
 import { adminGet, adminSend } from "../lib/adminApi";
@@ -30,6 +31,7 @@ const num = (n) => (n == null ? "—" : n.toLocaleString());
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "coa", label: "COA Manager", icon: FileCheck2 },
+  { id: "flags", label: "AI Flags", icon: Flag },
   { id: "scanner", label: "Compliance Scanner", icon: ShieldAlert },
 ];
 
@@ -83,6 +85,7 @@ function Overview() {
         <StatCard label="Partner apps" value={num(mod.partnersPending)} sub="pending review" icon={Users} />
         <StatCard label="Back-in-stock" value={num(mod.backInStock)} sub="subscriptions" icon={Package} />
         <StatCard label="AI conversations" value={num(data?.ai?.conversations)} icon={Sparkles} />
+        <StatCard label="AI flags (open)" value={num(data?.ai?.unreviewedFlags)} sub="need review" icon={Flag} />
       </div>
       <p className="text-[12px] text-se-bone/40 font-accent">
         Deeper editors (orders fulfillment, review moderation, partner approvals) surface their
@@ -321,6 +324,52 @@ function ComplianceScanner() {
   );
 }
 
+/* ── AI safety queue ──────────────────────────────────────────────────── */
+function AiFlags() {
+  const [flags, setFlags] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    adminGet("/api/admin/ai-flags")
+      .then((d) => { setFlags(d.flags || []); setErr(null); })
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const markReviewed = async (id) => {
+    try { await adminSend("/api/admin/ai-flags", "PATCH", { id, reviewed: true }); load(); }
+    catch (e) { setErr(e.message); }
+  };
+
+  if (loading) return <p className="text-se-steel text-sm">Loading AI safety queue…</p>;
+  if (err) return <p className="text-red-300 text-sm">{err}</p>;
+  if (!flags.length) return <div className="glass-panel p-6 text-se-bone/50 text-sm">No AI safety flags. Refusals and blocked outputs will appear here.</div>;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[12px] text-se-bone/45 font-accent">
+        Every refusal (dosing/administration request) and every blocked output-drift is logged here.
+      </p>
+      {flags.map((f) => (
+        <div key={f.id} className={`glass-panel p-4 ${f.reviewed ? "opacity-60" : ""}`}>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 border ${f.kind === "flag" ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>{f.kind}</span>
+              <span className="text-[11px] text-se-steel font-accent">{f.feature || "ai"} · {new Date(f.created_at).toLocaleString()}</span>
+            </div>
+            {!f.reviewed && <button onClick={() => markReviewed(f.id)} className="text-[11px] text-se-gold hover:underline">Mark reviewed</button>}
+          </div>
+          <p className="text-[12.5px] text-se-bone/80 font-accent"><span className="text-se-steel">Prompt:</span> {f.prompt}</p>
+          {f.reply && <p className="text-[12px] text-se-bone/50 font-accent mt-1"><span className="text-se-steel">Served:</span> {f.reply}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminHome() {
   const [tab, setTab] = useState("overview");
   return (
@@ -352,6 +401,7 @@ export default function AdminHome() {
 
           {tab === "overview" && <Overview />}
           {tab === "coa" && <CoaManager />}
+          {tab === "flags" && <AiFlags />}
           {tab === "scanner" && <ComplianceScanner />}
         </div>
       </div>
