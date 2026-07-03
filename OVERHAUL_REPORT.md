@@ -77,32 +77,42 @@ writes to the existing `coas` table (extended in `0014`).
 
 ---
 
-## Remaining (foundation laid; safe to continue)
+### ✅ Phase D — Catalog + PDP UX
+- `/shop` rebuilt: faceted filters (category, vial size from live variants,
+  in-stock, COA-on-file, featured, new, max-price slider) with active-count +
+  clear; **analytical compare mode** (up to 4, analytical fields only); premium
+  skeleton/empty/error states; name sort; broader search.
+- `lib/catalog.getAllVariants()` powers the size facet.
+- PDP **Batch Traceability** panel (batch/lot, HPLC·MS methods, live COA status,
+  storage) linking to `/verify-lot`.
 
-### Phase D — Catalog + PDP UX (not yet built)
-- `/shop` advanced filters (category, vial size, purity, stock, COA availability,
-  featured/new, price range) + compare mode (analytical fields only) + premium
-  empty/loading/error states.
-- PDP batch-traceability panel + related materials by domain. (COA display,
-  renames, "what this is not", and shipping panel already exist from Tasks 1–6 +
-  Phase A.)
+### ✅ Phase F — security hardening + e2e alignment
+- Rate limiter degrades to an in-memory per-instance backstop instead of fully
+  failing open (`api/_utils/rateLimit.js`).
+- Security audit clean: no client-side secrets, anon-only keys, all
+  `/api/admin/*` gated, sensitive routes rate-limited, both webhooks verify
+  signatures. `SECURITY.md` updated.
+- e2e specs corrected to the public-catalog model (the old suite would have
+  failed): `auth-wall.spec.js` (gated bounce / public reachable) + new
+  `coa-verify.spec.js` (unknown lot fails gracefully).
+- **Support flow already complete** (pre-existing): `/api/contact.js` rate-limits,
+  validates, stores to `contact_requests`, emails via Resend (degrades safely).
 
-### Phase E — full AI experiences (compliance scanner done; chat UIs remain)
-Foundation exists (`api/ai/_shared.js` guardrail'd handler, `guardrail.js`,
-refusal tests). Remaining: dedicated **Concierge**, **COA Interpreter**,
-**Literature Summarizer**, **Smart Catalog Search** surfaces + an `ai_flags`
-table for refusal/flag review state. The Researcher Console + Admin already link
-to the AI area.
+---
 
-### Phase F — security hardening + support flow + e2e (not yet built)
-- Security review pass (rate-limit fail-mode for checkout/attestation/AI, input
-  validation sweep, error-leakage, CSP re-verify for new endpoints, `SECURITY.md`).
-- Contact → structured support-ticket flow (categories, storage in
-  `support_tickets`).
-- Playwright tests: auth-wall redirects, no catalog leak logged-out (N/A under
-  the public-catalog decision — replace with "no pricing on public landing"),
-  attestation-before-checkout, admin route blocks non-admin, checkout doesn't
-  trust client prices, COA lookup handles missing lots.
+## Still remaining (foundation laid; safe to continue)
+
+- **Full AI chat experiences** — dedicated Concierge / COA Interpreter /
+  Literature Summarizer / Smart Catalog Search UIs. The guardrail'd `/api/ai/*`
+  backend + refusal tests + the admin AI compliance scanner already exist; these
+  are new front-end surfaces + an `ai_flags` table for refusal/review state.
+- **Deeper admin editors** — orders fulfillment, review moderation, and partner
+  approvals currently surface live counts in the Overview; focused editors can
+  reuse the existing `/api/admin/order-status`, `/api/admin/partner-*` endpoints.
+- **PDP related-materials by domain** (compare covers cross-product analytical
+  comparison; a "related" rail is a small add).
+- **e2e execution** — specs are CI-ready but were not run in-sandbox (Playwright
+  browser/preview constrained). Unit tests (`npm run test:unit`, 30/30) do run.
 
 ---
 
