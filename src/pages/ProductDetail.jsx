@@ -297,18 +297,18 @@ export default function ProductDetail() {
 
               <div className="divider my-6" />
 
-              {/* Dosage selector */}
+              {/* Vial size selector */}
               {variants.length > 0 && (
                 <div className="mb-6">
                   <span
-                    id="dosage-label"
+                    id="vial-size-label"
                     className="text-label text-se-bone/80 mb-3 block"
                   >
-                    Dosage
+                    Vial Size
                   </span>
                   <div
                     role="radiogroup"
-                    aria-labelledby="dosage-label"
+                    aria-labelledby="vial-size-label"
                     className="flex flex-wrap gap-2"
                   >
                     {variants.map((v) => {
@@ -444,7 +444,7 @@ export default function ProductDetail() {
               {/* Description */}
               <div className="mb-8">
                 <h2 className="text-[12px] font-accent uppercase tracking-[0.16em] text-se-gold mb-3">
-                  About this research compound
+                  Research Material Overview
                 </h2>
                 <p className="text-[14px] text-se-bone/65 leading-relaxed font-accent">
                   {product.description}

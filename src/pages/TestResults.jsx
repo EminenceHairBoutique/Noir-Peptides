@@ -56,7 +56,7 @@ export default function TestResults() {
   function onLotSubmit(e) {
     e.preventDefault();
     const lot = lotQuery.trim();
-    if (lot) navigate(`/verify?lot=${encodeURIComponent(lot)}`);
+    if (lot) navigate(`/verify-lot?lot=${encodeURIComponent(lot)}`);
   }
 
   return (

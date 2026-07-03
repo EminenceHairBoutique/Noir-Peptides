@@ -44,7 +44,7 @@ const FdaDisclaimer = lazy(() => import("./pages/FdaDisclaimer"));
 const ShippingRefunds = lazy(() => import("./pages/ShippingRefunds"));
 
 // ── Gated tier (require auth + attestation) ──
-const Home = lazy(() => import("./pages/Home"));
+const ResearcherConsole = lazy(() => import("./pages/ResearcherConsole"));
 const About = lazy(() => import("./pages/About"));
 const Shop = lazy(() => import("./pages/Shop"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
@@ -127,7 +127,7 @@ export default function App() {
               <Route path="/calculator" element={<Page><Calculator /></Page>} />
               <Route path="/deals" element={<Page><Deals /></Page>} />
               <Route path="/test-results" element={<Page><TestResults /></Page>} />
-              <Route path="/verify" element={<Page><VerifyLot /></Page>} />
+              <Route path="/verify-lot" element={<Page><VerifyLot /></Page>} />
 
               {/* ── PUBLIC LEGAL ── */}
               <Route path="/legal/terms" element={<Page><Terms /></Page>} />
@@ -161,7 +161,7 @@ export default function App() {
               <Route path="/contact" element={<Page><Contact /></Page>} />
 
               {/* ── GATED (auth + attestation) ── */}
-              <Route path="/home" element={<Page><RequireAuth><Home /></RequireAuth></Page>} />
+              <Route path="/home" element={<Page><RequireAuth><ResearcherConsole /></RequireAuth></Page>} />
               <Route path="/cart" element={<Page><RequireAuth><Cart /></RequireAuth></Page>} />
               <Route path="/checkout" element={<Page><RequireAuth><Checkout /></RequireAuth></Page>} />
               <Route path="/success" element={<Page><RequireAuth><Success /></RequireAuth></Page>} />

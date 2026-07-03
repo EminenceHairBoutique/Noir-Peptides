@@ -20,7 +20,7 @@ export default function BackInStockForm({ productId, variantId }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Could not save your request.");
-      setStatus("We'll email you when this dosage is back.");
+      setStatus("We'll email you when this vial size is back.");
       setEmail("");
     } catch (err) {
       setStatus(err.message);

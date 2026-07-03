@@ -24,7 +24,7 @@ export default function CoaCard({ coa, productName, origin = "", showQr = true }
   if (!coa) return null;
   const lot = coa.lot || coa.lot_number || coa.batch_number || null;
   const purity = coa.hplc || (coa.purity_percent != null ? `${coa.purity_percent}%` : null);
-  const verifyUrl = lot ? `${origin}/verify?lot=${encodeURIComponent(lot)}` : null;
+  const verifyUrl = lot ? `${origin}/verify-lot?lot=${encodeURIComponent(lot)}` : null;
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 flex flex-col sm:flex-row gap-5">
@@ -88,7 +88,7 @@ export default function CoaCard({ coa, productName, origin = "", showQr = true }
         <div className="flex flex-col items-center gap-2 shrink-0">
           <QrCode value={verifyUrl} size={104} alt={`Verify lot ${lot}`} />
           <Link
-            to={`/verify?lot=${encodeURIComponent(lot)}`}
+            to={`/verify-lot?lot=${encodeURIComponent(lot)}`}
             className="text-[11px] text-se-steel hover:text-se-gold tracking-wide"
           >
             Verify this lot
