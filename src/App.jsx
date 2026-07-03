@@ -1,9 +1,10 @@
 import React, { Suspense, lazy } from "react";
-import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { Routes, Route, useLocation, useParams, Navigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { useCart } from "./context/CartContext";
 import CookieBanner from "./components/legal/CookieBanner";
 import TrackingScripts from "./components/TrackingScripts";
+import AgeGate from "./components/AgeGate";
 const CartDrawer = lazy(() => import("./components/CartDrawer"));
 import useRouteAnalytics from "./hooks/useRouteAnalytics";
 
@@ -32,6 +33,8 @@ const Research = lazy(() => import("./pages/Research"));
 const ResearchArticle = lazy(() => import("./pages/ResearchArticle"));
 const Calculator = lazy(() => import("./pages/Calculator"));
 const Deals = lazy(() => import("./pages/Deals"));
+const TestResults = lazy(() => import("./pages/TestResults"));
+const VerifyLot = lazy(() => import("./pages/VerifyLot"));
 
 // ── Public legal docs ──
 const Terms = lazy(() => import("./pages/Terms"));
@@ -41,7 +44,7 @@ const FdaDisclaimer = lazy(() => import("./pages/FdaDisclaimer"));
 const ShippingRefunds = lazy(() => import("./pages/ShippingRefunds"));
 
 // ── Gated tier (require auth + attestation) ──
-const Home = lazy(() => import("./pages/Home"));
+const ResearcherConsole = lazy(() => import("./pages/ResearcherConsole"));
 const About = lazy(() => import("./pages/About"));
 const Shop = lazy(() => import("./pages/Shop"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
@@ -63,6 +66,12 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Routes that render their own full-page chrome (no global Navbar/Footer).
 const BARE_PREFIXES = ["/login", "/register", "/verify", "/forgot-password", "/reset-password"];
+
+// Redirect the legacy plural product path to the canonical singular one.
+function ProductAliasRedirect() {
+  const { slug } = useParams();
+  return <Navigate to={`/product/${slug}`} replace />;
+}
 
 function Page({ children }) {
   return (
@@ -87,6 +96,7 @@ export default function App() {
 
   return (
     <>
+      <AgeGate />
       <TrackingScripts />
       <Suspense fallback={null}>
         <CartDrawer />
@@ -116,6 +126,8 @@ export default function App() {
               <Route path="/research/:slug" element={<Page><ResearchArticle /></Page>} />
               <Route path="/calculator" element={<Page><Calculator /></Page>} />
               <Route path="/deals" element={<Page><Deals /></Page>} />
+              <Route path="/test-results" element={<Page><TestResults /></Page>} />
+              <Route path="/verify-lot" element={<Page><VerifyLot /></Page>} />
 
               {/* ── PUBLIC LEGAL ── */}
               <Route path="/legal/terms" element={<Page><Terms /></Page>} />
@@ -125,21 +137,31 @@ export default function App() {
               <Route path="/legal/shipping" element={<Page><ShippingRefunds /></Page>} />
               <Route path="/legal/returns" element={<Page><ShippingRefunds /></Page>} />
 
+              {/* ── PUBLIC CATALOG (browse without login; purchase is gated) ──
+                   Catalog reads are public at the data layer (migration 0013)
+                   so these pages are crawlable/indexable. Adding to cart is
+                   allowed for anyone; CHECKOUT requires auth + a current
+                   research-use attestation (route guards below + the
+                   server-side attestation gate in the checkout endpoints). */}
+              <Route path="/shop" element={<Page><Shop /></Page>} />
+              <Route path="/shop/:category" element={<Page><Shop /></Page>} />
+              <Route path="/catalog" element={<Page><Shop /></Page>} />
+              <Route path="/catalog/:category" element={<Page><Shop /></Page>} />
+              <Route path="/product/:slug" element={<Page><ProductDetail /></Page>} />
+              {/* Plural alias → canonical singular (avoids duplicate content). */}
+              <Route path="/products/:slug" element={<ProductAliasRedirect />} />
+
+              {/* ── PUBLIC INFORMATIONAL (trust/SEO; no commerce action) ── */}
+              <Route path="/coa" element={<Page><CoaPolicy /></Page>} />
+              <Route path="/coa-policy" element={<Page><CoaPolicy /></Page>} />
+              <Route path="/quality" element={<Page><Quality /></Page>} />
+              <Route path="/about" element={<Page><About /></Page>} />
+              <Route path="/faq" element={<Page><Faqs /></Page>} />
+              <Route path="/faqs" element={<Page><Faqs /></Page>} />
+              <Route path="/contact" element={<Page><Contact /></Page>} />
+
               {/* ── GATED (auth + attestation) ── */}
-              <Route path="/home" element={<Page><RequireAuth><Home /></RequireAuth></Page>} />
-              <Route path="/shop" element={<Page><RequireAuth><Shop /></RequireAuth></Page>} />
-              <Route path="/shop/:category" element={<Page><RequireAuth><Shop /></RequireAuth></Page>} />
-              <Route path="/catalog" element={<Page><RequireAuth><Shop /></RequireAuth></Page>} />
-              <Route path="/catalog/:category" element={<Page><RequireAuth><Shop /></RequireAuth></Page>} />
-              <Route path="/product/:slug" element={<Page><RequireAuth><ProductDetail /></RequireAuth></Page>} />
-              <Route path="/products/:slug" element={<Page><RequireAuth><ProductDetail /></RequireAuth></Page>} />
-              <Route path="/coa" element={<Page><RequireAuth><CoaPolicy /></RequireAuth></Page>} />
-              <Route path="/coa-policy" element={<Page><RequireAuth><CoaPolicy /></RequireAuth></Page>} />
-              <Route path="/quality" element={<Page><RequireAuth><Quality /></RequireAuth></Page>} />
-              <Route path="/about" element={<Page><RequireAuth><About /></RequireAuth></Page>} />
-              <Route path="/faq" element={<Page><RequireAuth><Faqs /></RequireAuth></Page>} />
-              <Route path="/faqs" element={<Page><RequireAuth><Faqs /></RequireAuth></Page>} />
-              <Route path="/contact" element={<Page><RequireAuth><Contact /></RequireAuth></Page>} />
+              <Route path="/home" element={<Page><RequireAuth><ResearcherConsole /></RequireAuth></Page>} />
               <Route path="/cart" element={<Page><RequireAuth><Cart /></RequireAuth></Page>} />
               <Route path="/checkout" element={<Page><RequireAuth><Checkout /></RequireAuth></Page>} />
               <Route path="/success" element={<Page><RequireAuth><Success /></RequireAuth></Page>} />

@@ -18,9 +18,29 @@
 - Pricing is server-trusted (never read from the client). Shipping is US-only.
 
 ## Rate limiting
-- Distributed limiter backed by the `rate_limits` table (migration 0005), so it
-  no longer fails open. Applied to checkout, attestation, subscribe, concierge,
-  and partner application endpoints.
+- Distributed limiter backed by the `rate_limits` table (migration 0005),
+  applied to checkout, attestation, subscribe, contact, AI, reviews,
+  back-in-stock, and partner-application endpoints.
+- **Degraded mode (not fail-open):** if the Supabase store is unavailable, the
+  limiter falls back to a best-effort **in-memory** limiter per serverless
+  instance (`api/_utils/rateLimit.js`), so an infra outage caps abuse instead of
+  removing all limits. A request passes only if both the DB path and the
+  in-memory backstop allow it.
+
+## Admin surface
+- Every `/api/admin/*` endpoint (overview, coa, orders, partner applications)
+  calls `requireAdmin` server-side; the client `RequireAdmin` guard is UX only.
+- Service-role reads are confined to admin endpoints (never shipped to the
+  client). The admin Compliance Scanner endpoint (`/api/ai/compliance-scan`) is
+  admin-gated and degrades to regex-only when no model key is present.
+
+## Catalog visibility (by product decision)
+- The catalog (products/variants/price-tiers/categories/COAs) is **public-read**
+  (migration 0013) so product pages are indexable. This is a deliberate product
+  decision — it does NOT weaken commerce: cart→checkout requires auth + a current
+  research-use attestation (server-enforced 403), and orders/profiles/
+  attestation records remain owner-scoped under RLS. Published COAs only are
+  publicly readable (`is_published`); drafts stay admin-only.
 
 ## Content-Security-Policy — residual `'unsafe-inline'` (script-src)
 `script-src` still allows `'unsafe-inline'`. This is a deliberate, documented

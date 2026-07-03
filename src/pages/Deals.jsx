@@ -93,7 +93,7 @@ export default function Deals() {
                 </h2>
               </div>
               <p className="text-[13px] text-se-bone/55 font-accent mb-5">
-                Every dosage uses the same buy-more-save-more ladder. Free US
+                Every vial size uses the same buy-more-save-more ladder. Free US
                 shipping at $200.
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">

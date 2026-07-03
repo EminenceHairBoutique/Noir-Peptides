@@ -57,7 +57,7 @@ const ProductCard = ({ product }) => {
         {!isOut && (
           <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
             <div className="w-full py-3 bg-se-gold text-[#04121b] text-[10px] font-accent font-semibold tracking-[0.2em] uppercase text-center">
-              Select Dosage
+              Select Vial Size
             </div>
           </div>
         )}

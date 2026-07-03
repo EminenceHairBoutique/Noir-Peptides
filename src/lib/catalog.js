@@ -1,14 +1,15 @@
 // src/lib/catalog.js
-// Client catalog data layer. Reads the storefront catalog from the RLS-gated
-// Supabase `products` / `product_categories` tables (migration 0003 gates SELECT
-// on is_attested()). This is what makes the auth wall REAL for the catalog:
-// an unauthenticated/unattested client receives zero rows from the network, and
-// the catalog is no longer shipped in the JS bundle.
+// Client catalog data layer. Reads the storefront catalog from the Supabase
+// `products` / `product_variants` / `price_tiers` / `product_categories`
+// tables. Catalog READS are public (migration 0013) so product/category pages
+// are crawlable and render for anonymous visitors; PURCHASE stays gated
+// (checkout requires auth + a current research-use attestation, enforced
+// server-side). `orders` / `profiles` / `attestation_audit` remain RLS-gated.
 //
-// IMPORTANT: there is intentionally NO static fallback here. Falling back to a
-// bundled catalog would defeat the wall. When Supabase is unconfigured (no auth
-// is possible, so the storefront is unreachable anyway) these helpers return
-// empty results rather than leaking data.
+// IMPORTANT: there is intentionally NO bundled static fallback here — the live
+// Supabase rows are the runtime source of truth (the build-time prerenderer
+// mirrors them via src/data/tier1Catalog.js). When Supabase is unconfigured
+// these helpers return empty results rather than a stale bundled catalog.
 
 import { supabase } from "./supabaseClient";
 
@@ -110,6 +111,25 @@ export async function getVariants(productId) {
       .select("id, sku, vial_size_mg, price, size_label, sort_order, stock_status")
       .eq("product_id", productId)
       .order("sort_order", { ascending: true });
+    if (error || !Array.isArray(data)) return [];
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch ALL variants across the catalog (for shop-wide filters like vial size).
+ * Public read. Returns [] on error.
+ * @returns {Promise<Array<{id,product_id,vial_size_mg,size_label,price,stock_status}>>}
+ */
+export async function getAllVariants() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from("product_variants")
+      .select("id, product_id, vial_size_mg, size_label, price, stock_status")
+      .order("product_id", { ascending: true });
     if (error || !Array.isArray(data)) return [];
     return data;
   } catch {

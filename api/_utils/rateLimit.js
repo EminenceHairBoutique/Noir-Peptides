@@ -5,9 +5,10 @@
  * Uses Supabase as the backing store so limits apply across all invocations
  * (unlike in-memory maps which only work within a single cold-start instance).
  *
- * Fails OPEN: if Supabase is unavailable or the table does not exist yet,
- * the request is allowed through. This prevents legitimate customers from
- * being blocked by infrastructure issues.
+ * Primary store is Supabase (distributed). If it is unavailable, we DEGRADE to
+ * a best-effort in-memory limiter (per serverless instance) rather than failing
+ * fully open — so an infra outage caps abuse instead of removing all limits.
+ * Only if BOTH the DB and the in-memory backstop allow does the request pass.
  *
  * SQL setup: run SUPABASE_RATE_LIMITS.sql in your Supabase SQL editor.
  *
@@ -55,6 +56,36 @@ function getClientIp(req) {
 // Max length for the endpoint segment of the DB key (matches the `key` column size).
 const MAX_ENDPOINT_LENGTH = 64;
 
+// ── In-memory backstop (per serverless instance) ──────────────────────────
+// Used only when the distributed (Supabase) store is unavailable, so a DB
+// outage degrades to best-effort limiting instead of unlimited.
+const memBuckets = new Map(); // key -> { count, windowStart }
+const MEM_MAX_KEYS = 5000;
+
+function memoryAllow(key, max, windowMs) {
+  const now = Date.now();
+  // Bound memory: drop the oldest entries if the map grows too large.
+  if (memBuckets.size > MEM_MAX_KEYS) {
+    for (const k of memBuckets.keys()) {
+      memBuckets.delete(k);
+      if (memBuckets.size <= MEM_MAX_KEYS / 2) break;
+    }
+  }
+  const b = memBuckets.get(key);
+  if (!b || now - b.windowStart >= windowMs) {
+    memBuckets.set(key, { count: 1, windowStart: now });
+    return true;
+  }
+  if (b.count >= max) return false;
+  b.count += 1;
+  return true;
+}
+
+function deny(res) {
+  res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
+  return false;
+}
+
 export async function checkRateLimit(req, res, options = {}) {
   const max = Number(options.max ?? DEFAULT_MAX);
   const windowMs = Number(options.windowMs ?? DEFAULT_WINDOW_MS);
@@ -73,8 +104,9 @@ export async function checkRateLimit(req, res, options = {}) {
       .maybeSingle();
 
     if (error) {
-      // Table likely doesn't exist yet — fail open.
-      return true;
+      // DB store unavailable (e.g. table missing) — degrade to the in-memory
+      // backstop instead of failing fully open.
+      return memoryAllow(key, max, windowMs) ? true : deny(res);
     }
 
     const now = new Date().toISOString();
@@ -104,7 +136,8 @@ export async function checkRateLimit(req, res, options = {}) {
 
     return true;
   } catch {
-    // Any unexpected error — fail open to avoid blocking legitimate users.
-    return true;
+    // Any unexpected error — degrade to the in-memory backstop rather than
+    // removing all limits.
+    return memoryAllow(key, max, windowMs) ? true : deny(res);
   }
 }
