@@ -232,7 +232,7 @@ function ComplianceScanner() {
     try {
       const r = await adminSend("/api/ai/compliance-scan", "POST", { text, deep: true });
       setAi(r.ai);
-      if (r.ai && !r.ai.available) setAiErr("AI scanning is not configured (ANTHROPIC_API_KEY missing). Regex scan still applies.");
+      if (r.ai && !r.ai.available) setAiErr("AI deep scan is not configured on the server. The regex scan still applies.");
       if (r.ai?.error) setAiErr(r.ai.error);
     } catch (e) {
       setAiErr(e.message);
