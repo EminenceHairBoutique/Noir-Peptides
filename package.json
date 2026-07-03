@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "audit:products": "node scripts/audit-products.mjs",
     "test:guardrail": "node scripts/test-guardrail.mjs",
+    "test:compliance": "node scripts/test-compliance-scan.mjs",
+    "test:unit": "node scripts/test-guardrail.mjs && node scripts/test-compliance-scan.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {

@@ -221,7 +221,25 @@ function CoaManager() {
 /* ── Compliance Scanner ───────────────────────────────────────────────── */
 function ComplianceScanner() {
   const [text, setText] = useState("");
+  const [ai, setAi] = useState(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiErr, setAiErr] = useState(null);
   const result = useMemo(() => (text.trim() ? scanCopy(text) : null), [text]);
+
+  const deepScan = async () => {
+    if (!text.trim()) return;
+    setAiBusy(true); setAiErr(null); setAi(null);
+    try {
+      const r = await adminSend("/api/ai/compliance-scan", "POST", { text, deep: true });
+      setAi(r.ai);
+      if (r.ai && !r.ai.available) setAiErr("AI scanning is not configured (ANTHROPIC_API_KEY missing). Regex scan still applies.");
+      if (r.ai?.error) setAiErr(r.ai.error);
+    } catch (e) {
+      setAiErr(e.message);
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
@@ -234,11 +252,23 @@ function ComplianceScanner() {
         </p>
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value); setAi(null); }}
           rows={12}
           placeholder="Paste product, research, or legal copy here…"
           className="w-full rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-se-bone text-sm focus:border-se-gold focus:outline-none"
         />
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={deepScan}
+            disabled={aiBusy || !text.trim()}
+            className="btn-outline disabled:opacity-50"
+          >
+            {aiBusy ? "Scanning…" : "Deep scan (AI)"}
+          </button>
+          <span className="text-[11px] text-se-bone/40 font-accent">Regex scan runs live; AI adds a subtler pass.</span>
+        </div>
+        {aiErr && <p className="text-[12px] text-amber-300 mt-2">{aiErr}</p>}
       </div>
       <div>
         {!result ? (
@@ -262,6 +292,28 @@ function ComplianceScanner() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {ai && ai.findings && ai.findings.length > 0 && (
+          <div className="glass-panel p-4 mt-4 border border-amber-500/25">
+            <p className="text-amber-300 font-medium mb-2">AI flagged {ai.findings.length} phrase{ai.findings.length === 1 ? "" : "s"}</p>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {ai.findings.map((f, i) => (
+                <div key={i} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] uppercase tracking-wide rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5">{f.category || "flag"}</span>
+                    <span className="font-mono text-[12px] text-se-bone">“{f.quote}”</span>
+                  </div>
+                  {f.why && <p className="text-[12px] text-se-bone/50 font-accent">{f.why}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {ai && ai.available && ai.findings && ai.findings.length === 0 && !ai.error && (
+          <div className="glass-panel p-4 mt-4 border border-emerald-500/20">
+            <p className="text-emerald-300 text-sm">AI deep scan found no additional issues.</p>
           </div>
         )}
       </div>
