@@ -31,6 +31,8 @@ const num = (n) => (n == null ? "—" : n.toLocaleString());
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "orders", label: "Orders", icon: Package },
+  { id: "reviews", label: "Reviews", icon: Star },
+  { id: "partners", label: "Partners", icon: Users },
   { id: "coa", label: "COA Manager", icon: FileCheck2 },
   { id: "flags", label: "AI Flags", icon: Flag },
   { id: "scanner", label: "Compliance Scanner", icon: ShieldAlert },
@@ -400,6 +402,119 @@ function OrdersManager() {
   );
 }
 
+/* ── Review moderation ────────────────────────────────────────────────── */
+function ReviewsManager() {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    adminGet("/api/admin/reviews")
+      .then((d) => { setReviews(d.reviews || []); setErr(null); })
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const setStatus = async (id, status) => {
+    try {
+      await adminSend("/api/admin/reviews", "PATCH", { id, status });
+      setReviews((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)));
+    } catch (e) { setErr(e.message); }
+  };
+
+  if (loading) return <p className="text-se-steel text-sm">Loading reviews…</p>;
+  if (err && !reviews.length) return <p className="text-red-300 text-sm">{err}</p>;
+  if (!reviews.length) return <div className="glass-panel p-6 text-se-bone/50 text-sm">No reviews yet.</div>;
+
+  return (
+    <div className="space-y-3">
+      {err && <p className="text-red-300 text-sm">{err}</p>}
+      {reviews.map((r) => (
+        <div key={r.id} className={`glass-panel p-4 ${r.status === "hidden" ? "opacity-60" : ""}`}>
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <div className="flex items-center gap-2 text-[12px]">
+              <span className="text-se-gold">{"★".repeat(Math.max(0, Math.min(5, Number(r.rating) || 0)))}</span>
+              <span className="text-se-steel">{r.product_id}{r.aspect ? ` · ${r.aspect}` : ""}</span>
+              {r.verified_purchase && <span className="text-emerald-300/80 text-[10px] uppercase">verified</span>}
+            </div>
+            <button
+              onClick={() => setStatus(r.id, r.status === "hidden" ? "published" : "hidden")}
+              className={`text-[11px] ${r.status === "hidden" ? "text-emerald-300" : "text-amber-300"} hover:underline`}
+            >
+              {r.status === "hidden" ? "Unhide" : "Hide"}
+            </button>
+          </div>
+          {r.title && <p className="text-se-bone text-sm font-medium">{r.title}</p>}
+          <p className="text-[12.5px] text-se-bone/60 font-accent">{r.body}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Partner approvals ────────────────────────────────────────────────── */
+function Partners() {
+  const [apps, setApps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    adminGet("/api/admin/partner-applications")
+      .then((d) => { setApps(d.applications || []); setErr(null); })
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const act = async (id, action) => {
+    setBusyId(id); setErr(null);
+    try {
+      await adminSend("/api/admin/partner-application-update", "POST", { applicationId: id, action });
+      setApps((a) => a.map((x) => (x.id === id ? { ...x, status: action === "approve" ? "approved" : "rejected" } : x)));
+    } catch (e) { setErr(e.message); }
+    finally { setBusyId(null); }
+  };
+
+  if (loading) return <p className="text-se-steel text-sm">Loading applications…</p>;
+  if (err && !apps.length) return <p className="text-red-300 text-sm">{err}</p>;
+  if (!apps.length) return <div className="glass-panel p-6 text-se-bone/50 text-sm">No partner applications.</div>;
+
+  const badge = (s) =>
+    s === "approved" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+    : s === "rejected" ? "border-red-500/30 bg-red-500/10 text-red-300"
+    : "border-amber-500/30 bg-amber-500/10 text-amber-300";
+
+  return (
+    <div className="space-y-3">
+      {err && <p className="text-red-300 text-sm">{err}</p>}
+      {apps.map((a) => (
+        <div key={a.id} className="glass-panel p-4">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <div className="min-w-0">
+              <p className="text-se-bone text-sm">{a.business_name || a.full_name || a.email}</p>
+              <p className="text-[12px] text-se-steel font-accent truncate">
+                {a.email}{a.country ? ` · ${a.country}` : ""}{a.monthly_volume ? ` · ${a.monthly_volume}` : ""}
+              </p>
+            </div>
+            <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] uppercase tracking-wide ${badge(a.status)}`}>{a.status || "pending"}</span>
+          </div>
+          {a.message && <p className="text-[12.5px] text-se-bone/60 font-accent mb-2">{a.message}</p>}
+          {a.status !== "approved" && a.status !== "rejected" && (
+            <div className="flex gap-2">
+              <button onClick={() => act(a.id, "approve")} disabled={busyId === a.id} className="text-[11px] rounded border border-emerald-500/30 text-emerald-300 px-3 py-1 hover:bg-emerald-500/10 disabled:opacity-40">Approve</button>
+              <button onClick={() => act(a.id, "reject")} disabled={busyId === a.id} className="text-[11px] rounded border border-red-500/30 text-red-300 px-3 py-1 hover:bg-red-500/10 disabled:opacity-40">Reject</button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── AI safety queue ──────────────────────────────────────────────────── */
 function AiFlags() {
   const [flags, setFlags] = useState([]);
@@ -477,6 +592,8 @@ export default function AdminHome() {
 
           {tab === "overview" && <Overview />}
           {tab === "orders" && <OrdersManager />}
+          {tab === "reviews" && <ReviewsManager />}
+          {tab === "partners" && <Partners />}
           {tab === "coa" && <CoaManager />}
           {tab === "flags" && <AiFlags />}
           {tab === "scanner" && <ComplianceScanner />}
