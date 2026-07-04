@@ -30,10 +30,13 @@ const num = (n) => (n == null ? "—" : n.toLocaleString());
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "orders", label: "Orders", icon: Package },
   { id: "coa", label: "COA Manager", icon: FileCheck2 },
   { id: "flags", label: "AI Flags", icon: Flag },
   { id: "scanner", label: "Compliance Scanner", icon: ShieldAlert },
 ];
+
+const ORDER_STATUSES = ["processing", "paid", "shipped", "delivered", "canceled", "refunded"];
 
 function StatCard({ label, value, sub, icon: Icon }) {
   return (
@@ -324,6 +327,79 @@ function ComplianceScanner() {
   );
 }
 
+/* ── Orders ───────────────────────────────────────────────────────────── */
+function OrdersManager() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+  const [savingId, setSavingId] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    adminGet("/api/admin/orders")
+      .then((d) => { setOrders(d.orders || []); setErr(null); })
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const changeStatus = async (orderNumber, status) => {
+    setSavingId(orderNumber);
+    setErr(null);
+    try {
+      await adminSend("/api/admin/order-status", "POST", { orderNumber, status });
+      setOrders((os) => os.map((o) => (o.order_number === orderNumber ? { ...o, status } : o)));
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  if (loading) return <p className="text-se-steel text-sm">Loading orders…</p>;
+  if (err && !orders.length) return <p className="text-red-300 text-sm">{err}</p>;
+  if (!orders.length) return <div className="glass-panel p-6 text-se-bone/50 text-sm">No orders yet.</div>;
+
+  const sel = "rounded-lg border border-white/12 bg-[#0a0e16] px-2 py-1 text-se-bone text-[12px] focus:border-se-gold focus:outline-none";
+  return (
+    <div className="space-y-3">
+      {err && <p className="text-red-300 text-sm">{err}</p>}
+      <p className="text-[12px] text-se-bone/45 font-accent">Changing a status notifies the customer by email. Newest first (last 100).</p>
+      <div className="glass-panel overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[11px] uppercase tracking-wide text-se-steel">
+              <th className="p-3">Order</th><th className="p-3">Customer</th><th className="p-3">Total</th>
+              <th className="p-3">Rail</th><th className="p-3">Date</th><th className="p-3">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((o) => (
+              <tr key={o.order_number} className="border-t border-white/5">
+                <td className="p-3 font-mono text-[12px] text-se-bone">{o.order_number}</td>
+                <td className="p-3 text-se-bone/70">{o.customer_name || o.email || "—"}</td>
+                <td className="p-3 text-se-bone/80">{money(o.amount_total)}</td>
+                <td className="p-3 text-se-bone/50">{o.payment_provider || "—"}</td>
+                <td className="p-3 text-se-steel text-[12px]">{new Date(o.created_at).toLocaleDateString()}</td>
+                <td className="p-3">
+                  <select
+                    className={sel}
+                    value={o.status || "processing"}
+                    disabled={savingId === o.order_number}
+                    onChange={(e) => changeStatus(o.order_number, e.target.value)}
+                  >
+                    {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* ── AI safety queue ──────────────────────────────────────────────────── */
 function AiFlags() {
   const [flags, setFlags] = useState([]);
@@ -400,6 +476,7 @@ export default function AdminHome() {
           </div>
 
           {tab === "overview" && <Overview />}
+          {tab === "orders" && <OrdersManager />}
           {tab === "coa" && <CoaManager />}
           {tab === "flags" && <AiFlags />}
           {tab === "scanner" && <ComplianceScanner />}
