@@ -96,6 +96,23 @@ async function persistConversation({ userId, feature, messages, reply }) {
   }
 }
 
+// Record an AI safety event (a refusal or an output-drift block) for admin
+// review. Server-only insert (service role); best-effort — never blocks the
+// response. Backed by the ai_flags table (migration 0017).
+async function logAiFlag({ userId, feature, kind, prompt, reply }) {
+  try {
+    await supabaseServer.from("ai_flags").insert({
+      user_id: userId || null,
+      feature: feature || null,
+      kind: kind || "refusal",
+      prompt: String(prompt || "").slice(0, 4000),
+      reply: String(reply || "").slice(0, 4000),
+    });
+  } catch {
+    /* table may not exist yet — ignore */
+  }
+}
+
 /**
  * Higher-order handler shared by every AI endpoint. Enforces method, rate
  * limiting, auth, the input pre-check, the model call, the output backstop, and
@@ -142,6 +159,7 @@ export async function aiHandler(req, res, opts) {
   // Pre-call guardrail: refuse obvious dosing/administration requests up front.
   if (looksLikeDosingRequest(lastText)) {
     await persistConversation({ userId: user.id, feature: opts.feature, messages, reply: RUO_REDIRECT });
+    await logAiFlag({ userId: user.id, feature: opts.feature, kind: "refusal", prompt: lastText, reply: RUO_REDIRECT });
     return json(res, 200, { reply: RUO_REDIRECT, refused: true });
   }
 
@@ -156,9 +174,14 @@ export async function aiHandler(req, res, opts) {
     });
 
     // Post-call backstop: never return administration/therapeutic drift.
-    const reply = !text || outputViolatesRUO(text) ? RUO_REDIRECT : text;
+    const drift = Boolean(text) && outputViolatesRUO(text);
+    const reply = !text || drift ? RUO_REDIRECT : text;
 
     await persistConversation({ userId: user.id, feature: opts.feature, messages, reply });
+    if (drift) {
+      // Model produced disallowed content that the backstop blocked — flag it.
+      await logAiFlag({ userId: user.id, feature: opts.feature, kind: "flag", prompt: lastText, reply: text });
+    }
     return json(res, 200, { reply });
   } catch (err) {
     console.error(`ai-${opts.feature} error:`, err?.message || err);

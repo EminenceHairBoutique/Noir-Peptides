@@ -65,11 +65,13 @@ export default async function handler(req, res) {
     countOf("discounts", (q) => q.eq("active", true)),
   ]);
 
+  const aiFlagsUnreviewed = await countOf("ai_flags", (q) => q.eq("reviewed", false));
+
   return json(res, 200, {
     catalog: { products, coasTotal, coasPublished },
     commerce: { orders, ordersPaid, revenueCents, discountsActive },
     moderation: { reviewsTotal, reviewsPending, backInStock, partnersPending },
-    ai: { conversations: aiConversations },
+    ai: { conversations: aiConversations, unreviewedFlags: aiFlagsUnreviewed },
     generatedAt: null, // stamped client-side to avoid Date in prerender/build
   });
 }
