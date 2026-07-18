@@ -1,0 +1,10 @@
+Self-hosted web fonts for the Noir Peptides label system.
+
+- Syne (variable, weights 700–800) — Copyright the Syne Project Authors
+- DM Sans (variable, weights 400–600) — Copyright the DM Sans Project Authors
+- IBM Plex Mono (400/500/600) — Copyright IBM Corp.
+
+All three families are licensed under the SIL Open Font License 1.1
+(https://openfontlicense.org). The OFL permits bundling, embedding, and
+commercial use of the fonts in web pages, generated label artwork, and print
+output. The fonts are not sold on their own.
