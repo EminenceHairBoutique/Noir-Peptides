@@ -20,6 +20,11 @@ export default defineConfig({
           if (id.includes("node_modules/three") || id.includes("node_modules/@react-three")) {
             return "vendor-three";
           }
+          // pdf-lib — print-PDF export, loaded ONLY via the lazy pdfExport
+          // import (Label Studio "PDF" button); never in the initial bundle.
+          if (id.includes("node_modules/pdf-lib") || id.includes("node_modules/@pdf-lib")) {
+            return "vendor-pdf";
+          }
           // Core React runtime — tiny, always needed, cache forever.
           if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) {
             return "vendor-react";

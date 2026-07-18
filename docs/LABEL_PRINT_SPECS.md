@@ -28,6 +28,11 @@ first production run** — presets are configurable in
 - Masters are SVG (sRGB). For CMYK production: rich black C40 M30 Y30 K100 for large fields; body text ≤ 2 pt reversed type avoided (minimum text on-label 4 pt ≈ 1.4 mm cap height; engine minimums respect this).
 - Substrates: matte white BOPP (Noir Clinical Core / Neural Grid), gloss or soft-touch laminate optional; **Spectral Biotech** holographic strip prints as a foil/cold-foil or holographic-laminate SPOT layer — the SVG gradient band marks the spot area; everything else prints on a **white underprint** when using metallic/holo/clear stock. Codes, warnings, lot/exp always sit on opaque high-contrast fields.
 - 300-DPI PNG export from the studio; SVG master preserves editable text (never rasterize text before handoff).
+- **Print-ready PDF** export (studio → PDF): bleed-extended artwork, crop marks at trim corners,
+  slug line with die/SKU/template/DPI/date. One label per page at true physical size.
+- **Spectral Helix (Holographic)** prints on holographic-laminate or cold-foil stock: the iridescent
+  ground/helix/brand-gradient areas are the SPOT layer; body type, warnings, and code tiles print
+  over a white underprint (opaque high-contrast fields).
 
 ## Anti-counterfeit (implemented / optional)
 Serialized non-sequential QR codes (65-bit), per-label verification page with recalled/hold states, label-version identifiers, fine hairline rules (microtext-ready), optional tamper neck band preset. Optional future: UV spot layer. No claims of absolute counterfeit prevention; no regulatory emblems.

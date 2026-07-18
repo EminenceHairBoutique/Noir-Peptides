@@ -16,6 +16,14 @@ _Phase-1 deliverable for the RUO Label System + 3D Vial Preview mandate._
 | CSP | External font/HDR/model fetches blocked at runtime; same-origin allowed → self-hosted fonts + procedural 3D environment |
 | Performance baseline | 61 prerendered routes; main bundle unchanged by this work; heavy 3D isolated (see §7) |
 
+> **Design revision (owner feedback, 2026-07-18):** the layout was rebuilt to a centered
+> pharmaceutical hierarchy (arched brand, hexagon NP monogram, auto-fit one/two-line product name,
+> ruled fill-in LOT/EXP fields when blank, section-headed info rows) and the second direction became
+> **Spectral Helix (Holographic)** — light silver holo ground, hex micro-pattern, DNA double-helix
+> band, holographic brand gradient (template id `spectral-biotech` retained for DB compatibility).
+> Checkpoint 2's print-ready PDF export (pdf-lib, lazy `vendor-pdf` chunk) shipped with the same
+> revision.
+
 ## 2. Recommended / implemented architecture
 One **pure SVG layout engine** (`src/lib/labels/renderLabelSvg.js`, Node-safe, async) renders every label from a
 `label_configs` row; four template skins share the layout. The same SVG feeds: studio flat preview (inline DOM),

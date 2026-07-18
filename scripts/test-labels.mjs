@@ -125,7 +125,15 @@ const baseConfig = {
   assert(fullWrap.includes("A1B2C3D4E5F6G"), "verification code caption rendered under QR");
   assert(fullWrap.includes("SCAN TO VERIFY"), "scan-to-verify prompt rendered");
   assert(fullWrap.includes("NP-BPC157-2607-001"), "lot rendered");
-  assert(fullWrap.includes("EXP 2028-07"), "expiration rendered");
+  // Expiry renders as a labelled row: "EXP" header + "2028-07" value.
+  assert(fullWrap.includes("2028-07"), "expiration date rendered");
+  assert(/>EXP</.test(fullWrap), "EXP row label rendered");
+
+  // Blank lot/expiry must render fill-in rules, never invented values or
+  // placeholder words that could be mistaken for data.
+  const blank = await renderLabelSvg({ ...baseConfig, lot_number: "", expiration_date: null }, { presetId: "full_wrap" });
+  assert(!blank.includes("PENDING"), "blank lot/expiry render ruled fields, not PENDING text");
+  assert(/>LOT</.test(blank) && />EXP</.test(blank), "LOT/EXP row labels still present when blank");
 }
 
 /* ── Storage gating ───────────────────────────────────────────────────── */
@@ -142,7 +150,11 @@ console.log("\nStorage gating:");
     "verified storage → renders the verified text"
   );
   const svg = await renderLabelSvg(baseConfig, { presetId: "full_wrap" });
-  assert(svg.includes("refer to accompanying batch documentation"), "label renders placeholder when unverified");
+  // Placeholder word-wraps in the storage section; assert on its words.
+  assert(
+    /refer to accompanying/i.test(svg) && svg.includes("documentation."),
+    "label renders placeholder when unverified"
+  );
   assert(!svg.includes("2–8"), "label does NOT render the unverified temperature");
 }
 
@@ -156,7 +168,9 @@ console.log("\nBlend composition:");
     composition: [{ name: "GHK-Cu", quantity: "" }, { name: "BPC-157", quantity: "" }],
   };
   const svg1 = await renderLabelSvg(blendPending, { presetId: "full_wrap" });
-  assert(svg1.includes(COMPOSITION_PENDING_PLACEHOLDER), "missing quantities → pending placeholder");
+  // Placeholder renders under the COMPOSITION header with its redundant
+  // "Composition:" prefix stripped.
+  assert(/pending administrative input/i.test(svg1), "missing quantities → pending placeholder");
 
   const blendFull = {
     ...blendPending,

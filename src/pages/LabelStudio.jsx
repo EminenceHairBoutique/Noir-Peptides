@@ -7,7 +7,7 @@
 // Draft labels are never published to customer surfaces.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Save, Download, FileImage, Tag } from "lucide-react";
+import { Plus, Save, Download, FileImage, FileText, Tag } from "lucide-react";
 import SEO from "../components/SEO";
 import LabelPreview from "../components/labels/LabelPreview";
 import LabelConfigForm from "../components/labels/LabelConfigForm";
@@ -130,6 +130,23 @@ export default function LabelStudio() {
     downloadBlob(blob, `noir-label-${draft.sku || draft.id}-${presetId}-300dpi.png`);
   };
 
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const exportPdf = async () => {
+    if (!draft || pdfBusy) return;
+    setPdfBusy(true);
+    setErr(null);
+    try {
+      // pdf-lib + the export module load lazily (vendor-pdf chunk).
+      const { labelPdfBlob } = await import("../lib/labels/pdfExport.js");
+      const blob = await labelPdfBlob(draft, { templateId: draft.template_id, presetId, siteUrl: window.location.origin });
+      downloadBlob(blob, `noir-label-${draft.sku || draft.id}-${presetId}-print.pdf`);
+    } catch (e) {
+      setErr(`PDF export failed: ${e.message}`);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const field =
     "rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-se-bone text-[13px] focus:border-se-gold focus:outline-none";
 
@@ -247,6 +264,9 @@ export default function LabelStudio() {
                     </button>
                     <button onClick={exportPng} className="btn-outline" title="300-DPI raster">
                       <FileImage size={14} /> PNG
+                    </button>
+                    <button onClick={exportPdf} disabled={pdfBusy} className="btn-outline disabled:opacity-40" title="Print-ready PDF: bleed artwork, crop marks, slug line">
+                      <FileText size={14} /> {pdfBusy ? "PDF…" : "PDF"}
                     </button>
                     <button onClick={save} disabled={!dirty || saving} className="btn-primary disabled:opacity-40">
                       <Save size={14} /> {saving ? "Saving…" : "Save"}

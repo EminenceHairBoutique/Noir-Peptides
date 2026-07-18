@@ -12,7 +12,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { getAllProducts } from "../src/data/tier1Catalog.js";
 import { renderLabelSvg } from "../src/lib/labels/renderLabelSvg.js";
-import { buildLotNumber } from "../src/lib/labels/lots.js";
 
 const OUT = path.join(process.cwd(), "docs", "labels", "previews");
 fs.mkdirSync(OUT, { recursive: true });
@@ -31,8 +30,10 @@ function cfgFor(productId, sizeMg) {
     quantity_label: v.size_label,
     material_type: "Lyophilized Research Material",
     sku: v.sku,
-    lot_number: buildLotNumber({ productId: p.id, yymm: "2607", batch: 1 }),
-    expiration_date: "2028-07-01",
+    // Lot/expiry are deliberately BLANK — the engine renders ruled fill-in
+    // fields; real batch data is entered by the owner in the studio.
+    lot_number: "",
+    expiration_date: null,
     barcode_value: v.sku,
     verification_code: "SAMPLE0000000",
     storage_source_verified: false,

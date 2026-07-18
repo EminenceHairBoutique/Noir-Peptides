@@ -4,7 +4,11 @@ _Operating guide for the RUO label system (Label Studio at `/admin/labels`)._
 
 ## Add a label for a product / variant
 1. `/admin/labels` → **New label** → pick product (and vial-size variant) → **Create draft**. Display name, quantity, and SKU seed from the live catalog; a unique verification code is assigned server-side.
-2. Edit fields → **Save**. Switch template (4 directions) and die preset (5) from the toolbar; **Flat / Guides / 3D vial** views preview live.
+2. Edit fields → **Save**. Switch template (4 directions: Noir Clinical Core, Spectral Helix
+   (Holographic), Cryogenic White, Neural Grid) and die preset (5) from the toolbar;
+   **Flat / Guides / 3D vial** views preview live.
+3. Lot / expiry left blank render as ruled fill-in fields on the label (never placeholder words) —
+   enter real batch data when it exists.
 
 ## Lot numbers & dates
 - Set the **packaged date** first, then **Suggest** derives `NP-<CODE>-<YYMM>-001` — lots always reflect real batch data; adjust the batch suffix manually for subsequent batches.
@@ -27,7 +31,9 @@ Add composition rows (max 4). Quantities must come from batch records; any empty
 ## Exports
 - **SVG** — editable vector master (text preserved) for the printer.
 - **PNG** — 300-DPI raster of the current preset.
-- Print-ready PDF with trim/bleed marks lands in Checkpoint 2 (after a direction is chosen).
+- **PDF** — print-ready single-label PDF (Checkpoint 2): bleed-extended artwork, crop marks at the
+  trim corners, and a slug line (trim/bleed/overlap sizes, SKU, template, DPI, date). pdf-lib loads
+  lazily (`vendor-pdf` chunk) only when the button is clicked.
 
 ## 3D vial
 Procedural three.js vial (no external models; CSP-safe). The label texture is the SAME SVG output rasterized with embedded brand fonts. Wheel zoom is disabled (page scroll never traps); zoom via the +/− buttons; auto-rotate pauses on interaction and honors `prefers-reduced-motion`; devices without WebGL get the flat label. To change vial geometry edit `src/components/product3d/VialScene.jsx` (units = mm).
