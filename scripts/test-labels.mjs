@@ -125,8 +125,8 @@ const baseConfig = {
   assert(fullWrap.includes("A1B2C3D4E5F6G"), "verification code caption rendered under QR");
   assert(fullWrap.includes("SCAN TO VERIFY"), "scan-to-verify prompt rendered");
   assert(fullWrap.includes("NP-BPC157-2607-001"), "lot rendered");
-  // Expiry renders as a labelled row: "EXP" header + "2028-07" value.
-  assert(fullWrap.includes("2028-07"), "expiration date rendered");
+  // Expiry renders as a labelled row: "EXP" header + MM/DD/YYYY value.
+  assert(fullWrap.includes("07/01/2028"), "expiration date rendered");
   assert(/>EXP</.test(fullWrap), "EXP row label rendered");
 
   // Blank lot/expiry must render fill-in rules, never invented values or
@@ -181,7 +181,7 @@ console.log("\nBlend composition:");
     ],
   };
   const svg2 = await renderLabelSvg(blendFull, { presetId: "full_wrap" });
-  assert(svg2.includes("GHK-Cu — 50 mg"), "owner-entered quantities render");
+  assert(svg2.includes("GHK-Cu – 50 mg"), "owner-entered quantities render");
   assert(!svg2.includes(COMPOSITION_PENDING_PLACEHOLDER), "no placeholder when data complete");
 }
 

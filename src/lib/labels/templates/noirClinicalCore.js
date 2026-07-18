@@ -1,35 +1,40 @@
-// Template 1 — NOIR CLINICAL CORE
-// Restrained matte black/charcoal, crisp white pharmaceutical type, fine
-// silver rules and a hairline inner frame. The evergreen system.
+// Template 1 — NOIR CORE (BLACK)
+// Matte black, white pharmaceutical type, silver frame + silver quantity
+// band. The evergreen system (reference mockup, template 1).
 export default {
   id: "noir-clinical-core",
-  name: "Noir Clinical Core",
-  bg: "#0b0d12",            // matte near-black
-  panel: "#10131a",
-  fg: "#f2f4f8",
-  fgMuted: "#9aa4b5",
-  rule: "#4d5665",          // fine silver-gray
-  accent: "#c8cfd9",        // cool silver
-  warnFg: "#f2f4f8",
+  name: "Noir Core — Black",
+  bg: "#0a0b0e",
+  panel: "#101318",
+  fg: "#f4f6f9",
+  fgMuted: "#a7b0be",
+  rule: "#5a6472",
+  accent: "#aeb9c9",        // silver (icons + scan caption)
+  warnFg: "#f4f6f9",
   warnRule: "#7d8798",
-  tileBg: "#ffffff",        // solid field behind QR/barcode
-  tileFg: "#0b0d12",
+  tileBg: "#ffffff",
+  tileFg: "#0a0b0e",
+  bandFg: "#0a0b0e",        // dark type on the silver band
   monogram() {
-    return { fill: "none", stroke: "#8a94a5", fg: "#f2f4f8" };
+    return { fill: "#14171d", stroke: "#9aa4b2", fg: "#f4f6f9" };
+  },
+  frame() {
+    return "#8a94a2";
   },
   defs(w, h, uid) {
     return `
+      <linearGradient id="np-band-${uid}" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#6a7482"/>
+        <stop offset="0.5" stop-color="#e8ecf1"/>
+        <stop offset="1" stop-color="#8d97a5"/>
+      </linearGradient>
       <linearGradient id="np-core-sheen-${uid}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#161b24" stop-opacity="0.9"/>
-        <stop offset="0.5" stop-color="#0b0d12" stop-opacity="0"/>
-        <stop offset="1" stop-color="#060709" stop-opacity="0.8"/>
+        <stop offset="0" stop-color="#151920" stop-opacity="0.9"/>
+        <stop offset="0.5" stop-color="#0a0b0e" stop-opacity="0"/>
+        <stop offset="1" stop-color="#06070a" stop-opacity="0.8"/>
       </linearGradient>`;
   },
-  // Soft vertical sheen + a fine silver inner frame — quiet, pharmaceutical.
   decorate(w, h, uid) {
-    return (
-      `<rect x="0" y="0" width="${w}" height="${h}" fill="url(#np-core-sheen-${uid})"/>` +
-      `<rect x="6" y="6" width="${w - 12}" height="${h - 12}" fill="none" stroke="#39414e" stroke-width="1" opacity="0.85"/>`
-    );
+    return `<rect x="0" y="0" width="${w}" height="${h}" fill="url(#np-core-sheen-${uid})"/>`;
   },
 };
