@@ -8,12 +8,18 @@ export default defineConfig({
     tailwindcss(),
   ],
   build: {
-    // Raise the warning threshold slightly — individual route chunks are fine,
-    // and the main vendor bundles will be well under 500kB after splitting.
-    chunkSizeWarningLimit: 600,
+    // Raise the warning threshold — vendor-three (~913kB raw / 245kB gzip) is
+    // intentionally large but is ONLY loaded via the lazy VialScene import
+    // (admin Label Studio 3D view); it never ships in the initial bundle.
+    chunkSizeWarningLimit: 950,
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // three.js + react-three-fiber — heavy 3D stack, loaded ONLY via the
+          // lazy VialScene import (never in the initial bundle).
+          if (id.includes("node_modules/three") || id.includes("node_modules/@react-three")) {
+            return "vendor-three";
+          }
           // Core React runtime — tiny, always needed, cache forever.
           if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) {
             return "vendor-react";

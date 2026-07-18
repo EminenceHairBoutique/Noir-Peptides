@@ -1,20 +1,88 @@
 // src/pages/VerifyLot.jsx
-// Lot-verification lookup. The QR printed on each vial deep-links here
-// (/verify?lot=XXX); a buyer can also type the lot manually. Shows the matching
-// published COA or a clear "no match" so a counterfeit lot is obvious.
+// Verification lookup, two entry paths:
+//   /verify-lot?lot=XXX — COA lookup by the lot printed on the vial
+//   /v/:code            — label QR deep link (secure verification code) →
+//                         batch verification via /api/verify (state banner +
+//                         label fields + linked published COA)
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
-import { CheckCircle2, XCircle, Search } from "lucide-react";
+import { useSearchParams, useParams, Link } from "react-router-dom";
+import { CheckCircle2, XCircle, AlertTriangle, Search } from "lucide-react";
 import SEO from "../components/SEO";
 import CoaCard from "../components/CoaCard";
 import { lookupByLot } from "../lib/coas";
+import { verifyCode } from "../lib/labelsApi";
 import { getAllProducts } from "../data/tier1Catalog";
 
 const ORIGIN =
   typeof window !== "undefined" ? window.location.origin : "https://www.noirpeptides.com";
 
+// Verification-state presentation (states come from /api/verify — never
+// fabricated lab data).
+const CODE_STATES = {
+  verified: { icon: CheckCircle2, cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300", label: "Verified — authentic Noir Peptides label on file" },
+  expired: { icon: AlertTriangle, cls: "border-amber-500/30 bg-amber-500/10 text-amber-300", label: "Past the labeled expiration / retest date" },
+  recalled: { icon: XCircle, cls: "border-red-500/30 bg-red-500/10 text-red-300", label: "RECALLED — do not use this batch; contact support" },
+  administrative_hold: { icon: AlertTriangle, cls: "border-amber-500/30 bg-amber-500/10 text-amber-300", label: "Administrative hold — verification temporarily withheld" },
+  not_found: { icon: XCircle, cls: "border-red-500/30 bg-red-500/10 text-red-300", label: "Code not found — no matching label on file" },
+  unavailable: { icon: AlertTriangle, cls: "border-white/15 bg-white/5 text-se-steel", label: "Verification temporarily unavailable — try again shortly" },
+};
+
+function CodeResult({ code }) {
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    setResult(null);
+    verifyCode(code).then((r) => alive && setResult(r));
+    return () => {
+      alive = false;
+    };
+  }, [code]);
+
+  if (!result) return <p className="text-se-steel">Checking code…</p>;
+  const meta = CODE_STATES[result.state] || CODE_STATES.unavailable;
+  const Icon = meta.icon;
+  const l = result.label;
+
+  return (
+    <div className="space-y-4">
+      <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm ${meta.cls}`}>
+        <Icon size={15} />
+        {meta.label}
+      </div>
+      <p className="text-[12px] text-se-steel font-mono">Code {code}</p>
+
+      {l && (
+        <dl className="rounded-xl border border-white/10 bg-white/[0.02] p-5 grid grid-cols-2 gap-x-6 gap-y-2 text-sm max-w-xl">
+          <div><dt className="text-se-steel text-[11px] uppercase tracking-wide">Product</dt><dd className="text-se-bone">{l.display_name} {l.quantity_label}</dd></div>
+          <div><dt className="text-se-steel text-[11px] uppercase tracking-wide">SKU</dt><dd className="text-se-bone font-mono">{l.sku || "—"}</dd></div>
+          <div><dt className="text-se-steel text-[11px] uppercase tracking-wide">Lot</dt><dd className="text-se-bone font-mono">{l.lot_number || "—"}</dd></div>
+          <div>
+            <dt className="text-se-steel text-[11px] uppercase tracking-wide">{l.retest_date && !l.expiration_date ? "Retest" : "Expiration"}</dt>
+            <dd className="text-se-bone font-mono">{l.expiration_date || l.retest_date || "—"}</dd>
+          </div>
+          {l.packaged_date && (
+            <div><dt className="text-se-steel text-[11px] uppercase tracking-wide">Packaged</dt><dd className="text-se-bone font-mono">{l.packaged_date}</dd></div>
+          )}
+          <div><dt className="text-se-steel text-[11px] uppercase tracking-wide">Label version</dt><dd className="text-se-bone font-mono">v{l.label_version}</dd></div>
+        </dl>
+      )}
+
+      {result.coa && (
+        <div className="max-w-xl">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-se-gold mb-2">Linked certificate of analysis</p>
+          <CoaCard coa={{ ...result.coa, lot_number: l?.lot_number, product_id: l?.product_id }} productName={l?.display_name} origin={ORIGIN} showQr={false} />
+        </div>
+      )}
+
+      <p className="text-xs text-se-steel">{result.disclaimer || "For research use only. Not for human or veterinary use."}</p>
+    </div>
+  );
+}
+
 export default function VerifyLot() {
   const [params, setParams] = useSearchParams();
+  const { code } = useParams(); // present on /v/:code
   const lot = params.get("lot") || "";
   const [input, setInput] = useState(lot);
   const [coa, setCoa] = useState(null);
@@ -60,10 +128,22 @@ export default function VerifyLot() {
 
       <main className="min-h-screen bg-se-black">
         <div className="content-wide pt-28 pb-16 max-w-3xl">
-          <h1 className="font-display text-3xl text-se-bone">Verify a Lot</h1>
+          <h1 className="font-display text-3xl text-se-bone">
+            {code ? "Batch Verification" : "Verify a Lot"}
+          </h1>
           <p className="mt-2 text-se-steel">
-            Enter the lot number from your vial to view its certificate of analysis.
+            {code
+              ? "This code was scanned from a Noir Peptides vial label."
+              : "Enter the lot number from your vial to view its certificate of analysis."}
           </p>
+
+          {code && (
+            <div className="mt-8">
+              <CodeResult code={code} />
+              <div className="divider my-8" />
+              <p className="text-[12px] text-se-steel mb-2">Or look up a lot number directly:</p>
+            </div>
+          )}
 
           <form onSubmit={onSubmit} className="mt-6 flex gap-2">
             <input
