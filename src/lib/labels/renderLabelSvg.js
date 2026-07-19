@@ -30,6 +30,8 @@ import spectralBiotech from "./templates/spectralBiotech.js";
 import cryogenicWhite from "./templates/cryogenicWhite.js";
 import neuralGrid from "./templates/neuralGrid.js";
 import { RECONSTITUTION_NOTE } from "./storage.js";
+import { hasMasterRollout } from "./masters/registry.js";
+import { renderMasterLabel } from "./masters/renderMasterLabel.js";
 
 export const TEMPLATES = {
   "noir-clinical-core": noirClinicalCore,
@@ -526,6 +528,17 @@ export async function renderLabelSvg(config, opts = {}) {
   const preset = LABEL_PRESETS[presetId];
   if (!preset) throw new Error(`renderLabelSvg: unknown preset "${presetId}"`);
   const siteUrl = (opts.siteUrl || "https://www.noirpeptides.com").replace(/\/+$/, "");
+
+  // EXACT-master mode (owner-approved artwork, Noir Label Engine v1): the
+  // full wrap renders as an immutable master + deterministic VARIABLE_DATA
+  // overlay. Other presets keep the procedural layout until masters exist
+  // for them. Masters carry no bleed (withBleed is ignored; exports treat
+  // the artwork edge as trim).
+  // (Guides view stays procedural — die/safe/overlap guides describe the
+  // procedural presets, not the master artwork.)
+  if (presetId === "full_wrap" && hasMasterRollout(templateId) && !opts.forceProcedural && !opts.showGuides) {
+    return renderMasterLabel(config, { templateId, siteUrl });
+  }
   const uid = `u${++uidCounter}`;
 
   const W = Math.round(preset.widthMm * 10);

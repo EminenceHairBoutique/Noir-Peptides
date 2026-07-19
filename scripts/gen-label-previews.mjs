@@ -70,8 +70,40 @@ jobs.push({ file: "die-cap-bpc-157-5mg.svg", cfg: cfgFor("bpc-157", 5), opts: { 
 jobs.push({ file: "guides-bpc-157-5mg-fullwrap.svg", cfg: cfgFor("bpc-157", 5), opts: { presetId: "full_wrap", showGuides: true } });
 
 for (const j of jobs) {
-  const svg = await renderLabelSvg(j.cfg, { siteUrl: "https://www.noirpeptides.com", ...j.opts });
+  // Direction/sample previews document the PROCEDURAL system (kept for the
+  // presets/templates that have no EXACT master yet).
+  const svg = await renderLabelSvg(j.cfg, { siteUrl: "https://www.noirpeptides.com", forceProcedural: true, ...j.opts });
   fs.writeFileSync(path.join(OUT, j.file), svg);
   console.log(`[labels] wrote ${j.file}`);
 }
-console.log(`[labels] ${jobs.length} previews → docs/labels/previews/`);
+
+// EXACT-master showcases (Noir Label Engine v1, Core Black rollout): the
+// approved artwork with deterministic VARIABLE_DATA overlays.
+const masterJobs = [
+  {
+    file: "master-core-black-cjc-sample.svg",
+    cfg: {
+      ...cfgFor("cjc-1295-ipamorelin", 10),
+      display_name: "CJC-1295 + Ipamorelin Blend",
+      material_type: "Lyophilized Research Material",
+      lot_number: "NP2607-001",
+      packaged_date: "2026-07-01",
+      expiration_date: "2028-07-01",
+      composition: [
+        { name: "CJC-1295 (DAC)", quantity: "5 mg" },
+        { name: "Ipamorelin", quantity: "5 mg" },
+      ],
+    },
+  },
+  { file: "master-core-black-bpc-157-5mg.svg", cfg: cfgFor("bpc-157", 5) },
+];
+for (const j of masterJobs) {
+  const svg = await renderLabelSvg(j.cfg, {
+    siteUrl: "https://www.noirpeptides.com",
+    templateId: "noir-clinical-core",
+    presetId: "full_wrap",
+  });
+  fs.writeFileSync(path.join(OUT, j.file), svg);
+  console.log(`[labels] wrote ${j.file} (EXACT master)`);
+}
+console.log(`[labels] ${jobs.length + masterJobs.length} previews → docs/labels/previews/`);

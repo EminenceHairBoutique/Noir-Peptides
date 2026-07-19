@@ -11,6 +11,7 @@
 import { renderLabelSvg } from "./renderLabelSvg.js";
 import { LABEL_PRESETS } from "./presets.js";
 import { rasterizeLabelSvg } from "./rasterize.js";
+import { hasMasterRollout, masterFor } from "./masters/registry.js";
 
 const MM_TO_PT = 72 / 25.4;
 const MARK_LEN_MM = 4; // crop mark length
@@ -30,10 +31,19 @@ export async function labelPdfBlob(config, opts = {}) {
   if (!preset) throw new Error(`labelPdfBlob: unknown preset "${presetId}"`);
   const dpi = opts.dpi || 300;
 
-  // Rasterize the bleed artwork at print resolution.
-  const svg = await renderLabelSvg(config, { ...opts, presetId, withBleed: true, showGuides: false });
-  const bleedW = preset.widthMm + preset.bleedMm * 2;
-  const bleedH = preset.heightMm + preset.bleedMm * 2;
+  // EXACT-master mode: the approved artwork carries no bleed — its edge IS
+  // the trim, and physical height derives from the master's aspect ratio.
+  const templateId = opts.templateId || config.template_id || "noir-clinical-core";
+  const masterMode = presetId === "full_wrap" && hasMasterRollout(templateId);
+  const master = masterMode ? masterFor(templateId) : null;
+  const bleedMm = masterMode ? 0 : preset.bleedMm;
+  const trimW = masterMode ? master.physical.widthMm : preset.widthMm;
+  const trimH = masterMode ? +(trimW * (master.viewBox[1] / master.viewBox[0])).toFixed(2) : preset.heightMm;
+
+  // Rasterize the (bleed) artwork at print resolution.
+  const svg = await renderLabelSvg(config, { ...opts, presetId, withBleed: !masterMode, showGuides: false });
+  const bleedW = trimW + bleedMm * 2;
+  const bleedH = trimH + bleedMm * 2;
   const px = Math.round((bleedW / 25.4) * dpi);
   const canvas = await rasterizeLabelSvg(svg, px);
   const pngBytes = await new Promise((resolve, reject) =>
@@ -59,12 +69,12 @@ export async function labelPdfBlob(config, opts = {}) {
   // Crop marks at the TRIM corners (registration black), outside the bleed.
   const black = cmyk ? cmyk(0, 0, 0, 1) : rgb(0, 0, 0);
   const t = {
-    x0: (SLUG_MM + preset.bleedMm) * MM_TO_PT,
-    y0: (SLUG_MM + preset.bleedMm) * MM_TO_PT,
-    x1: (SLUG_MM + preset.bleedMm + preset.widthMm) * MM_TO_PT,
-    y1: (SLUG_MM + preset.bleedMm + preset.heightMm) * MM_TO_PT,
+    x0: (SLUG_MM + bleedMm) * MM_TO_PT,
+    y0: (SLUG_MM + bleedMm) * MM_TO_PT,
+    x1: (SLUG_MM + bleedMm + trimW) * MM_TO_PT,
+    y1: (SLUG_MM + bleedMm + trimH) * MM_TO_PT,
   };
-  const gap = (preset.bleedMm + MARK_GAP_MM) * MM_TO_PT;
+  const gap = (bleedMm + MARK_GAP_MM) * MM_TO_PT;
   const len = MARK_LEN_MM * MM_TO_PT;
   const line = (x1, y1, x2, y2) =>
     page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: 0.5, color: black });
@@ -83,8 +93,8 @@ export async function labelPdfBlob(config, opts = {}) {
   const stamp = new Date().toISOString().slice(0, 10);
   const slug = [
     `NOIR PEPTIDES — ${config.display_name || ""} ${config.quantity_label || ""}`.trim(),
-    `${preset.name}: trim ${preset.widthMm}×${preset.heightMm} mm · bleed ${preset.bleedMm} mm` +
-      (preset.overlapMm ? ` · wrap overlap ${preset.overlapMm} mm (trailing)` : ""),
+    `${preset.name}: trim ${trimW}×${trimH} mm · bleed ${bleedMm} mm` +
+      (masterMode ? " · EXACT master (art edge = trim; confirm die)" : preset.overlapMm ? ` · wrap overlap ${preset.overlapMm} mm (trailing)` : ""),
     `SKU ${config.sku || "—"} · template ${opts.templateId || config.template_id || "noir-clinical-core"} · ${dpi} DPI · ${stamp}`,
   ].join("   |   ");
   page.drawText(slug, { x: artX, y: 4 * MM_TO_PT, size: 6, font, color: black });

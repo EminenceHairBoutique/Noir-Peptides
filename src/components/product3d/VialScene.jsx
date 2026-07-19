@@ -144,7 +144,10 @@ function LabelWrap({ texture }) {
   const preset = LABEL_PRESETS.full_wrap;
   const arc = wrapArcRadians(preset); // ≈ 5.876 rad (336.7°)
   const r = GLASS_R + 0.18;
-  const h = preset.heightMm;
+  // Physical height follows the ARTWORK aspect (EXACT masters are shorter
+  // than the procedural 30 mm die) — never stretch the label texture.
+  const img = texture.image;
+  const h = img && img.width ? +(preset.widthMm * (img.height / img.width)).toFixed(2) : preset.heightMm;
   // Center the arc on +Z (camera side); gap faces −Z (back).
   const thetaStart = -arc / 2;
   return (

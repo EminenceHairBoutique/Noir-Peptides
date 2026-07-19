@@ -118,16 +118,26 @@ export default function LabelStudio() {
 
   const exportSvg = async () => {
     if (!draft) return;
-    const svg = await renderLabelSvg(draft, { templateId: draft.template_id, presetId, siteUrl: window.location.origin });
-    downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `noir-label-${draft.sku || draft.id}-${presetId}.svg`);
+    setErr(null);
+    try {
+      const svg = await renderLabelSvg(draft, { templateId: draft.template_id, presetId, siteUrl: window.location.origin });
+      downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `noir-label-${draft.sku || draft.id}-${presetId}.svg`);
+    } catch (e) {
+      setErr(e.message); // e.g. LabelOverflowError — value must be shortened
+    }
   };
 
   const exportPng = async () => {
     if (!draft) return;
-    const svg = await renderLabelSvg(draft, { templateId: draft.template_id, presetId, siteUrl: window.location.origin });
-    const preset = LABEL_PRESETS[presetId];
-    const blob = await labelPngBlob(svg, preset.widthMm, 300);
-    downloadBlob(blob, `noir-label-${draft.sku || draft.id}-${presetId}-300dpi.png`);
+    setErr(null);
+    try {
+      const svg = await renderLabelSvg(draft, { templateId: draft.template_id, presetId, siteUrl: window.location.origin });
+      const preset = LABEL_PRESETS[presetId];
+      const blob = await labelPngBlob(svg, preset.widthMm, 300);
+      downloadBlob(blob, `noir-label-${draft.sku || draft.id}-${presetId}-300dpi.png`);
+    } catch (e) {
+      setErr(e.message);
+    }
   };
 
   const [pdfBusy, setPdfBusy] = useState(false);

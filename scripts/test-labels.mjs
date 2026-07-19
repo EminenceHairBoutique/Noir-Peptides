@@ -109,7 +109,7 @@ const baseConfig = {
   let all = true;
   for (const tid of Object.keys(TEMPLATES)) {
     for (const pid of Object.keys(LABEL_PRESETS)) {
-      const svg = await renderLabelSvg(baseConfig, { templateId: tid, presetId: pid });
+      const svg = await renderLabelSvg(baseConfig, { templateId: tid, presetId: pid, forceProcedural: true });
       if (!svg.includes("RESEARCH USE ONLY")) {
         all = false;
         fail(`RUO warning missing on ${tid}/${pid}`);
@@ -118,7 +118,7 @@ const baseConfig = {
   }
   if (all) ok("RUO warning present on every template × preset");
 
-  const fullWrap = await renderLabelSvg(baseConfig, { presetId: "full_wrap" });
+  const fullWrap = await renderLabelSvg(baseConfig, { presetId: "full_wrap", forceProcedural: true });
   assert(fullWrap.includes("NOT FOR DIAGNOSTIC, THERAPEUTIC,"), "secondary restriction on full wrap");
   // The /v/:code URL is encoded inside the QR modules; the human-readable
   // code caption + verify prompt must accompany it on the label.
@@ -131,7 +131,7 @@ const baseConfig = {
 
   // Blank lot/expiry must render fill-in rules, never invented values or
   // placeholder words that could be mistaken for data.
-  const blank = await renderLabelSvg({ ...baseConfig, lot_number: "", expiration_date: null }, { presetId: "full_wrap" });
+  const blank = await renderLabelSvg({ ...baseConfig, lot_number: "", expiration_date: null }, { presetId: "full_wrap", forceProcedural: true });
   assert(!blank.includes("PENDING"), "blank lot/expiry render ruled fields, not PENDING text");
   assert(/>LOT</.test(blank) && />EXP</.test(blank), "LOT/EXP row labels still present when blank");
 }
@@ -149,7 +149,7 @@ console.log("\nStorage gating:");
       "Store 2–8 °C. Protect from light.",
     "verified storage → renders the verified text"
   );
-  const svg = await renderLabelSvg(baseConfig, { presetId: "full_wrap" });
+  const svg = await renderLabelSvg(baseConfig, { presetId: "full_wrap", forceProcedural: true });
   // Placeholder word-wraps in the storage section; assert on its words.
   assert(
     /refer to accompanying/i.test(svg) && svg.includes("documentation."),
@@ -167,7 +167,7 @@ console.log("\nBlend composition:");
     material_type: "Research Blend",
     composition: [{ name: "GHK-Cu", quantity: "" }, { name: "BPC-157", quantity: "" }],
   };
-  const svg1 = await renderLabelSvg(blendPending, { presetId: "full_wrap" });
+  const svg1 = await renderLabelSvg(blendPending, { presetId: "full_wrap", forceProcedural: true });
   // Placeholder renders under the COMPOSITION header with its redundant
   // "Composition:" prefix stripped.
   assert(/pending administrative input/i.test(svg1), "missing quantities → pending placeholder");
@@ -180,7 +180,7 @@ console.log("\nBlend composition:");
       { name: "TB-500", quantity: "10 mg" },
     ],
   };
-  const svg2 = await renderLabelSvg(blendFull, { presetId: "full_wrap" });
+  const svg2 = await renderLabelSvg(blendFull, { presetId: "full_wrap", forceProcedural: true });
   assert(svg2.includes("GHK-Cu – 50 mg"), "owner-entered quantities render");
   assert(!svg2.includes(COMPOSITION_PENDING_PLACEHOLDER), "no placeholder when data complete");
 }
@@ -197,6 +197,88 @@ console.log("\nPublishing rule:");
     }
   }
   if (all) ok("only approved/production_ready render outside the studio");
+}
+
+/* ── EXACT-master engine (Noir Label Engine v1) ───────────────────────── */
+console.log("\nEXACT-master engine:");
+{
+  const { createHash } = await import("node:crypto");
+  const { readFileSync } = await import("node:fs");
+  const { TEMPLATE_MASTERS, hasMasterRollout } = await import("../src/lib/labels/masters/registry.js");
+  const { LabelOverflowError } = await import("../src/lib/labels/masters/renderMasterLabel.js");
+
+  // 1. Immutability: every registered master file hashes to its recorded
+  //    sha256 — any byte of drift in the approved artwork fails the build.
+  let hashesOk = true;
+  for (const [tid, m] of Object.entries(TEMPLATE_MASTERS)) {
+    const bytes = readFileSync(`public${m.file}`);
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    if (hash !== m.sha256) {
+      hashesOk = false;
+      fail(`master artwork drift: ${tid} (${m.masterId})`);
+    }
+  }
+  if (hashesOk) ok("all 4 registered masters match their recorded sha256 (immutable)");
+  assert(hasMasterRollout("noir-clinical-core"), "Core Black is rolled out");
+  assert(!hasMasterRollout("spectral-biotech") && !hasMasterRollout("cryogenic-white") && !hasMasterRollout("neural-grid"),
+    "other templates await approval (no rollout)");
+
+  // 2. Master mode engages for Core Black full wrap and embeds the approved
+  //    raster VERBATIM (never redrawn) under a locked group.
+  const masterSvg = readFileSync("public/labels/masters/core-black.svg", "utf8");
+  const masterDataUri = /(?:xlink:)?href="(data:image\/png;base64,[^"]+)"/.exec(masterSvg)[1];
+  // The approved artwork's LOT area fits the compact master lot format
+  // (NPYYMM-BBB); the longer legacy format correctly rejects (see overflow
+  // test below) — format decision flagged for the owner.
+  const masterConfig = { ...baseConfig, lot_number: "NP2607-001" };
+  const out = await renderLabelSvg(masterConfig, { templateId: "noir-clinical-core", presetId: "full_wrap" });
+  assert(out.includes('id="MASTER_ARTWORK"') && out.includes('data-locked="true"'), "output carries locked MASTER_ARTWORK group");
+  assert(out.includes(masterDataUri), "approved raster embedded byte-for-byte (unchanged)");
+  assert(out.includes('id="VARIABLE_DATA"'), "product data confined to VARIABLE_DATA overlay");
+  assert(out.includes("BPC-157") && out.includes("5 mg"), "product name + quantity overlay");
+  assert(out.includes("NP2607-001"), "lot value overlay (compact approved format)");
+  assert(out.includes("07/01/2028"), "expiration value overlay (MM/DD/YYYY)");
+  assert(/refer to accompanying/i.test(out), "unverified storage → safe placeholder overlay");
+  assert(!out.includes("2–8"), "unverified temperature never rendered");
+
+  // 3. Blank identification fields stay blank (fill-in rules live in the
+  //    immutable artwork; nothing is invented).
+  const blank = await renderLabelSvg(
+    { ...masterConfig, lot_number: "", expiration_date: null, packaged_date: null },
+    { templateId: "noir-clinical-core", presetId: "full_wrap" }
+  );
+  assert(!blank.includes("PENDING") && !blank.includes("NP2405-001"), "blank lot/dates render clean patched fields");
+
+  // 4. Overflow REJECTS (nothing on the approved artwork ever moves).
+  let threw = null;
+  try {
+    await renderLabelSvg(
+      { ...masterConfig, quantity_label: "1000000 mg extremely long quantity string that cannot fit" },
+      { templateId: "noir-clinical-core", presetId: "full_wrap" }
+    );
+  } catch (e) {
+    threw = e;
+  }
+  assert(threw instanceof LabelOverflowError, "overflowing value rejects the render (LabelOverflowError)");
+  let threwLot = null;
+  try {
+    await renderLabelSvg(baseConfig, { templateId: "noir-clinical-core", presetId: "full_wrap" });
+  } catch (e) {
+    threwLot = e;
+  }
+  assert(threwLot instanceof LabelOverflowError && threwLot.field === "lot",
+    "legacy long lot format rejects on the approved LOT area (format decision flagged)");
+
+  // 5. Non-rolled-out templates + other presets keep the procedural engine
+  //    (which carries the RUO warnings as text).
+  const proc = await renderLabelSvg(baseConfig, { templateId: "neural-grid", presetId: "full_wrap" });
+  assert(proc.includes("RESEARCH USE ONLY"), "non-rolled-out template stays procedural");
+  const front = await renderLabelSvg(baseConfig, { templateId: "noir-clinical-core", presetId: "front" });
+  assert(front.includes("RESEARCH USE ONLY"), "front preset stays procedural (no master die yet)");
+
+  // 6. Determinism: same payload → identical output bytes.
+  const again = await renderLabelSvg(masterConfig, { templateId: "noir-clinical-core", presetId: "full_wrap" });
+  assert(again === out, "same input payload reproduces identical output");
 }
 
 if (failures) {
