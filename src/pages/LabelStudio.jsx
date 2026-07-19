@@ -18,7 +18,8 @@ import { createDefaultConfig } from "../lib/labels/types";
 import { LABEL_PRESETS } from "../lib/labels/presets";
 import { TEMPLATES, renderLabelSvg } from "../lib/labels/renderLabelSvg";
 import { labelPngBlob, downloadBlob } from "../lib/labels/rasterize";
-import { listLabelConfigs, createLabelConfig, patchLabelConfig } from "../lib/labelsApi";
+import { listLabelConfigs, createLabelConfig, patchLabelConfig, getLabelMatrix } from "../lib/labelsApi";
+import CatalogMatrix from "../components/labels/CatalogMatrix";
 
 const TEMPLATE_OPTIONS = Object.values(TEMPLATES).map((t) => ({ id: t.id, name: t.name }));
 
@@ -38,6 +39,22 @@ export default function LabelStudio() {
   const [view, setView] = useState("flat"); // flat | guides | vial
   const [newProductId, setNewProductId] = useState("");
   const [newVariantId, setNewVariantId] = useState("");
+  const [showMatrix, setShowMatrix] = useState(false);
+  const [matrix, setMatrix] = useState(null);
+
+  const refreshMatrix = async () => {
+    try {
+      const [m, lc] = await Promise.all([getLabelMatrix(), listLabelConfigs()]);
+      setMatrix(m);
+      setConfigs(lc.configs || []);
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
+  useEffect(() => {
+    if (showMatrix && !matrix) refreshMatrix();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMatrix]);
 
   const load = () => {
     setLoading(true);
@@ -174,10 +191,29 @@ export default function LabelStudio() {
                 outside this studio.
               </p>
             </div>
-            <Link to="/admin" className="btn-outline">Control Room</Link>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowMatrix((v) => !v)} className={showMatrix ? "btn-primary" : "btn-outline"}>
+                Catalog matrix
+              </button>
+              <Link to="/admin" className="btn-outline">Control Room</Link>
+            </div>
           </div>
 
           {err && <p className="mb-4 text-[13px] text-red-300">{err}</p>}
+
+          {showMatrix && (
+            <div className="mb-6">
+              <CatalogMatrix
+                matrix={matrix}
+                onRefresh={refreshMatrix}
+                busyId={selectedId}
+                onSelectConfig={(id) => {
+                  setSelectedId(id);
+                  setShowMatrix(false);
+                }}
+              />
+            </div>
+          )}
 
           <div className="grid lg:grid-cols-[280px_1fr] gap-6">
             {/* Left rail: configs + creator */}

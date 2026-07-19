@@ -18,6 +18,7 @@ import {
   LABEL_STATUSES,
   STATUS_TRANSITIONS,
 } from "../../lib/labelConstants.js";
+import { seedFieldsForVariant } from "../../lib/labelSeed.js";
 
 const COLS = "*";
 
@@ -87,11 +88,23 @@ export default async function handler(req, res) {
   const admin = await requireAdmin(req, res);
   if (!admin) return;
 
-  // ── GET: list (or one by ?id=, or history by ?history=<id>) ─────────────
+  // ── GET: list (or one by ?id=, history by ?history=<id>, ?matrix=1) ─────
   if (req.method === "GET") {
     const url = new URL(req.url, "http://x");
     const id = url.searchParams.get("id");
     const historyOf = url.searchParams.get("history");
+
+    // Catalog rollout matrix: every product/variant joined with its config
+    // coverage (status/template only — the editor loads full rows on select).
+    if (url.searchParams.get("matrix")) {
+      const [prods, vars, cfgs] = await Promise.all([
+        supabaseServer.from("products").select("id, name, category_slug").order("name"),
+        supabaseServer.from("product_variants").select("id, product_id, sku, size_label, vial_size_mg").order("vial_size_mg"),
+        supabaseServer.from("label_configs").select("id, product_id, variant_id, status, template_id, label_version, updated_at"),
+      ]);
+      if (prods.error || vars.error || cfgs.error) return json(res, 500, { error: "Could not load rollout matrix" });
+      return json(res, 200, { products: prods.data || [], variants: vars.data || [], configs: cfgs.data || [] });
+    }
 
     if (historyOf) {
       const { data, error } = await supabaseServer
@@ -117,9 +130,48 @@ export default async function handler(req, res) {
     return json(res, 200, { configs: data || [] });
   }
 
-  // ── POST: create draft ──────────────────────────────────────────────────
+  // ── POST: create draft (or bulk-seed the whole catalog) ─────────────────
   if (req.method === "POST") {
     const body = await readJsonBody(req);
+
+    // Bulk seed: create a draft for every catalog variant that has no config
+    // yet. Explicit admin action (studio button) — never automatic. Seeds come
+    // from lib/labelSeed.js rules (blend component names from catalog data,
+    // quantities/storage left for the owner; nothing invented).
+    if (body?.action === "bulk_seed") {
+      const [prods, vars, cfgs] = await Promise.all([
+        supabaseServer.from("products").select("id, name"),
+        supabaseServer.from("product_variants").select("id, product_id, sku, size_label, vial_size_mg"),
+        supabaseServer.from("label_configs").select("id, product_id, variant_id"),
+      ]);
+      if (prods.error || vars.error || cfgs.error) return json(res, 500, { error: "Could not load catalog for seeding" });
+      const covered = new Set((cfgs.data || []).map((c) => `${c.product_id}::${c.variant_id || ""}`));
+      const byProduct = new Map((prods.data || []).map((p) => [p.id, p]));
+
+      const created = [];
+      const failed = [];
+      for (const v of vars.data || []) {
+        const product = byProduct.get(v.product_id);
+        if (!product || covered.has(`${v.product_id}::${v.id}`)) continue;
+        try {
+          const code = await uniqueVerificationCode();
+          const fields = seedFieldsForVariant(product, v);
+          const { data, error } = await supabaseServer
+            .from("label_configs")
+            .insert({ ...fields, status: "draft", verification_code: code, created_by: admin.id })
+            .select("id, product_id, variant_id")
+            .maybeSingle();
+          if (error || !data) throw new Error(error?.message || "insert failed");
+          created.push(data.id);
+          await snapshotHistory(data.id, "created:bulk", admin.id, data);
+        } catch (e) {
+          failed.push({ product_id: v.product_id, variant_id: v.id, error: e.message });
+        }
+      }
+      await auditLog(req, admin.id, "label.bulk_seed", "catalog", { created: created.length, failed: failed.length });
+      return json(res, 200, { created: created.length, failed });
+    }
+
     const fields = pickWritable(body || {});
     if (!fields.product_id) return json(res, 400, { error: "product_id is required" });
     if (!fields.display_name) return json(res, 400, { error: "display_name is required" });

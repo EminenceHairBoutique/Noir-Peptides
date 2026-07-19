@@ -186,6 +186,31 @@ console.log("\nBlend composition:");
   assert(!svg2.includes(COMPOSITION_PENDING_PLACEHOLDER), "no placeholder when data complete");
 }
 
+/* ── Catalog rollout seeding rules (Phase 4) ──────────────────────────── */
+console.log("\nCatalog rollout seeding:");
+{
+  const { blendComponentsFor, seedFieldsForVariant } = await import("../lib/labelSeed.js");
+
+  assert(JSON.stringify(blendComponentsFor("glow", "GLOW Blend")) === JSON.stringify(["GHK-Cu", "BPC-157", "TB-500"]),
+    "GLOW components from catalog data");
+  assert(blendComponentsFor("klow", "KLOW Blend").length === 4, "KLOW has 4 components");
+  assert(JSON.stringify(blendComponentsFor("bpc-157-tb-500", "BPC-157 + TB-500 Blend")) === JSON.stringify(["BPC-157", "TB-500"]),
+    'parses "A + B Blend" names');
+  assert(blendComponentsFor("bpc-157", "BPC-157") === null, "non-blend → null");
+
+  const blendSeed = seedFieldsForVariant({ id: "cjc-1295-ipamorelin", name: "CJC-1295 + Ipamorelin Blend" }, { id: "v1", sku: "CJC1295IPAM-10", size_label: "10 mg (5/5)", vial_size_mg: 10 });
+  assert(blendSeed.material_type === "Research Blend", "blend seeds Research Blend material");
+  assert(blendSeed.composition.length === 2 && blendSeed.composition.every((c) => c.quantity === ""),
+    "blend seeds component NAMES with EMPTY quantities (never invented)");
+  assert(blendSeed.barcode_value === "CJC1295IPAM-10", "barcode defaults to SKU");
+  assert(blendSeed.template_id === "noir-clinical-core", "default direction is Core Black");
+  assert(blendSeed.storage_source_verified === false && blendSeed.lot_number === "", "storage unverified + lot blank");
+
+  const plain = seedFieldsForVariant({ id: "bpc-157", name: "BPC-157" }, { id: "v2", sku: "BPC157-5", size_label: "5 mg", vial_size_mg: 5 });
+  assert(plain.composition === null && plain.material_type === "Lyophilized Research Material", "non-blend seeds lyophilized, no composition");
+  assert(plain.quantity_label === "5 mg", "quantity from variant size label");
+}
+
 /* ── Publishing rule ──────────────────────────────────────────────────── */
 console.log("\nPublishing rule:");
 {

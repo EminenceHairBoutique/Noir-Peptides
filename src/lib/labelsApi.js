@@ -7,7 +7,9 @@ import { adminGet, adminSend } from "./adminApi";
 export const listLabelConfigs = () => adminGet("/api/admin/labels");
 export const getLabelConfig = (id) => adminGet(`/api/admin/labels?id=${encodeURIComponent(id)}`);
 export const getLabelHistory = (id) => adminGet(`/api/admin/labels?history=${encodeURIComponent(id)}`);
+export const getLabelMatrix = () => adminGet("/api/admin/labels?matrix=1");
 export const createLabelConfig = (fields) => adminSend("/api/admin/labels", "POST", fields);
+export const bulkSeedLabels = () => adminSend("/api/admin/labels", "POST", { action: "bulk_seed" });
 export const patchLabelConfig = (id, fields) => adminSend("/api/admin/labels", "PATCH", { id, ...fields });
 
 /** Public: verify a label code (no auth). */
