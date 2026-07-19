@@ -60,11 +60,12 @@ console.log("Code 128:");
 /* ── Lots + dates ─────────────────────────────────────────────────────── */
 console.log("\nLots + dates:");
 {
-  const lot = buildLotNumber({ productId: "bpc-157", yymm: "2607", batch: 1 });
-  assert(lot === "NP-BPC157-2607-001", `builds ${lot}`);
-  assert(validateLotFormat("NP-BPC157-2607-001"), "accepts valid lot");
+  const lot = buildLotNumber({ yymm: "2607", batch: 1 });
+  assert(lot === "NP2607-001", `builds compact approved lot ${lot}`);
+  assert(validateLotFormat("NP2607-001"), "accepts compact lot");
+  assert(validateLotFormat("NP-BPC157-2607-001"), "still accepts legacy long lot");
   assert(!validateLotFormat("BPC157-001"), "rejects malformed lot");
-  assert(!validateLotFormat("NP-BPC157-267-001"), "rejects 3-digit YYMM");
+  assert(!validateLotFormat("NP267-001"), "rejects 3-digit YYMM");
   assert(dateLabel("exp", "2028-07-01") === "EXP 2028-07", "EXP label");
   assert(dateLabel("retest", "2028-07-01") === "RETEST 2028-07", "RETEST label");
   assert(
@@ -219,9 +220,10 @@ console.log("\nEXACT-master engine:");
     }
   }
   if (hashesOk) ok("all 4 registered masters match their recorded sha256 (immutable)");
-  assert(hasMasterRollout("noir-clinical-core"), "Core Black is rolled out");
-  assert(!hasMasterRollout("spectral-biotech") && !hasMasterRollout("cryogenic-white") && !hasMasterRollout("neural-grid"),
-    "other templates await approval (no rollout)");
+  assert(
+    ["noir-clinical-core", "spectral-biotech", "cryogenic-white", "neural-grid"].every(hasMasterRollout),
+    "all four templates rolled out on EXACT masters"
+  );
 
   // 2. Master mode engages for Core Black full wrap and embeds the approved
   //    raster VERBATIM (never redrawn) under a locked group.
@@ -269,10 +271,17 @@ console.log("\nEXACT-master engine:");
   assert(threwLot instanceof LabelOverflowError && threwLot.field === "lot",
     "legacy long lot format rejects on the approved LOT area (format decision flagged)");
 
-  // 5. Non-rolled-out templates + other presets keep the procedural engine
-  //    (which carries the RUO warnings as text).
-  const proc = await renderLabelSvg(baseConfig, { templateId: "neural-grid", presetId: "full_wrap" });
-  assert(proc.includes("RESEARCH USE ONLY"), "non-rolled-out template stays procedural");
+  // 5. Every rolled-out template embeds ITS OWN master verbatim and swaps
+  //    product data deterministically.
+  for (const [tid, m] of Object.entries(TEMPLATE_MASTERS)) {
+    const own = /(?:xlink:)?href="(data:image\/png;base64,[^"]+)"/.exec(readFileSync(`public${m.file}`, "utf8"))[1];
+    const svg = await renderLabelSvg(masterConfig, { templateId: tid, presetId: "full_wrap" });
+    if (!svg.includes(own)) fail(`master bytes not verbatim for ${tid}`);
+    else if (!svg.includes("BPC-157")) fail(`overlay name missing for ${tid}`);
+    else ok(`${m.displayName}: master verbatim + overlay renders`);
+  }
+  // Presets without master artwork keep the procedural engine (which carries
+  // the RUO warnings as text).
   const front = await renderLabelSvg(baseConfig, { templateId: "noir-clinical-core", presetId: "front" });
   assert(front.includes("RESEARCH USE ONLY"), "front preset stays procedural (no master die yet)");
 

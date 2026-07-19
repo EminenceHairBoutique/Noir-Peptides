@@ -74,17 +74,44 @@ function fitOrReject(field, value, maxWidth, font, avg = AVG_BODY) {
   return size;
 }
 
+let patchCounter = 0;
+
 function patchSvg(patch, box, dataUri, vb) {
   const b = patch.box || box;
+  const sampleSvg = (x, y, w, h, s) =>
+    `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${s.x} ${s.y} ${s.w} ${s.h}" preserveAspectRatio="none">` +
+    `<image x="0" y="0" width="${vb[0]}" height="${vb[1]}" href="${dataUri}"/>` +
+    `</svg>`;
+
   if (patch.type === "sample") {
     // Re-draw a clean region of the master, stretched to cover the target
     // area — the artwork itself supplies the background texture.
+    return sampleSvg(b.x, b.y, b.w, b.h, patch.src);
+  }
+  if (patch.type === "tile") {
+    // Repeat a clean same-width band at natural scale (keeps pattern pitch;
+    // pattern x anchored to the source keeps vertical grid lines aligned).
     const s = patch.src;
+    const id = `np-patch-${++patchCounter}`;
     return (
-      `<svg x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" viewBox="${s.x} ${s.y} ${s.w} ${s.h}" preserveAspectRatio="none">` +
-      `<image x="0" y="0" width="${vb[0]}" height="${vb[1]}" href="${dataUri}"/>` +
-      `</svg>`
+      `<pattern id="${id}" patternUnits="userSpaceOnUse" x="${s.x}" y="${b.y}" width="${s.w}" height="${s.h}">` +
+      sampleSvg(0, 0, s.w, s.h, s) +
+      `</pattern>` +
+      `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="url(#${id})"/>`
     );
+  }
+  if (patch.type === "mirrorPair") {
+    // Symmetric gradient reconstruction (metallic/gradient strips): one clean
+    // end-segment of the strip fills one half naturally and the other half
+    // mirrored, meeting seamlessly at the center.
+    const s = patch.src;
+    const mid = b.x + b.w / 2;
+    const half = b.w / 2;
+    const natural = (x) => sampleSvg(x, b.y, half, b.h, s);
+    const mirrored = (x) => `<g transform="translate(${2 * x + half},0) scale(-1,1)">${natural(x)}</g>`;
+    return patch.srcSide === "left"
+      ? natural(b.x) + mirrored(mid)
+      : mirrored(b.x) + natural(mid);
   }
   return `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${patch.color}"/>`;
 }

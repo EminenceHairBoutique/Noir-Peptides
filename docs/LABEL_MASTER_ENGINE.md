@@ -2,8 +2,16 @@
 
 _Implements the owner-supplied starter package (`docs/labels/master-packages/`):
 the approved SVG masters are **immutable artwork**; product data is applied only
-as a deterministic `VARIABLE_DATA` overlay. Per the implementation prompt, the
-**Core Black prototype is complete and everything else STOPS for approval.**_
+as a deterministic `VARIABLE_DATA` overlay._
+
+> **Rollout complete (owner approval, 2026-07-19):** after Core Black sign-off
+> the production-resolution `Noir_Peptides_SVG_Templates` package replaced the
+> thumbnail Spectral/Cryogenic masters, and **all four templates now render on
+> their EXACT masters** (field maps grid-measured per template; patch textures
+> sampled from each master — tile / mirrored-gradient reconstruction for
+> patterned backgrounds and metallic strips). The compact lot format
+> `NP2405-001` (NPYYMM-BBB) is now the generated format (legacy long lots
+> remain valid for old rows). QA renders: `docs/labels/previews/master-*`._
 
 ## What shipped
 
@@ -40,26 +48,24 @@ CHECK is unchanged): `core-black→noir-clinical-core`, `spectral→spectral-bio
 
 ## Decisions / blockers for the owner
 
-1. **Spectral + Cryogenic masters are not production artwork** — the uploaded
-   packages embed 313×206 thumbnail cards (with "TEMPLATE 2/3" captions baked
-   in). They are registered and hash-locked, but rollout needs high-res
-   masters like Core Black (1198×398) / Neural Grid (1825×862).
-2. **Lot format**: the approved artwork's LOT area fits the compact
-   `NP2405-001` (NPYYMM-BBB) format used in the mockups and
-   `sample-label.json`. The legacy repo format `NP-BPC157-2607-001` is too
-   long and correctly rejects. Confirm the compact format and I'll update the
-   studio's "Suggest" helper to generate it.
-3. **Physical size**: Core Black aspect ⇒ 72 × 23.9 mm on the standard 72 mm
-   wrap. Confirm die with the printer (PDF slug notes "art edge = trim"; the
-   master carries no bleed).
-4. Neural Grid rollout (field map measurement) awaits Core Black approval, per
-   the starter package instructions.
+1. ~~Spectral + Cryogenic thumbnails~~ **RESOLVED** — production masters
+   received (Spectral 1817×866, Cryogenic 1536×510) and rolled out.
+2. ~~Lot format~~ **RESOLVED** — compact `NPYYMM-BBB` approved; the studio
+   Suggest button now generates it.
+3. **Physical size** (still open): wrap width defaults to 72 mm; per-template
+   heights follow each master's aspect (Core Black 23.9 mm · Spectral 34.3 mm
+   · Cryogenic 23.9 mm · Neural Grid 34.0 mm). Confirm dies with the printer
+   (PDF slug notes "art edge = trim"; masters carry no bleed).
+4. Print note (from the package README): for final production, the chosen
+   template should be manually rebuilt as native vector artwork once
+   dimensions, fonts, and printer specs are fixed — the embedded-raster
+   masters are the approved visual reference and web/3D source.
 
 ## Scope notes
 
 - Only the **full wrap** has approved master artwork; front/neck/cap/partial
-  presets and the three non-rolled-out templates keep the procedural engine
-  (which carries RUO warnings as text — still fully tested).
+  presets keep the procedural engine (which carries RUO warnings as text —
+  still fully tested).
 - The 3D vial derives the label height from the artwork aspect (no
   stretching), and the same master render feeds preview, PNG, PDF, and 3D.
 - No production deployment: everything is on PR #9's preview only.

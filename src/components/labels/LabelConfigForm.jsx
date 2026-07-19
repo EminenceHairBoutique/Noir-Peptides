@@ -23,7 +23,7 @@ export default function LabelConfigForm({ config, onChange }) {
     if (!src) return; // lots derive from a REAL packaging date the admin sets
     const yymm = src.slice(2, 4) + src.slice(5, 7);
     try {
-      set("lot_number", buildLotNumber({ productId: config.product_id, yymm, batch: 1 }));
+      set("lot_number", buildLotNumber({ yymm, batch: 1 }));
     } catch {
       /* ignore */
     }

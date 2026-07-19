@@ -11,7 +11,7 @@ _Operating guide for the RUO label system (Label Studio at `/admin/labels`)._
    enter real batch data when it exists.
 
 ## Lot numbers & dates
-- Set the **packaged date** first, then **Suggest** derives `NP-<CODE>-<YYMM>-001` — lots always reflect real batch data; adjust the batch suffix manually for subsequent batches.
+- Set the **packaged date** first, then **Suggest** derives the approved compact lot `NP<YYMM>-001` (e.g. `NP2607-001`) — lots always reflect real batch data; adjust the batch suffix manually for subsequent batches.
 - Set **either** expiration **or** retest date (retest only when that matches the quality system). Renders `EXP YYYY-MM` / `RETEST YYYY-MM`.
 
 ## Storage wording (verified-only)
