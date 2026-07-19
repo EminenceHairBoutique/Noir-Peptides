@@ -19,7 +19,10 @@ export default function useVialTexture(config, templateId, presetId = "full_wrap
     let tex = null;
     if (!config) return undefined;
 
-    (async () => {
+    // Debounce: while the admin types in the studio the config object changes
+    // per keystroke — wait for a pause before the (expensive) re-rasterize.
+    // The previous texture stays on the vial until the new one is ready.
+    const timer = setTimeout(async () => {
       try {
         const svg = await renderLabelSvg(config, {
           templateId,
@@ -37,10 +40,11 @@ export default function useVialTexture(config, templateId, presetId = "full_wrap
       } catch {
         if (alive) setTexture(null);
       }
-    })();
+    }, 350);
 
     return () => {
       alive = false;
+      clearTimeout(timer);
       if (tex) tex.dispose();
     };
   }, [config, templateId, presetId]);

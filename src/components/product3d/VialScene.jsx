@@ -21,8 +21,9 @@ extend({ OrbitControls });
 
 const GLASS_R = VIAL_10ML.diameterMm / 2; // 12.25
 const BODY_H = 44;
-const CAM_POS = [0, 30, 92];
+const CAM_POS = [0, 30, 112]; // full vial (incl. cap) in frame at fov 32
 const TARGET = [0, 26, 0];
+const IS_MOBILE = typeof navigator !== "undefined" && /iPhone|iPad|Android/i.test(navigator.userAgent);
 
 function Env() {
   const { gl, scene } = useThree();
@@ -141,17 +142,26 @@ function Vial({ texture, accent = "#00c2ff", showCake = true }) {
 }
 
 function LabelWrap({ texture }) {
+  const { gl } = useThree();
   const preset = LABEL_PRESETS.full_wrap;
   const arc = wrapArcRadians(preset); // ≈ 5.876 rad (336.7°)
   const r = GLASS_R + 0.18;
-  // Physical height follows the ARTWORK aspect (EXACT masters are shorter
-  // than the procedural 30 mm die) — never stretch the label texture.
+  // Physical height follows the ARTWORK aspect — never stretch the texture.
   const img = texture.image;
   const h = img && img.width ? +(preset.widthMm * (img.height / img.width)).toFixed(2) : preset.heightMm;
+  // Keep the label on the straight wall: bottom edge sits at 6 mm, but tall
+  // masters (~34 mm) shift down so the top never rides the shoulder curve.
+  const wallTop = BODY_H - 4.5;
+  const bottom = Math.min(6, wallTop - h);
+  // Sharp label text at grazing angles (mipmap smear otherwise).
+  useEffect(() => {
+    texture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+    texture.needsUpdate = true;
+  }, [texture, gl]);
   // Center the arc on +Z (camera side); gap faces −Z (back).
   const thetaStart = -arc / 2;
   return (
-    <mesh position={[0, 6 + h / 2, 0]}>
+    <mesh position={[0, bottom + h / 2, 0]}>
       <cylinderGeometry args={[r, r, h, 96, 1, true, thetaStart, arc]} />
       <meshStandardMaterial map={texture} roughness={0.55} metalness={0} side={THREE.FrontSide} />
     </mesh>
@@ -203,7 +213,7 @@ export default function VialScene({ config, templateId, accent, reducedMotion = 
           frameloop="demand"
           dpr={[1, 2]}
           camera={{ position: CAM_POS, fov: 32 }}
-          gl={{ antialias: true, alpha: true }}
+          gl={{ antialias: !IS_MOBILE, alpha: true, powerPreference: "default" }}
           onCreated={({ gl }) => {
             gl.domElement.addEventListener("webglcontextlost", (e) => e.preventDefault());
           }}
