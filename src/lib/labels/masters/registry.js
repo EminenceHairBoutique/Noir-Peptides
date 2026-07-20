@@ -117,6 +117,14 @@ export const TEMPLATE_MASTERS = {
         cy: 205,
         font: { size: 15, min: 11, weight: 500, color: "#d6dbe2", spacing: 1 },
       },
+      // Owner-supplied legal line (manufacturer / distributed by / origin) —
+      // clean band between the CAT chip and the telemetry strip.
+      legalLine: {
+        cx: 620,
+        baseline: 370,
+        maxW: 440,
+        font: { size: 10, min: 8, weight: 500, color: "#9aa4b2", spacing: 0.4 },
+      },
     },
   },
 
@@ -206,6 +214,12 @@ export const TEMPLATE_MASTERS = {
         cy: 448,
         font: { size: 24, min: 16, weight: 500, color: "#e8ecf3", spacing: 2 },
       },
+      legalLine: {
+        cx: 910,
+        baseline: 756,
+        maxW: 610,
+        font: { size: 17, min: 12, weight: 500, color: "#a8b0bf", spacing: 0.6 },
+      },
     },
   },
   "cryogenic-white": {
@@ -292,6 +306,13 @@ export const TEMPLATE_MASTERS = {
         cy: 255,
         font: { size: 19, min: 13, weight: 500, color: "#25344e", spacing: 1.4 },
       },
+      legalLine: {
+        // Below the waveform strip, aligned with the footer tagline row.
+        cx: 768,
+        baseline: 489,
+        maxW: 560,
+        font: { size: 10.5, min: 8, weight: 500, color: "#57657f", spacing: 0.4 },
+      },
     },
   },
   "neural-grid": {
@@ -377,6 +398,12 @@ export const TEMPLATE_MASTERS = {
         cx: 1763,
         cy: 430,
         font: { size: 24, min: 16, weight: 500, color: "#e8eef6", spacing: 2 },
+      },
+      legalLine: {
+        cx: 910,
+        baseline: 768,
+        maxW: 620,
+        font: { size: 17, min: 12, weight: 500, color: "#93a0b4", spacing: 0.6 },
       },
     },
   },

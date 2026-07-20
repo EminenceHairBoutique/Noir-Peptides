@@ -284,6 +284,24 @@ export async function renderMasterLabel(config, opts) {
     }
   }
 
+  // Owner-supplied legal line (manufacturer / distributed by / origin) —
+  // renders centered in the clean band under the CAT chip only when the
+  // owner filled the fields; nothing renders (and nothing is patched)
+  // otherwise. Verbatim owner text with neutral labels.
+  {
+    const parts = [
+      config.manufacturer && `Manufactured by ${config.manufacturer}`,
+      config.distributed_by && `Distributed by ${config.distributed_by}`,
+      config.country_of_origin && `Origin: ${config.country_of_origin}`,
+    ].filter(Boolean);
+    const f = F.legalLine;
+    if (parts.length && f) {
+      const line = parts.join("  ·  ");
+      const size = fitOrReject("legalLine", line, f.maxW, f.font);
+      v += textEl(f.cx, f.baseline, line, f.font, "middle", size);
+    }
+  }
+
   // LOT / MFG / EXP values (blank ⇒ patched clean; the master's underline
   // rules remain as fill-in fields).
   for (const [key, value] of [

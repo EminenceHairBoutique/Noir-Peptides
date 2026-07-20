@@ -342,7 +342,19 @@ console.log("\nEXACT-master engine:");
   assert(fiveThrew instanceof LabelOverflowError && fiveThrew.field === "composition",
     "5th component rejects (no silent truncation)");
 
-  // 7. Determinism: same payload → identical output bytes.
+  // 7. Legal lines render only when owner-supplied — on every template.
+  const legal = { ...masterConfig, manufacturer: "WTW Research Ltd", distributed_by: "Noir Peptides", country_of_origin: "USA" };
+  for (const tid of Object.keys(TEMPLATE_MASTERS)) {
+    const svg = await renderLabelSvg(legal, { templateId: tid, presetId: "full_wrap" });
+    if (!svg.includes("Manufactured by WTW Research Ltd") || !svg.includes("Distributed by Noir Peptides") || !svg.includes("Origin: USA")) {
+      fail(`${tid}: legal line missing`);
+    } else ok(`${tid}: legal line renders`);
+  }
+  const noLegal = await renderLabelSvg(masterConfig, { templateId: "noir-clinical-core", presetId: "full_wrap" });
+  assert(!noLegal.includes("Manufactured by") && !noLegal.includes("Distributed by"),
+    "no legal line when fields are empty");
+
+  // 8. Determinism: same payload → identical output bytes.
   const again = await renderLabelSvg(masterConfig, { templateId: "noir-clinical-core", presetId: "full_wrap" });
   assert(again === out, "same input payload reproduces identical output");
 }
