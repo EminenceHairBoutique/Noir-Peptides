@@ -259,10 +259,25 @@ export async function renderMasterLabel(config, opts) {
     v += patchSvg(f.patch, f.box, dataUri, entry.viewBox);
     const comp = Array.isArray(config.composition) ? config.composition.filter((c) => c?.name) : [];
     if (comp.length && comp.every((c) => c.quantity)) {
-      const rows = comp.slice(0, f.maxLines).map((c) => `${c.name} – ${c.quantity}`);
+      // Up to 4 components ALWAYS all render — never silent truncation. At
+      // the approved row count (≤ maxLines) metrics match the master
+      // exactly; 3–4 rows compress leading/size inside the patched area.
+      const MAX_COMPONENTS = 4;
+      if (comp.length > MAX_COMPONENTS) throw new OverflowError("composition", `${comp.length} components (max ${MAX_COMPONENTS})`);
+      const rows = comp.map((c) => `${c.name} – ${c.quantity}`);
+      let leading = f.leading;
+      let rowSize = f.font.size;
+      let firstBaseline = f.firstBaseline;
+      if (rows.length > f.maxLines) {
+        leading = (f.box.h - 6) / rows.length;
+        rowSize = Math.min(f.font.size, leading * 0.78);
+        firstBaseline = f.box.y + leading * 0.9;
+        const floor = f.font.rowMin ?? 9;
+        if (rowSize < floor) throw new OverflowError("composition", rows.join("; "));
+      }
       rows.forEach((row, i) => {
-        const size = fitOrReject("composition", row, f.box.w, f.font);
-        v += textEl(f.x, f.firstBaseline + i * f.leading, row, f.font, "start", size);
+        const size = fitOrReject("composition", row, f.box.w, { ...f.font, size: rowSize });
+        v += textEl(f.x, firstBaseline + i * leading, row, f.font, "start", size);
       });
     } else {
       v += wrappedBlock("composition", ucfirst(COMPOSITION_PENDING_PLACEHOLDER.replace(/^composition:\s*/i, "")), f);

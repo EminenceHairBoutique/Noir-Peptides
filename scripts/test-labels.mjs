@@ -310,7 +310,39 @@ console.log("\nEXACT-master engine:");
   const front = await renderLabelSvg(baseConfig, { templateId: "noir-clinical-core", presetId: "front" });
   assert(front.includes("RESEARCH USE ONLY"), "front preset stays procedural (no master die yet)");
 
-  // 6. Determinism: same payload → identical output bytes.
+  // 6. Composition: up to 4 components ALWAYS all render on every template
+  //    (compressed rows past the approved two) — never silent truncation;
+  //    a fifth component rejects.
+  const klow = {
+    ...masterConfig,
+    display_name: "KLOW Blend",
+    material_type: "Research Blend",
+    composition: [
+      { name: "GHK-Cu", quantity: "50 mg" },
+      { name: "BPC-157", quantity: "10 mg" },
+      { name: "TB-500", quantity: "10 mg" },
+      { name: "KPV", quantity: "10 mg" },
+    ],
+  };
+  for (const tid of Object.keys(TEMPLATE_MASTERS)) {
+    const svg = await renderLabelSvg(klow, { templateId: tid, presetId: "full_wrap" });
+    const missing = klow.composition.filter((c) => !svg.includes(`${c.name} – ${c.quantity}`));
+    if (missing.length) fail(`${tid}: composition rows missing (${missing.map((c) => c.name).join(", ")})`);
+    else ok(`${tid}: all 4 composition rows render`);
+  }
+  let fiveThrew = null;
+  try {
+    await renderLabelSvg(
+      { ...klow, composition: [...klow.composition, { name: "Extra", quantity: "1 mg" }] },
+      { templateId: "noir-clinical-core", presetId: "full_wrap" }
+    );
+  } catch (e) {
+    fiveThrew = e;
+  }
+  assert(fiveThrew instanceof LabelOverflowError && fiveThrew.field === "composition",
+    "5th component rejects (no silent truncation)");
+
+  // 7. Determinism: same payload → identical output bytes.
   const again = await renderLabelSvg(masterConfig, { templateId: "noir-clinical-core", presetId: "full_wrap" });
   assert(again === out, "same input payload reproduces identical output");
 }
