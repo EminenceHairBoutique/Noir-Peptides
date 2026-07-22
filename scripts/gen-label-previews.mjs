@@ -77,33 +77,8 @@ for (const j of jobs) {
   console.log(`[labels] wrote ${j.file}`);
 }
 
-// EXACT-master showcases (Noir Label Engine v1, Core Black rollout): the
-// approved artwork with deterministic VARIABLE_DATA overlays.
-const masterJobs = [
-  {
-    file: "master-core-black-cjc-sample.svg",
-    cfg: {
-      ...cfgFor("cjc-1295-ipamorelin", 10),
-      display_name: "CJC-1295 + Ipamorelin Blend",
-      material_type: "Lyophilized Research Material",
-      lot_number: "NP2607-001",
-      packaged_date: "2026-07-01",
-      expiration_date: "2028-07-01",
-      composition: [
-        { name: "CJC-1295 (DAC)", quantity: "5 mg" },
-        { name: "Ipamorelin", quantity: "5 mg" },
-      ],
-    },
-  },
-  { file: "master-core-black-bpc-157-5mg.svg", cfg: cfgFor("bpc-157", 5) },
-];
-for (const j of masterJobs) {
-  const svg = await renderLabelSvg(j.cfg, {
-    siteUrl: "https://www.noirpeptides.com",
-    templateId: "noir-clinical-core",
-    presetId: "full_wrap",
-  });
-  fs.writeFileSync(path.join(OUT, j.file), svg);
-  console.log(`[labels] wrote ${j.file} (EXACT master)`);
-}
-console.log(`[labels] ${jobs.length + masterJobs.length} previews → docs/labels/previews/`);
+// EXACT-master showcases are maintained as PNG QA renders
+// (docs/labels/previews/master-*.png) rather than generated SVGs — each
+// master embeds multi-MB artwork, so committing rendered SVG copies would
+// bloat the repo. Regenerate them via the studio or the QA harness.
+console.log(`[labels] ${jobs.length} previews → docs/labels/previews/`);
