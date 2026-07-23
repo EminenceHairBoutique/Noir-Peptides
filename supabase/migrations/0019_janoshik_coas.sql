@@ -16,6 +16,14 @@
 
 begin;
 
+-- Ensure the COA columns this seed writes exist (mirrors migration 0014;
+-- idempotent). Makes 0019 safe to run even if 0014 was skipped on this DB.
+alter table public.coas add column if not exists lab_name     text;
+alter table public.coas add column if not exists lot_number   text;
+alter table public.coas add column if not exists ms_confirmed boolean;
+alter table public.coas add column if not exists is_published boolean not null default true;
+alter table public.coas add column if not exists hplc         text;
+
 delete from public.coas where lab_name = 'Janoshik Analytical';
 
 insert into public.coas
