@@ -68,3 +68,18 @@ and all RLS policies.
 slugs that no longer match the live catalog. It is **not** the source of truth
 (that is `src/data/tier1Catalog.js` + the `0009` seed) and should be removed in
 a follow-up once its remaining importers are repointed.
+
+## COA seed (migration 0019)
+
+Migration `0019_janoshik_coas.sql` seeds 13 third-party **Janoshik Analytical**
+Certificates of Analysis (one per tested catalog product) transcribed verbatim
+from the owner's certificate images (`public/coas/janoshik/<product>.jpg`):
+HPLC purity, mass-spec identity, manufacturing batch `2026-05`, analysis date,
+and the Janoshik task number as the lot key (`JAN-<task>`) so `/verify-lot`
+resolves to the exact report. Blends store per-component content (no single
+purity %). Idempotent (replaces `lab_name='Janoshik Analytical'` rows).
+Validated on fresh Postgres 16 (13 rows, FK-intact, idempotent across re-runs).
+
+**Not seeded (no catalog listing):** Tirzepatide (×2) and Retatrutide (×4)
+certificates — compliance-gated, absent from the catalog — and bacteriostatic
+water (not a listed product). Their images are retained in the upload only.
