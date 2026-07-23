@@ -36,6 +36,13 @@ values
   ('cjc-1295-ipamorelin', '2026-05', 'JAN-169310', '/coas/janoshik/cjc-1295-ipamorelin.jpg', null, null, 'Ipamorelin 4.93 mg + CJC-1295 (mod GRF 1-29) 4.95 mg confirmed', true, true, '2026-06-08', 'Janoshik Analytical'),
   ('bpc-157-tb-500',      '2026-05', 'JAN-169282', '/coas/janoshik/bpc-157-tb-500.jpg',      null, null, 'BPC-157 6.25 mg + TB-500 (TB-4) 5.70 mg confirmed',              true, true, '2026-06-11', 'Janoshik Analytical'),
   ('glow',                '2026-05', 'JAN-169284', '/coas/janoshik/glow.jpg',                null, null, 'GHK-Cu 50.07 mg + TB-500 11.43 mg + BPC-157 11.65 mg confirmed', true, true, '2026-06-11', 'Janoshik Analytical'),
-  ('klow',                '2026-05', 'JAN-169283', '/coas/janoshik/klow.jpg',                null, null, 'GHK-Cu 49.69 mg + TB-500 11.15 mg + BPC-157 11.38 mg + KPV 10.32 mg confirmed', true, true, '2026-06-11', 'Janoshik Analytical');
+  ('klow',                '2026-05', 'JAN-169283', '/coas/janoshik/klow.jpg',                null, null, 'GHK-Cu 49.69 mg + TB-500 11.15 mg + BPC-157 11.38 mg + KPV 10.32 mg confirmed', true, true, '2026-06-11', 'Janoshik Analytical'),
+  -- Incretin-class peptides (batch 2026-06-20; blind GLP-1 identity + purity)
+  ('tirzepatide', '2026-06-20', 'JAN-169300', '/coas/janoshik/tirzepatide-10mg.jpg', 99.21, '99.209%', 'Tirzepatide identity confirmed (10.89 mg)', true, true, '2026-06-29', 'Janoshik Analytical'),
+  ('tirzepatide', '2026-06-20', 'JAN-169301', '/coas/janoshik/tirzepatide-60mg.jpg', 99.82, '99.821%', 'Tirzepatide identity confirmed (65.02 mg)', true, true, '2026-06-29', 'Janoshik Analytical'),
+  ('retatrutide', '2026-06-20', 'JAN-169296', '/coas/janoshik/retatrutide-10mg.jpg', 99.64, '99.639%', 'Retatrutide identity confirmed (11.34 mg)', true, true, '2026-06-29', 'Janoshik Analytical'),
+  ('retatrutide', '2026-06-20', 'JAN-169297', '/coas/janoshik/retatrutide-20mg.jpg', 99.85, '99.850%', 'Retatrutide identity confirmed (23.79 mg)', true, true, '2026-06-29', 'Janoshik Analytical'),
+  ('retatrutide', '2026-06-20', 'JAN-169298', '/coas/janoshik/retatrutide-40mg.jpg', 99.89, '99.890%', 'Retatrutide identity confirmed (43.71 mg)', true, true, '2026-06-29', 'Janoshik Analytical'),
+  ('retatrutide', '2026-06-20', 'JAN-169299', '/coas/janoshik/retatrutide-60mg.jpg', 99.56, '99.562%', 'Retatrutide identity confirmed (59.00 mg)', true, true, '2026-06-29', 'Janoshik Analytical');
 
 commit;

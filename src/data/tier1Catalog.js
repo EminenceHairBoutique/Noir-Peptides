@@ -105,6 +105,7 @@ export const categories = [
       { id: "hexarelin", name: "Hexarelin", blurb: "A synthetic hexapeptide supplied as a research reference material.", variants: [["2 mg", 2, 40], ["5 mg", 5, 58]] },
       { id: "tesamorelin", name: "Tesamorelin", blurb: "A synthetic GHRH-analog peptide supplied as a research reference material.", variants: [["5 mg", 5, 58], ["10 mg", 10, 80], ["20 mg", 20, 140]] },
       { id: "mk-677", name: "MK-677 (Ibutamoren)", blurb: "A non-peptide research compound supplied as a reference material for in-vitro studies.", variants: [["5 mg", 5, 50]] },
+      { id: "igf1-lr3", name: "IGF1-LR3", skuPrefix: "IG", blurb: "A synthetic Long R3 insulin-like growth factor-1 analog, used as a reference material in in-vitro research.", variants: [["1 mg", 1, 70]] },
     ],
   },
   {
@@ -129,12 +130,30 @@ export const categories = [
       { id: "klow", name: "KLOW Blend", blurb: "A co-formulated blend of GHK-Cu, BPC-157, TB-500, and KPV research peptides.", variants: [["80 mg", 80, 140]] },
     ],
   },
+  {
+    // Prices below are PLACEHOLDER (scaled by vial size from the existing
+    // catalog) pending owner confirmation — adjust in admin or a follow-up.
+    slug: "metabolic-incretin-research",
+    name: "Metabolic & Incretin Research",
+    desc: "Incretin-class and metabolic peptide reference materials for controlled in-vitro research.",
+    sort: 8,
+    products: [
+      { id: "tirzepatide", name: "Tirzepatide", skuPrefix: "TR", blurb: "A synthetic dual GIP and GLP-1 receptor–agonist peptide, used as a reference material in in-vitro metabolic research.", variants: [["5 mg", 5, 30], ["10 mg", 10, 45], ["20 mg", 20, 70], ["30 mg", 30, 95], ["40 mg", 40, 120], ["50 mg", 50, 145], ["60 mg", 60, 165], ["100 mg", 100, 250], ["120 mg", 120, 290]] },
+      { id: "semaglutide", name: "Semaglutide", skuPrefix: "SM", blurb: "A synthetic GLP-1 receptor–agonist peptide analog, used as a reference material in in-vitro metabolic research.", variants: [["2 mg", 2, 22], ["5 mg", 5, 35], ["10 mg", 10, 55], ["15 mg", 15, 75], ["20 mg", 20, 95], ["30 mg", 30, 130], ["40 mg", 40, 165]] },
+      { id: "retatrutide", name: "Retatrutide", skuPrefix: "RT", blurb: "A synthetic GIP, GLP-1 and glucagon receptor triple-agonist peptide, used as a reference material in in-vitro metabolic research.", variants: [["5 mg", 5, 45], ["10 mg", 10, 70], ["20 mg", 20, 110], ["30 mg", 30, 150], ["40 mg", 40, 185], ["60 mg", 60, 260]] },
+      { id: "survodutide", name: "Survodutide", skuPrefix: "SUR", blurb: "A synthetic GLP-1 and glucagon receptor dual-agonist peptide, used as a reference material in in-vitro metabolic research.", variants: [["10 mg", 10, 80]] },
+      { id: "cagrilintide", name: "Cagrilintide", skuPrefix: "CGL", blurb: "A synthetic long-acting amylin-analog peptide, used as a reference material in in-vitro metabolic research.", variants: [["5 mg", 5, 50], ["10 mg", 10, 80]] },
+      { id: "cagrilintide-semaglutide", name: "Cagrilintide + Semaglutide Blend", skuPrefix: "CS", blurb: "A co-formulated blend of the amylin analog cagrilintide and the GLP-1 analog semaglutide, used as a reference material in in-vitro research.", variants: [["10 mg", 10, 85]] },
+    ],
+  },
 ];
 
 // SKU + variant-id derivations (kept identical to the SQL seed so the static
-// catalog and the DB rows share the same ids).
-export const skuFor = (pid, mg) =>
-  `${pid.replace(/[^a-z0-9]/gi, "").toUpperCase()}-${mg}`;
+// catalog and the DB rows share the same ids). A product may set `skuPrefix`
+// to use the owner's short product code (e.g. "TR" → TR5/TR10); otherwise the
+// SKU derives from the product id (e.g. BPC157-5).
+export const skuFor = (pid, mg, prefix) =>
+  prefix ? `${prefix}${mg}` : `${pid.replace(/[^a-z0-9]/gi, "").toUpperCase()}-${mg}`;
 export const variantId = (pid, mg) => `${pid}-${mg}mg`;
 
 // Build the price tiers for a single (product, variant) base price.
@@ -156,7 +175,7 @@ export function getAllProducts() {
     for (const p of c.products) {
       const variants = p.variants.map(([size_label, mg, price], i) => ({
         id: variantId(p.id, mg),
-        sku: skuFor(p.id, mg),
+        sku: skuFor(p.id, mg, p.skuPrefix),
         size_label,
         vial_size_mg: mg,
         price,

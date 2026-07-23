@@ -67,7 +67,7 @@ History + `audit_logs` record every mutation. No secrets client-side; CSP unchan
 1. **Verified storage conditions per product** — the seeded blanket −20 °C is treated as UNVERIFIED; labels print a safe placeholder until per-product documentation is confirmed
 2. **Real lot numbers / packaged / expiration-or-retest dates** per batch
 3. **GLOW / KLOW per-component quantities** — absent from the catalog; labels render "Composition: pending administrative input"
-4. Retatrutide / Tirzepatide are **not in the catalog** (compliance-gated) — no labels until added
+4. ~~Retatrutide / Tirzepatide not in catalog~~ — **added 2026-07-23** (Metabolic & Incretin Research category, with Semaglutide / Survodutide / Cagrilintide / Cagrilintide+Semaglutide / IGF1-LR3); placeholder pricing pending owner confirmation
 5. Cap-color preference per product family
 6. Printer/label-stock confirmation of final die sizes (see LABEL_PRINT_SPECS)
 7. Production domain confirmation for QR base URL (defaults `www.noirpeptides.com`)

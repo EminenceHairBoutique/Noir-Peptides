@@ -36,7 +36,7 @@ the studio: `/admin/labels` → **Catalog matrix**._
 
 ## Notes
 
-- Retatrutide / Tirzepatide remain absent from the catalog (compliance-gated)
-  — no labels exist until the owner adds the products themselves.
+- Retatrutide / Tirzepatide (and the rest of the Metabolic & Incretin category)
+  were added 2026-07-23; seed the catalog matrix to generate their label drafts.
 - Re-running the seed never duplicates or overwrites: covered variants are
   skipped.
