@@ -1,0 +1,32 @@
+{
+  "productId": "cjc1295-ipamorelin",
+  "variantId": "10mg-5-5",
+  "templateId": "core-black",
+  "displayName": "CJC-1295 + Ipamorelin Blend",
+  "displayNameLine1": "CJC-1295 +",
+  "displayNameLine2": "Ipamorelin Blend",
+  "quantityLabel": "10 mg (5/5)",
+  "composition": [
+    {
+      "name": "CJC-1295 (DAC)",
+      "quantity": "5 mg"
+    },
+    {
+      "name": "Ipamorelin",
+      "quantity": "5 mg"
+    }
+  ],
+  "storageText": "Store lyophilized material at the verified condition shown in accompanying batch documentation.",
+  "storageVerified": false,
+  "catalogNumber": "NP-CJC1295IPAM-10",
+  "lotNumber": "NP2405-001",
+  "manufacturingDate": "2026-07-01",
+  "dateType": "retest",
+  "dateValue": "2028-07-01",
+  "barcodeType": "CODE128",
+  "barcodeValue": "NP-CJC1295IPAM-10-NP2405-001",
+  "verificationCode": "EXAMPLE-NOT-PRODUCTION",
+  "verificationUrl": "https://noirpeptides.com/verify/EXAMPLE-NOT-PRODUCTION",
+  "status": "draft",
+  "labelVersion": 1
+}

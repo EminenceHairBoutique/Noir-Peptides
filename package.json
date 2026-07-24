@@ -13,11 +13,13 @@
     "audit:products": "node scripts/audit-products.mjs",
     "test:guardrail": "node scripts/test-guardrail.mjs",
     "test:compliance": "node scripts/test-compliance-scan.mjs",
-    "test:unit": "node scripts/test-guardrail.mjs && node scripts/test-compliance-scan.mjs",
-    "test:e2e": "playwright test"
+    "test:unit": "node scripts/test-guardrail.mjs && node scripts/test-compliance-scan.mjs && node scripts/test-labels.mjs",
+    "test:e2e": "playwright test",
+    "test:labels": "node scripts/test-labels.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
+    "@react-three/fiber": "^9.6.1",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.6.0",
     "@supabase/supabase-js": "^2.89.0",
@@ -27,12 +29,14 @@
     "express": "^5.2.1",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.552.0",
+    "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.11.0",
     "resend": "^6.6.0",
-    "stripe": "^20.1.0"
+    "stripe": "^20.1.0",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

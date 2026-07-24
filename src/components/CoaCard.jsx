@@ -79,7 +79,7 @@ export default function CoaCard({ coa, productName, origin = "", showQr = true }
             className="mt-4 inline-flex items-center gap-2 text-sm text-se-gold hover:underline"
           >
             <FileText size={15} />
-            View COA (PDF)
+            {/^data:|\.pdf($|\?)/i.test(coa.file_url) ? "View COA (PDF)" : "View full certificate"}
           </a>
         ) : null}
       </div>

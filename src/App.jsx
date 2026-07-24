@@ -62,11 +62,15 @@ const PrivacyChoices = lazy(() => import("./pages/PrivacyChoices"));
 
 // ── Admin tier ──
 const AdminHome = lazy(() => import("./pages/AdminHome"));
+const LabelStudio = lazy(() => import("./pages/LabelStudio"));
 
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Routes that render their own full-page chrome (no global Navbar/Footer).
-const BARE_PREFIXES = ["/login", "/register", "/verify", "/forgot-password", "/reset-password"];
+// NOTE: "/verify" is matched EXACTLY (email-confirmation screen) so that
+// /verify-lot and /v/:code keep the normal site chrome.
+const BARE_PREFIXES = ["/login", "/register", "/forgot-password", "/reset-password"];
+const BARE_EXACT = ["/verify"];
 
 // Redirect the legacy plural product path to the canonical singular one.
 function ProductAliasRedirect() {
@@ -93,6 +97,7 @@ export default function App() {
 
   const isBare =
     location.pathname === "/" ||
+    BARE_EXACT.includes(location.pathname) ||
     BARE_PREFIXES.some((p) => location.pathname.startsWith(p));
 
   return (
@@ -129,6 +134,8 @@ export default function App() {
               <Route path="/deals" element={<Page><Deals /></Page>} />
               <Route path="/test-results" element={<Page><TestResults /></Page>} />
               <Route path="/verify-lot" element={<Page><VerifyLot /></Page>} />
+              {/* Label QR deep link: short, non-enumerable verification code. */}
+              <Route path="/v/:code" element={<Page><VerifyLot /></Page>} />
 
               {/* ── PUBLIC LEGAL ── */}
               <Route path="/legal/terms" element={<Page><Terms /></Page>} />
@@ -174,6 +181,7 @@ export default function App() {
 
               {/* ── ADMIN ── */}
               <Route path="/admin" element={<Page><RequireAdmin><AdminHome /></RequireAdmin></Page>} />
+              <Route path="/admin/labels" element={<Page><RequireAdmin><LabelStudio /></RequireAdmin></Page>} />
 
               {/* ── Redirects (old paths → canonical) ── */}
               <Route path="/disclaimer" element={<Navigate to="/legal/research-use-policy" replace />} />

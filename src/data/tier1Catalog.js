@@ -105,6 +105,7 @@ export const categories = [
       { id: "hexarelin", name: "Hexarelin", blurb: "A synthetic hexapeptide supplied as a research reference material.", variants: [["2 mg", 2, 40], ["5 mg", 5, 58]] },
       { id: "tesamorelin", name: "Tesamorelin", blurb: "A synthetic GHRH-analog peptide supplied as a research reference material.", variants: [["5 mg", 5, 58], ["10 mg", 10, 80], ["20 mg", 20, 140]] },
       { id: "mk-677", name: "MK-677 (Ibutamoren)", blurb: "A non-peptide research compound supplied as a reference material for in-vitro studies.", variants: [["5 mg", 5, 50]] },
+      { id: "igf1-lr3", name: "IGF1-LR3", skuPrefix: "IG", blurb: "A synthetic Long R3 insulin-like growth factor-1 analog, used as a reference material in in-vitro research.", variants: [["1 mg", 1, 70]] },
     ],
   },
   {
@@ -129,19 +130,47 @@ export const categories = [
       { id: "klow", name: "KLOW Blend", blurb: "A co-formulated blend of GHK-Cu, BPC-157, TB-500, and KPV research peptides.", variants: [["80 mg", 80, 140]] },
     ],
   },
+  {
+    // Owner-confirmed pricing (2026-07-23). Exception: cagrilintide-semaglutide
+    // (CS10) has no owner price yet → PLACEHOLDER, flagged inline.
+    slug: "metabolic-incretin-research",
+    name: "Metabolic & Incretin Research",
+    desc: "Incretin-class and metabolic peptide reference materials for controlled in-vitro research.",
+    sort: 8,
+    products: [
+      { id: "tirzepatide", name: "Tirzepatide", skuPrefix: "TR", blurb: "A synthetic dual GIP and GLP-1 receptor–agonist peptide, used as a reference material in in-vitro metabolic research.", variants: [["5 mg", 5, 40], ["10 mg", 10, 65.99], ["15 mg", 15, 90], ["20 mg", 20, 139.99], ["30 mg", 30, 175], ["40 mg", 40, 220], ["50 mg", 50, 265], ["60 mg", 60, 289.99], ["100 mg", 100, 385.99], ["120 mg", 120, 425.99]] },
+      { id: "semaglutide", name: "Semaglutide", skuPrefix: "SM", blurb: "A synthetic GLP-1 receptor–agonist peptide analog, used as a reference material in in-vitro metabolic research.", variants: [["2 mg", 2, 11.99], ["5 mg", 5, 25], ["10 mg", 10, 47], ["15 mg", 15, 55], ["20 mg", 20, 64.99], ["30 mg", 30, 84.99], ["40 mg", 40, 95]] },
+      { id: "retatrutide", name: "Retatrutide", skuPrefix: "RT", blurb: "A synthetic GIP, GLP-1 and glucagon receptor triple-agonist peptide, used as a reference material in in-vitro metabolic research.", variants: [["5 mg", 5, 49.99], ["10 mg", 10, 79.99], ["15 mg", 15, 99.99], ["20 mg", 20, 129.99], ["30 mg", 30, 189.99], ["40 mg", 40, 249.99], ["50 mg", 50, 299.99], ["60 mg", 60, 345.95]] },
+      { id: "survodutide", name: "Survodutide", skuPrefix: "SUR", blurb: "A synthetic GLP-1 and glucagon receptor dual-agonist peptide, used as a reference material in in-vitro metabolic research.", variants: [["10 mg", 10, 95]] },
+      { id: "cagrilintide", name: "Cagrilintide", skuPrefix: "CGL", blurb: "A synthetic long-acting amylin-analog peptide, used as a reference material in in-vitro metabolic research.", variants: [["5 mg", 5, 44.99], ["10 mg", 10, 69.99]] },
+      // CS10 price is PLACEHOLDER — owner has not supplied one yet.
+      { id: "cagrilintide-semaglutide", name: "Cagrilintide + Semaglutide Blend", skuPrefix: "CS", blurb: "A co-formulated blend of the amylin analog cagrilintide and the GLP-1 analog semaglutide, used as a reference material in in-vitro research.", variants: [["10 mg", 10, 85]] },
+    ],
+  },
 ];
 
 // SKU + variant-id derivations (kept identical to the SQL seed so the static
-// catalog and the DB rows share the same ids).
-export const skuFor = (pid, mg) =>
-  `${pid.replace(/[^a-z0-9]/gi, "").toUpperCase()}-${mg}`;
+// catalog and the DB rows share the same ids). A product may set `skuPrefix`
+// to use the owner's short product code (e.g. "TR" → TR5/TR10); otherwise the
+// SKU derives from the product id (e.g. BPC157-5).
+export const skuFor = (pid, mg, prefix) =>
+  prefix ? `${prefix}${mg}` : `${pid.replace(/[^a-z0-9]/gi, "").toUpperCase()}-${mg}`;
 export const variantId = (pid, mg) => `${pid}-${mg}mg`;
+
+// Round a laddered price: whole-dollar for whole-number base prices (keeps the
+// existing catalog exactly as-is), 2-decimal for retail .99-style prices so the
+// bundle ladder never mangles them (e.g. $49.99 single stays $49.99).
+export function ladderPrice(price, mult) {
+  return Number.isInteger(price)
+    ? Math.round(price * mult)
+    : Math.round(price * mult * 100) / 100;
+}
 
 // Build the price tiers for a single (product, variant) base price.
 export function tiersForPrice(price) {
   return TIER_LADDER.map((t) => ({
     min_quantity: t.q,
-    unit_price: Math.round(price * t.mult),
+    unit_price: ladderPrice(price, t.mult),
     savings_pct: t.pct,
     label: t.q === 1 ? "Single vial" : `${t.q} vials`,
   }));
@@ -156,7 +185,7 @@ export function getAllProducts() {
     for (const p of c.products) {
       const variants = p.variants.map(([size_label, mg, price], i) => ({
         id: variantId(p.id, mg),
-        sku: skuFor(p.id, mg),
+        sku: skuFor(p.id, mg, p.skuPrefix),
         size_label,
         vial_size_mg: mg,
         price,

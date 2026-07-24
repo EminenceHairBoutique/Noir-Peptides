@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Noir Product Label",
+  "type": "object",
+  "required": [
+    "productId",
+    "templateId",
+    "displayName",
+    "quantityLabel",
+    "catalogNumber",
+    "lotNumber",
+    "dateType",
+    "dateValue",
+    "barcodeValue",
+    "verificationUrl",
+    "status"
+  ],
+  "properties": {
+    "productId": {
+      "type": "string"
+    },
+    "variantId": {
+      "type": "string"
+    },
+    "templateId": {
+      "enum": [
+        "core-black",
+        "spectral",
+        "cryogenic",
+        "neural-grid"
+      ]
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "displayNameLine1": {
+      "type": "string"
+    },
+    "displayNameLine2": {
+      "type": "string"
+    },
+    "quantityLabel": {
+      "type": "string"
+    },
+    "composition": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "quantity"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "storageText": {
+      "type": "string"
+    },
+    "storageVerified": {
+      "type": "boolean"
+    },
+    "catalogNumber": {
+      "type": "string"
+    },
+    "lotNumber": {
+      "type": "string"
+    },
+    "manufacturingDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "dateType": {
+      "enum": [
+        "expiration",
+        "retest"
+      ]
+    },
+    "dateValue": {
+      "type": "string",
+      "format": "date"
+    },
+    "barcodeType": {
+      "const": "CODE128"
+    },
+    "barcodeValue": {
+      "type": "string"
+    },
+    "verificationCode": {
+      "type": "string"
+    },
+    "verificationUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "in_review",
+        "changes_requested",
+        "approved",
+        "production_ready",
+        "archived"
+      ]
+    },
+    "labelVersion": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}
