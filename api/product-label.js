@@ -54,9 +54,11 @@ export default async function handler(req, res) {
     if (error) return json(res, 200, { label: null });
 
     const rows = (data || []).filter((r) => isLabelPubliclyRenderable(r));
+    // Prefer the selected variant's label; else a product-level label; else
+    // ANY approved label for the product (so the page still shows the vial).
     const exact = variantId ? rows.find((r) => r.variant_id === variantId) : null;
-    const chosen = exact || rows.find((r) => !r.variant_id) || null;
-    return json(res, 200, { label: chosen ? present(chosen) : null });
+    const chosen = exact || rows.find((r) => !r.variant_id) || rows[0] || null;
+    return json(res, 200, { label: chosen ? present(chosen) : null, exact: Boolean(exact) });
   } catch {
     return json(res, 200, { label: null });
   }

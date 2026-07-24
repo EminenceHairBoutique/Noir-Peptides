@@ -10,6 +10,7 @@ import { motion as Motion } from "framer-motion";
 
 import { getProducts, getCategories, getAllVariants } from "../lib/catalog";
 import { getAllCoas } from "../lib/coas";
+import { getApprovedProductLabels } from "../lib/labelsApi";
 import ProductCard from "../components/ProductCard";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import SEO from "../components/SEO";
@@ -48,6 +49,7 @@ export default function Shop() {
   const [categories, setCategories] = useState([]);
   const [variants, setVariants] = useState([]);
   const [coaProductIds, setCoaProductIds] = useState(new Set());
+  const [labelByProduct, setLabelByProduct] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -69,13 +71,14 @@ export default function Shop() {
     let active = true;
     setLoading(true);
     setError(false);
-    Promise.all([getProducts(), getCategories(), getAllVariants(), getAllCoas()])
-      .then(([p, c, v, coas]) => {
+    Promise.all([getProducts(), getCategories(), getAllVariants(), getAllCoas(), getApprovedProductLabels()])
+      .then(([p, c, v, coas, labels]) => {
         if (!active) return;
         setProducts(p);
         setCategories(c);
         setVariants(v);
         setCoaProductIds(new Set((coas || []).map((x) => x.product_id).filter(Boolean)));
+        setLabelByProduct(labels || {});
         setLoading(false);
       })
       .catch(() => {
@@ -353,7 +356,7 @@ export default function Shop() {
                           {selected ? <Check size={12} /> : null} {selected ? "Selected" : "Compare"}
                         </button>
                       )}
-                      <ProductCard product={product} />
+                      <ProductCard product={product} label={labelByProduct[product.id] || null} />
                     </Motion.div>
                   );
                 })}

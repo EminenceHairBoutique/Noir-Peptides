@@ -38,3 +38,18 @@ export async function getProductLabel(productId, variantId) {
     return null;
   }
 }
+
+/**
+ * Public: all APPROVED labels keyed by product_id (one per product) for the
+ * shop grid's static previews. {} on error. No auth; approved-only server-side.
+ */
+export async function getApprovedProductLabels() {
+  try {
+    const res = await fetch("/api/product-labels");
+    if (!res.ok) return {};
+    const data = await res.json().catch(() => ({}));
+    return data?.labels || {};
+  } catch {
+    return {};
+  }
+}
