@@ -21,6 +21,8 @@ import BackInStockForm from "../components/BackInStockForm";
 import COABadge from "../components/COABadge";
 import CoaCard from "../components/CoaCard";
 import { getCoasForProduct } from "../lib/coas";
+import { getProductLabel } from "../lib/labelsApi";
+import VialPreview from "../components/product3d/VialPreview";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import { PRODUCT_IS_NOT, STORAGE_GUIDANCE } from "../config/compliance";
 
@@ -108,6 +110,21 @@ export default function ProductDetail() {
       active = false;
     };
   }, [selectedVariant?.id]);
+
+  // Approved label for the selected variant → interactive 3D vial (server
+  // returns a label ONLY when it is approved/production-ready and in date).
+  const [vialLabel, setVialLabel] = useState(null);
+  useEffect(() => {
+    let active = true;
+    setVialLabel(null);
+    if (!product?.id) return undefined;
+    getProductLabel(product.id, selectedVariant?.id).then((lbl) => {
+      if (active) setVialLabel(lbl);
+    });
+    return () => {
+      active = false;
+    };
+  }, [product?.id, selectedVariant?.id]);
 
   const basePrice = Number(selectedVariant?.price || product?.price || 0);
   const unitPrice = unitPriceForQuantity(basePrice, tiers, quantity);
@@ -233,7 +250,11 @@ export default function ProductDetail() {
               className="lg:sticky lg:top-28 lg:self-start"
             >
               <div className="relative aspect-square glass-panel overflow-hidden">
-                {product.image_url || product.images?.[0] ? (
+                {vialLabel ? (
+                  <div className="h-full w-full flex items-center justify-center p-2">
+                    <VialPreview config={vialLabel} templateId={vialLabel.template_id} />
+                  </div>
+                ) : product.image_url || product.images?.[0] ? (
                   <img
                     src={product.image_url || product.images[0]}
                     alt={`${product.name} research reference vial`}
@@ -251,6 +272,13 @@ export default function ProductDetail() {
                   </div>
                 )}
               </div>
+
+              {vialLabel && (
+                <p className="mt-2 text-[11px] text-se-steel font-accent text-center">
+                  Interactive label preview · every vial ships with a scannable QR linking to its
+                  batch verification and COA.
+                </p>
+              )}
 
               <div className="grid grid-cols-3 gap-3 mt-3">
                 {["Identity", "Purity", "Batch"].map((tag) => (

@@ -225,6 +225,21 @@ console.log("\nPublishing rule:");
   if (all) ok("only approved/production_ready render outside the studio");
 }
 
+/* ── Public PDP render gate (Phase 5) ─────────────────────────────────── */
+console.log("\nPublic PDP render gate:");
+{
+  const { isLabelPubliclyRenderable } = await import("../lib/labelConstants.js");
+  const future = "2099-01-01";
+  const past = "2000-01-01";
+  assert(isLabelPubliclyRenderable({ status: "approved", expiration_date: future }), "approved + in-date → renders on PDP");
+  assert(isLabelPubliclyRenderable({ status: "production_ready", retest_date: future }), "production_ready + in-date → renders");
+  assert(!isLabelPubliclyRenderable({ status: "draft", expiration_date: future }), "draft → hidden on PDP");
+  assert(!isLabelPubliclyRenderable({ status: "in_review", expiration_date: future }), "in_review → hidden");
+  assert(!isLabelPubliclyRenderable({ status: "approved", recalled: true, expiration_date: future }), "recalled → hidden even if approved");
+  assert(!isLabelPubliclyRenderable({ status: "approved", expiration_date: past }), "expired → hidden");
+  assert(isLabelPubliclyRenderable({ status: "approved" }), "approved with no date → renders (no expiry)");
+}
+
 /* ── EXACT-master engine (Noir Label Engine v1) ───────────────────────── */
 console.log("\nEXACT-master engine:");
 {
