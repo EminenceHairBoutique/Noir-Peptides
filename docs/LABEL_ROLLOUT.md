@@ -27,7 +27,10 @@ the studio: `/admin/labels` → **Catalog matrix**._
 
 ## Owner workflow to production
 
-1. Seed the catalog (one click) → 66 drafts.
+1. Seed the catalog — click **Seed missing drafts** in the studio, OR run
+   migration `0020_label_configs_seed.sql` in Supabase (same result: a draft
+   for every product/variant; both idempotent, both skip anything already
+   created). Currently 96 drafts across the full catalog.
 2. Per product: enter verified storage, real lot (`NP<YYMM>-BBB`), MFG/EXP
    dates, and blend quantities; pick a non-default template where desired.
 3. Draft → In Review → Approved (per label). Only Approved / Production-Ready
