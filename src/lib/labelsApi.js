@@ -19,3 +19,22 @@ export async function verifyCode(code) {
   if (!res.ok) return { state: "unavailable" };
   return data;
 }
+
+/**
+ * Public: fetch the APPROVED label for a product/variant (customer-facing 3D
+ * vial + flat label). Returns null when no publishable label exists — the PDP
+ * then shows its placeholder. No auth; server enforces approved-only.
+ */
+export async function getProductLabel(productId, variantId) {
+  if (!productId) return null;
+  try {
+    const qs = new URLSearchParams({ product_id: productId });
+    if (variantId) qs.set("variant_id", variantId);
+    const res = await fetch(`/api/product-label?${qs.toString()}`);
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => ({}));
+    return data?.label || null;
+  } catch {
+    return null;
+  }
+}
