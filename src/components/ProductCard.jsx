@@ -1,7 +1,9 @@
 // src/components/ProductCard.jsx — Noir Peptides
-import React from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import COABadge from "./COABadge";
+
+const LabelPreview = lazy(() => import("./labels/LabelPreview"));
 
 const STOCK_LABEL = {
   in_stock: "In Stock",
@@ -9,7 +11,37 @@ const STOCK_LABEL = {
   out_of_stock: "Out of Stock",
 };
 
-const ProductCard = ({ product }) => {
+// Lightweight static label thumbnail for the grid: the procedural front panel
+// (no master raster, no WebGL) built from the approved label's real data.
+// Mounts only when the card scrolls into view.
+function LabelThumb({ label }) {
+  const ref = useRef(null);
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setShow(true);
+      return undefined;
+    }
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && setShow(true)),
+      { rootMargin: "200px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="absolute inset-0 flex items-center justify-center p-3 bg-gradient-to-b from-[#0d1118] to-[#070a10]">
+      {show && (
+        <Suspense fallback={null}>
+          <LabelPreview config={label} templateId={label.template_id} presetId="front" className="!border-0 max-h-full" />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+
+const ProductCard = ({ product, label = null }) => {
   const img = product.image_url || product.images?.[0] || null;
   const isOut = product.stock_status === "out_of_stock";
   const category = product.category_slug;
@@ -30,6 +62,8 @@ const ProductCard = ({ product }) => {
             }`}
             loading="lazy"
           />
+        ) : label ? (
+          <LabelThumb label={label} />
         ) : (
           <div
             className={`vial-visual h-full w-full ${isOut ? "opacity-40" : ""}`}
