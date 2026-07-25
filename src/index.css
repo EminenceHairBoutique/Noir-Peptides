@@ -459,6 +459,24 @@ body::after {
     min-height: unset;
     min-width: unset;
   }
+
+  /* iOS Safari auto-zooms the viewport when a focused form control renders
+     below 16px. The compact toolbar type is intentional on desktop, so raise
+     the computed size on small screens only — no layout change elsewhere. */
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* ─── Horizontal Overflow Guard ──────────────────────────────────────── */
+/* Nothing should scroll the page sideways on a phone. Individual wide
+   elements (tables, code, diagrams) opt back in with `overflow-x: auto`. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* ─── Scrollbar Styling ──────────────────────────────────────────────── */
