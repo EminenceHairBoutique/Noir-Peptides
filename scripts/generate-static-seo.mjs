@@ -634,6 +634,7 @@ async function main() {
     "Disallow: /verify",
     "Disallow: /forgot-password",
     "Disallow: /reset-password",
+    "Disallow: /auth/",
     "",
     `Sitemap: ${SITE_URL}/sitemap.xml`,
     "",

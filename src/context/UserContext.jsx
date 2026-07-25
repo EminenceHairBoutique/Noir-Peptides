@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { siteOrigin } from "../lib/siteUrl";
 import { ATTESTATION_VERSION } from "../config/attestation";
 
 
@@ -213,7 +214,14 @@ export const UserProvider = ({ children }) => {
 
   const register = async ({ email, password }) => {
     if (!supabase) throw new Error("Auth not configured");
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Explicit emailRedirectTo: confirmation links land on our /auth/confirm
+    // handler (which routes through the attestation gate) instead of relying
+    // on the dashboard Site URL being correct for this environment.
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${siteOrigin()}/auth/confirm` },
+    });
     if (error) throw error;
     return data;
   };
@@ -229,7 +237,7 @@ export const UserProvider = ({ children }) => {
     if (!supabase) throw new Error("Auth not configured");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: siteOrigin() },
     });
     if (error) throw error;
   };
