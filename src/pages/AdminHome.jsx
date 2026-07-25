@@ -19,6 +19,9 @@ import {
   RefreshCw,
   Flag,
   Bug,
+  Boxes,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import SEO from "../components/SEO";
 import { adminGet, adminSend } from "../lib/adminApi";
@@ -31,6 +34,7 @@ const num = (n) => (n == null ? "—" : n.toLocaleString());
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "catalog", label: "Catalog", icon: Boxes },
   { id: "orders", label: "Orders", icon: Package },
   { id: "reviews", label: "Reviews", icon: Star },
   { id: "partners", label: "Partners", icon: Users },
@@ -564,6 +568,179 @@ function AiFlags() {
   );
 }
 
+/* ── Catalog manager ──────────────────────────────────────────────────── */
+const STOCK_OPTIONS = ["in_stock", "low_stock", "out_of_stock"];
+const stockBadge = (s) =>
+  s === "in_stock" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+  : s === "low_stock" ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+  : "border-red-500/30 bg-red-500/10 text-red-300";
+
+function CatalogRow({ kind, row, waitCount, onSaved, onError }) {
+  const [edit, setEdit] = useState(() => ({
+    price: row.price ?? "",
+    stock_status: row.stock_status || "in_stock",
+    featured: Boolean(row.featured),
+    is_new: Boolean(row.is_new),
+  }));
+  const [busy, setBusy] = useState(false);
+  const dirty =
+    Number(edit.price) !== Number(row.price ?? 0) ||
+    edit.stock_status !== (row.stock_status || "in_stock") ||
+    (kind === "product" && (edit.featured !== Boolean(row.featured) || edit.is_new !== Boolean(row.is_new)));
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const payload = { kind, id: row.id, price: Number(edit.price), stock_status: edit.stock_status };
+      if (kind === "product") { payload.featured = edit.featured; payload.is_new = edit.is_new; }
+      const r = await adminSend("/api/admin/catalog", "PATCH", payload);
+      onSaved(kind, r[kind], r.restock);
+    } catch (e) { onError(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const sel = "rounded-lg border border-white/12 bg-[#0a0e16] px-2 py-1 text-se-bone text-[12px] focus:border-se-gold focus:outline-none";
+  const num = "w-24 rounded-lg border border-white/12 bg-white/[0.03] px-2 py-1 text-se-bone text-[12px] focus:border-se-gold focus:outline-none";
+
+  return (
+    <div className={`flex flex-wrap items-center gap-3 py-2 ${kind === "variant" ? "pl-8" : ""}`}>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] text-se-bone truncate">
+          {kind === "product" ? row.name : (row.size_label || `${row.vial_size_mg} mg`)}
+          {kind === "variant" && row.sku && <span className="text-se-steel font-mono text-[11px]"> · {row.sku}</span>}
+          {waitCount > 0 && (
+            <span className="ml-2 text-[10px] uppercase tracking-wide rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 px-2 py-0.5">
+              {waitCount} waiting
+            </span>
+          )}
+        </p>
+      </div>
+      <label className="flex items-center gap-1 text-[11px] text-se-steel">
+        $<input type="number" min="0" step="0.01" className={num} value={edit.price}
+          onChange={(e) => setEdit((s) => ({ ...s, price: e.target.value }))} />
+      </label>
+      <select className={sel} value={edit.stock_status}
+        onChange={(e) => setEdit((s) => ({ ...s, stock_status: e.target.value }))}>
+        {STOCK_OPTIONS.map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
+      </select>
+      {kind === "product" && (
+        <>
+          <label className="flex items-center gap-1.5 text-[11px] text-se-bone/60">
+            <input type="checkbox" checked={edit.featured}
+              onChange={(e) => setEdit((s) => ({ ...s, featured: e.target.checked }))} /> featured
+          </label>
+          <label className="flex items-center gap-1.5 text-[11px] text-se-bone/60">
+            <input type="checkbox" checked={edit.is_new}
+              onChange={(e) => setEdit((s) => ({ ...s, is_new: e.target.checked }))} /> new
+          </label>
+        </>
+      )}
+      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${stockBadge(row.stock_status)}`}>
+        {(row.stock_status || "in_stock").replace(/_/g, " ")}
+      </span>
+      <button onClick={save} disabled={!dirty || busy}
+        className="text-[11px] rounded border border-se-gold/40 text-se-gold px-3 py-1 hover:bg-se-gold/10 disabled:opacity-30">
+        {busy ? "Saving…" : "Save"}
+      </button>
+    </div>
+  );
+}
+
+function CatalogManager() {
+  const [products, setProducts] = useState([]);
+  const [variants, setVariants] = useState([]);
+  const [waitlist, setWaitlist] = useState([]);
+  const [open, setOpen] = useState(() => new Set());
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+  const [notice, setNotice] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    adminGet("/api/admin/catalog")
+      .then((d) => {
+        setProducts(d.products || []);
+        setVariants(d.variants || []);
+        setWaitlist(d.waitlist || []);
+        setErr(null);
+      })
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const variantsByProduct = useMemo(() => {
+    const m = new Map();
+    for (const v of variants) {
+      if (!m.has(v.product_id)) m.set(v.product_id, []);
+      m.get(v.product_id).push(v);
+    }
+    return m;
+  }, [variants]);
+
+  const onSaved = (kind, updated, restock) => {
+    if (kind === "product") setProducts((ps) => ps.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+    else setVariants((vs) => vs.map((v) => (v.id === updated.id ? { ...v, ...updated } : v)));
+    if (restock) {
+      setNotice(
+        restock.notified > 0
+          ? `Restock notices sent to ${restock.notified} subscriber${restock.notified === 1 ? "" : "s"}.`
+          : restock.queued > 0
+            ? `${restock.queued} restock subscriber${restock.queued === 1 ? "" : "s"} queued — email sending is not configured (RESEND_API_KEY).`
+            : "Saved. No pending restock requests for this item."
+      );
+      load(); // refresh waitlist badges
+    } else {
+      setNotice("Saved.");
+    }
+  };
+
+  const toggle = (id) =>
+    setOpen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  if (loading) return <p className="text-se-steel text-sm">Loading catalog…</p>;
+  if (err && !products.length) return <p className="text-red-300 text-sm">{err}</p>;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[12px] text-se-bone/45 font-accent">
+        Prices, stock, and flags save straight to the live database (audit-logged). Flipping an
+        item to <span className="text-se-bone/70">in stock</span> automatically emails everyone
+        on its restock waitlist, once. Descriptions stay compliance-reviewed and are not
+        editable here.
+      </p>
+      {err && <p className="text-red-300 text-sm">{err}</p>}
+      {notice && (
+        <p className="text-[12.5px] text-emerald-300">{notice}</p>
+      )}
+      <div className="glass-panel divide-y divide-white/5">
+        {products.map((p) => {
+          const vs = variantsByProduct.get(p.id) || [];
+          const productWaiting = waitlist.filter((w) => w.product_id === p.id && !w.variant_id).length;
+          return (
+            <div key={p.id} className="px-4">
+              <div className="flex items-center gap-1">
+                <button onClick={() => toggle(p.id)} aria-label={`Toggle ${p.name} variants`}
+                  className="text-se-steel hover:text-se-bone shrink-0">
+                  {open.has(p.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <CatalogRow kind="product" row={p} waitCount={productWaiting} onSaved={onSaved} onError={setErr} />
+                </div>
+              </div>
+              {open.has(p.id) && vs.map((v) => (
+                <CatalogRow key={v.id} kind="variant" row={v}
+                  waitCount={waitlist.filter((w) => w.variant_id === v.id).length}
+                  onSaved={onSaved} onError={setErr} />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ── Client error telemetry ───────────────────────────────────────────── */
 function ClientErrors() {
   const [rows, setRows] = useState([]);
@@ -677,6 +854,7 @@ export default function AdminHome() {
           </div>
 
           {tab === "overview" && <Overview />}
+          {tab === "catalog" && <CatalogManager />}
           {tab === "orders" && <OrdersManager />}
           {tab === "reviews" && <ReviewsManager />}
           {tab === "partners" && <Partners />}
