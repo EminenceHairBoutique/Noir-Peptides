@@ -178,6 +178,28 @@ export default async function handler(req, res) {
     if (!fields.quantity_label) return json(res, 400, { error: "quantity_label is required" });
     if (!fields.sku) return json(res, 400, { error: "sku is required" });
 
+    // Validate the FK targets BEFORE inserting (service-role read = database
+    // truth, regardless of RLS). A stale or fallback-fed picker must produce
+    // a diagnosis, not raw Postgres constraint text.
+    const { data: productRow } = await supabaseServer
+      .from("products").select("id").eq("id", fields.product_id).maybeSingle();
+    if (!productRow) {
+      return json(res, 409, {
+        error: `Product "${fields.product_id}" does not exist in this environment's database. ` +
+          `Either the catalog is not seeded here (run supabase/migrations/0009_tier1_catalog.sql) ` +
+          `or this deployment's Supabase env vars point at a different project. Reload the studio after fixing.`,
+      });
+    }
+    if (fields.variant_id) {
+      const { data: variantRow } = await supabaseServer
+        .from("product_variants").select("id").eq("id", fields.variant_id).maybeSingle();
+      if (!variantRow) {
+        return json(res, 409, {
+          error: `Variant "${fields.variant_id}" does not exist in this environment's database. Reload the studio and pick again.`,
+        });
+      }
+    }
+
     let code;
     try {
       code = await uniqueVerificationCode();
@@ -190,7 +212,15 @@ export default async function handler(req, res) {
       .insert({ ...fields, status: "draft", verification_code: code, created_by: admin.id })
       .select(COLS)
       .maybeSingle();
-    if (error) return json(res, 500, { error: error.message || "Could not create label config" });
+    if (error) {
+      // Backstop for a FK race between the check above and the insert.
+      if (error.code === "23503") {
+        return json(res, 409, {
+          error: "The selected product/variant no longer exists in this database. Reload the studio and pick again.",
+        });
+      }
+      return json(res, 500, { error: error.message || "Could not create label config" });
+    }
 
     await snapshotHistory(data.id, "created", admin.id, data);
     await auditLog(req, admin.id, "label.create", data.id, { product_id: data.product_id });

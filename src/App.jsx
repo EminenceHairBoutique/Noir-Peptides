@@ -27,6 +27,7 @@ const RegisterAttestation = lazy(() => import("./pages/RegisterAttestation"));
 const Verify = lazy(() => import("./pages/Verify"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const AuthConfirm = lazy(() => import("./pages/AuthConfirm"));
 
 // ── Public education (indexable, non-commerce) ──
 const Research = lazy(() => import("./pages/Research"));
@@ -69,7 +70,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 // Routes that render their own full-page chrome (no global Navbar/Footer).
 // NOTE: "/verify" is matched EXACTLY (email-confirmation screen) so that
 // /verify-lot and /v/:code keep the normal site chrome.
-const BARE_PREFIXES = ["/login", "/register", "/forgot-password", "/reset-password"];
+const BARE_PREFIXES = ["/login", "/register", "/forgot-password", "/reset-password", "/auth/confirm"];
 const BARE_EXACT = ["/verify"];
 
 // Redirect the legacy plural product path to the canonical singular one.
@@ -126,6 +127,7 @@ export default function App() {
               <Route path="/verify" element={<Page><Verify /></Page>} />
               <Route path="/forgot-password" element={<Page><ForgotPassword /></Page>} />
               <Route path="/reset-password" element={<Page><ResetPassword /></Page>} />
+              <Route path="/auth/confirm" element={<Page><AuthConfirm /></Page>} />
 
               {/* ── PUBLIC EDUCATION (indexable, non-commerce) ── */}
               <Route path="/research" element={<Page><Research /></Page>} />

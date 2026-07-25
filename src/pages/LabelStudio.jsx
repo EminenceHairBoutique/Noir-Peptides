@@ -13,7 +13,7 @@ import LabelPreview from "../components/labels/LabelPreview";
 import LabelConfigForm from "../components/labels/LabelConfigForm";
 import StatusControls from "../components/labels/StatusControls";
 import VialPreview from "../components/product3d/VialPreview";
-import { getProducts, getVariants } from "../lib/catalog";
+import { getProductsAuthoritative, getVariantsAuthoritative } from "../lib/catalog";
 import { createDefaultConfig } from "../lib/labels/types";
 import { LABEL_PRESETS } from "../lib/labels/presets";
 import { TEMPLATES, renderLabelSvg } from "../lib/labels/renderLabelSvg";
@@ -29,6 +29,7 @@ export default function LabelStudio() {
   const [variants, setVariants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
+  const [catalogErr, setCatalogErr] = useState(null); // strict products read failed
 
   const [selectedId, setSelectedId] = useState(null);
   const [draft, setDraft] = useState(null); // local edits of the selected config
@@ -58,10 +59,14 @@ export default function LabelStudio() {
 
   const load = () => {
     setLoading(true);
-    Promise.all([listLabelConfigs(), getProducts()])
+    // Products come from the STRICT catalog read (the exact table the
+    // label_configs FK references, no bundled-catalog fallback) so the picker
+    // can never offer ids this database doesn't have.
+    Promise.all([listLabelConfigs(), getProductsAuthoritative()])
       .then(([lc, p]) => {
         setConfigs(lc.configs || []);
-        setProducts(p || []);
+        setProducts(p.rows || []);
+        setCatalogErr(p.error);
         setErr(null);
       })
       .catch((e) => setErr(e.message))
@@ -69,14 +74,14 @@ export default function LabelStudio() {
   };
   useEffect(load, []);
 
-  // Variants for the "new label" product picker.
+  // Variants for the "new label" product picker (strict read — see above).
   useEffect(() => {
     let alive = true;
     if (!newProductId) {
       setVariants([]);
       return;
     }
-    getVariants(newProductId).then((v) => alive && setVariants(v));
+    getVariantsAuthoritative(newProductId).then((v) => alive && setVariants(v.rows || []));
     return () => {
       alive = false;
     };
@@ -220,12 +225,26 @@ export default function LabelStudio() {
             <div className="space-y-4">
               <div className="glass-panel p-4 space-y-2">
                 <p className="text-label text-se-gold flex items-center gap-1.5"><Plus size={13} /> New label</p>
-                <select className={`${field} w-full`} value={newProductId} onChange={(e) => setNewProductId(e.target.value)}>
-                  <option value="">Select product…</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+                {catalogErr ? (
+                  <p className="text-[12px] text-red-300 leading-relaxed">
+                    Product catalog unreachable in this environment: {catalogErr}. Label
+                    creation is disabled until the database is readable.
+                  </p>
+                ) : !loading && products.length === 0 ? (
+                  <p className="text-[12px] text-amber-300 leading-relaxed">
+                    No products exist in this environment&apos;s database — seed the catalog
+                    first (supabase/migrations/0009_tier1_catalog.sql), or check that this
+                    deployment&apos;s Supabase env vars point at the intended project. Label
+                    creation is disabled.
+                  </p>
+                ) : (
+                  <select className={`${field} w-full`} value={newProductId} onChange={(e) => setNewProductId(e.target.value)}>
+                    <option value="">{loading ? "Loading products…" : "Select product…"}</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                )}
                 {variants.length > 0 && (
                   <select className={`${field} w-full`} value={newVariantId} onChange={(e) => setNewVariantId(e.target.value)}>
                     <option value="">All sizes / pick variant…</option>
@@ -234,7 +253,11 @@ export default function LabelStudio() {
                     ))}
                   </select>
                 )}
-                <button onClick={createNew} disabled={!newProductId} className="btn-primary w-full justify-center disabled:opacity-40">
+                <button
+                  onClick={createNew}
+                  disabled={!newProductId || products.length === 0 || Boolean(catalogErr)}
+                  className="btn-primary w-full justify-center disabled:opacity-40"
+                >
                   Create draft
                 </button>
               </div>

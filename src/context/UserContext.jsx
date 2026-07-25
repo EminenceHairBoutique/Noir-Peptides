@@ -1,9 +1,17 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { siteOrigin } from "../lib/siteUrl";
 import { ATTESTATION_VERSION } from "../config/attestation";
 
 
 const UserContext = createContext();
+
+// Client mirror of the server's ADMIN_EMAILS bootstrap allowlist (see
+// api/_utils/auth.js). UX-only — the server re-checks every admin call.
+const CLIENT_ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || "")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
 
 /* =========================
    Base User Shape
@@ -206,7 +214,14 @@ export const UserProvider = ({ children }) => {
 
   const register = async ({ email, password }) => {
     if (!supabase) throw new Error("Auth not configured");
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Explicit emailRedirectTo: confirmation links land on our /auth/confirm
+    // handler (which routes through the attestation gate) instead of relying
+    // on the dashboard Site URL being correct for this environment.
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${siteOrigin()}/auth/confirm` },
+    });
     if (error) throw error;
     return data;
   };
@@ -222,7 +237,7 @@ export const UserProvider = ({ children }) => {
     if (!supabase) throw new Error("Auth not configured");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: siteOrigin() },
     });
     if (error) throw error;
   };
@@ -362,7 +377,14 @@ export const UserProvider = ({ children }) => {
   }, [user]);
 
   const needsAttestation = authStatus === "authed" && !attestationComplete;
-  const isAdmin = (user?.role || "") === "admin";
+  // Admin UX gate: profiles.role is the source of truth, with the same
+  // email-allowlist bootstrap fallback the server uses (api/_utils/auth.js) —
+  // so a broken/drifted RLS read of profiles can't silently lock the owner
+  // out of the admin UI. Security is unaffected: every /api/admin/* call is
+  // re-checked server-side, and RLS still governs direct table access.
+  const isAdmin =
+    (user?.role || "") === "admin" ||
+    (!!user?.email && CLIENT_ADMIN_EMAILS.includes(String(user.email).toLowerCase()));
 
   return (
     <UserContext.Provider

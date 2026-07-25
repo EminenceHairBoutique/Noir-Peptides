@@ -181,6 +181,45 @@ export async function getVariants(productId) {
   }
 }
 
+// ── STRICT reads for admin tooling (Label Studio) ────────────────────────
+// The storefront fallback above is deliberately forgiving; an ADMIN authoring
+// tool must be the opposite. label_configs.product_id / variant_id are
+// foreign keys into products / product_variants — the studio's pickers must
+// show exactly what those tables contain in THIS environment's database,
+// including "nothing" (a phantom bundled list produces doomed inserts that
+// die on the FK). These return { rows, error } and NEVER substitute the
+// static catalog or mask zero rows.
+
+export async function getProductsAuthoritative() {
+  if (!supabase) return { rows: [], error: "Supabase is not configured in this build." };
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select(PRODUCT_COLUMNS)
+      .order("name", { ascending: true });
+    if (error) return { rows: [], error: error.message };
+    return { rows: (data || []).map(normalizeProduct), error: null };
+  } catch (e) {
+    return { rows: [], error: e?.message || "Catalog read failed." };
+  }
+}
+
+export async function getVariantsAuthoritative(productId) {
+  if (!productId) return { rows: [], error: null };
+  if (!supabase) return { rows: [], error: "Supabase is not configured in this build." };
+  try {
+    const { data, error } = await supabase
+      .from("product_variants")
+      .select("id, sku, vial_size_mg, price, size_label, sort_order, stock_status")
+      .eq("product_id", productId)
+      .order("sort_order", { ascending: true });
+    if (error) return { rows: [], error: error.message };
+    return { rows: data || [], error: null };
+  } catch (e) {
+    return { rows: [], error: e?.message || "Variant read failed." };
+  }
+}
+
 /**
  * Fetch ALL variants across the catalog (for shop-wide filters like vial size).
  * Public read. Returns [] on error.

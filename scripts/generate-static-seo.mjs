@@ -404,6 +404,30 @@ async function main() {
       description: DEFAULT_DESCRIPTION,
     },
     {
+      pathname: "/about",
+      title: "About Noir Peptides | Research Material Supplier",
+      description:
+        "How Noir Peptides sources, documents, and batch-verifies peptide reference materials for laboratory research. For research use only. Not for human or veterinary use.",
+    },
+    {
+      pathname: "/faqs",
+      title: "FAQ | Ordering, Documentation & Shipping",
+      description:
+        "Answers on batch documentation, certificates of analysis, storage, ordering, and shipping for Noir Peptides research reference materials. For research use only.",
+    },
+    {
+      pathname: "/contact",
+      title: "Contact Noir Peptides | Research Support",
+      description:
+        "Contact Noir Peptides for documentation requests, order support, and qualified-purchaser enquiries. For research use only. Not for human or veterinary use.",
+    },
+    {
+      pathname: "/verify-lot",
+      title: "Verify a Lot | Batch Documentation Lookup",
+      description:
+        "Look up the certificate of analysis and batch documentation for a Noir Peptides research material lot. For research use only.",
+    },
+    {
       pathname: "/legal/research-use-policy",
       title: "Research-Use Policy",
       description:
@@ -610,6 +634,7 @@ async function main() {
     "Disallow: /verify",
     "Disallow: /forgot-password",
     "Disallow: /reset-password",
+    "Disallow: /auth/",
     "",
     `Sitemap: ${SITE_URL}/sitemap.xml`,
     "",

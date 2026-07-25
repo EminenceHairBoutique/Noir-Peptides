@@ -25,6 +25,9 @@ import { getProductLabel } from "../lib/labelsApi";
 import VialPreview from "../components/product3d/VialPreview";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import { PRODUCT_IS_NOT, STORAGE_GUIDANCE } from "../config/compliance";
+import { trackViewItem } from "../utils/track";
+import { recordRecentlyViewed } from "../lib/recentlyViewed";
+import RecentlyViewed from "../components/RecentlyViewed";
 
 const FREE_SHIP_THRESHOLD = 200;
 const money = (n) => `$${Number(n || 0).toLocaleString()}`;
@@ -125,6 +128,20 @@ export default function ProductDetail() {
       active = false;
     };
   }, [product?.id, selectedVariant?.id]);
+
+  // Local recently-viewed history (device-only; nothing leaves the browser).
+  useEffect(() => {
+    if (product?.slug) recordRecentlyViewed(product.slug);
+  }, [product?.slug]);
+
+  // view_item fires once per product+variant view (consent-gated inside track).
+  useEffect(() => {
+    if (!product?.id) return;
+    trackViewItem(
+      { ...product, sizeLabel: selectedVariant?.size_label, sku: selectedVariant?.sku },
+      { value: Number(selectedVariant?.price || product?.price || 0) }
+    );
+  }, [product?.id, selectedVariant?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const basePrice = Number(selectedVariant?.price || product?.price || 0);
   const unitPrice = unitPriceForQuantity(basePrice, tiers, quantity);
@@ -659,6 +676,8 @@ export default function ProductDetail() {
             </div>
           </section>
         )}
+
+        <RecentlyViewed excludeSlug={product.slug} />
       </main>
     </>
   );

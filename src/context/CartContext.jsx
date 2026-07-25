@@ -10,6 +10,12 @@ import React, {
 } from "react";
 import { resolveProductImages } from "../utils/productMedia";
 import { unitPriceForQuantity } from "../lib/catalog";
+import { trackAddToCart } from "../utils/track";
+
+// Server-authoritative per-line bounds (lib/pricing.js clamps 1..99). Mirror
+// them client-side so the cart never displays a total the server will reduce.
+const MAX_LINE_QTY = 99;
+const clampQty = (n) => Math.max(1, Math.min(MAX_LINE_QTY, Math.floor(Number(n) || 1)));
 
 const CartContext = createContext(null);
 
@@ -37,7 +43,7 @@ export function CartProvider({ children }) {
   const addToCart = (product, options = {}) => {
     if (!product?.id) return;
 
-    const quantity = Number(options.quantity ?? 1) || 1;
+    const quantity = clampQty(options.quantity ?? 1);
 
     // Variant + bundle-tier identity (the server re-prices from these).
     const variantId = options.variantId ?? product.variantId ?? null;
@@ -93,6 +99,7 @@ export function CartProvider({ children }) {
       return [...prev, normalized];
     });
 
+    trackAddToCart(normalized);
     setIsOpen(true);
   };
 
@@ -100,7 +107,7 @@ export function CartProvider({ children }) {
     const hasVariant = typeof a === "string";
     const variant = hasVariant ? a : null;
     const qty = hasVariant ? b : a;
-    const nextQty = Math.max(1, Number(qty) || 1);
+    const nextQty = clampQty(qty);
 
     setCartItems((prev) =>
       prev.map((p) => {
@@ -136,7 +143,7 @@ export function CartProvider({ children }) {
         const copy = [...nextArr];
         copy[mergeIdx] = {
           ...copy[mergeIdx],
-          quantity: Number(copy[mergeIdx].quantity || 0) + Number(updated.quantity || 0),
+          quantity: clampQty(Number(copy[mergeIdx].quantity || 0) + Number(updated.quantity || 0)),
         };
         return copy;
       }

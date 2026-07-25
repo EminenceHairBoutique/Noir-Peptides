@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { siteOrigin } from "../lib/siteUrl";
 import AuthLayout, { authInput, authLabel } from "../components/AuthLayout";
 
 export default function ForgotPassword() {
@@ -19,7 +20,7 @@ export default function ForgotPassword() {
     setStatus("loading");
     try {
       const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${siteOrigin()}/reset-password`,
       });
       if (err) throw err;
       setStatus("sent");

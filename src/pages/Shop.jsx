@@ -14,6 +14,7 @@ import { getApprovedProductLabels } from "../lib/labelsApi";
 import ProductCard from "../components/ProductCard";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import SEO from "../components/SEO";
+import { trackSearch } from "../utils/track";
 
 const SORT_OPTIONS = [
   { key: "featured", label: "Featured" },
@@ -52,6 +53,13 @@ export default function Shop() {
   const [labelByProduct, setLabelByProduct] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  // Search analytics: report the term once typing settles (consent-gated).
+  useEffect(() => {
+    if (!query.trim()) return undefined;
+    const t = setTimeout(() => trackSearch(query), 900);
+    return () => clearTimeout(t);
+  }, [query]);
 
   // Facets
   const [showFilters, setShowFilters] = useState(false);

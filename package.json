@@ -13,9 +13,10 @@
     "audit:products": "node scripts/audit-products.mjs",
     "test:guardrail": "node scripts/test-guardrail.mjs",
     "test:compliance": "node scripts/test-compliance-scan.mjs",
-    "test:unit": "node scripts/test-guardrail.mjs && node scripts/test-compliance-scan.mjs && node scripts/test-labels.mjs",
+    "test:unit": "node scripts/test-guardrail.mjs && node scripts/test-compliance-scan.mjs && node scripts/test-labels.mjs && node scripts/test-cart-pricing.mjs && node scripts/test-error-telemetry.mjs && node scripts/test-admin-catalog.mjs",
     "test:e2e": "playwright test",
-    "test:labels": "node scripts/test-labels.mjs"
+    "test:labels": "node scripts/test-labels.mjs",
+    "test:cart": "node scripts/test-cart-pricing.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
