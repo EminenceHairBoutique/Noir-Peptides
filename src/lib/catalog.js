@@ -6,12 +6,63 @@
 // (checkout requires auth + a current research-use attestation, enforced
 // server-side). `orders` / `profiles` / `attestation_audit` remain RLS-gated.
 //
-// IMPORTANT: there is intentionally NO bundled static fallback here — the live
-// Supabase rows are the runtime source of truth (the build-time prerenderer
-// mirrors them via src/data/tier1Catalog.js). When Supabase is unconfigured
-// these helpers return empty results rather than a stale bundled catalog.
+// RESILIENCE: the live Supabase rows are the runtime source of truth, but a
+// storefront that renders ZERO products is worse than one rendering the
+// build-time catalog. If a catalog read fails or comes back empty (Supabase
+// unconfigured/unreachable, or an RLS regression), these helpers fall back to
+// the SAME bundled catalog the prerenderer uses (src/data/tier1Catalog.js) so
+// the shop, PDPs, and SEO never go blank. Purchase remains gated server-side,
+// and dynamic/DB-only data (stock, COAs, orders) is never faked.
 
 import { supabase } from "./supabaseClient";
+import {
+  getAllProducts as staticAllProducts,
+  getCategories as staticCategories,
+} from "../data/tier1Catalog";
+
+// ── Static fallback adapters (shape-matched to the DB rows) ──────────────
+function staticProducts({ category } = {}) {
+  const list = staticAllProducts().map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    category_slug: p.category_slug,
+    price: p.price,
+    purity_percent: 99,
+    form: "Lyophilized powder",
+    storage_temp: "-20°C",
+    research_use_only: true,
+    stock_status: p.stock_status || "in_stock",
+    short_description: p.blurb,
+    description: p.description,
+    featured: Boolean(p.featured),
+    is_new: true,
+    images: [],
+  }));
+  return category ? list.filter((p) => p.category_slug === category) : list;
+}
+
+function staticVariantsFor(productId) {
+  const p = staticAllProducts().find((x) => x.id === productId);
+  return (p?.variants || []).map((v) => ({
+    id: v.id,
+    product_id: p.id,
+    sku: v.sku,
+    vial_size_mg: v.vial_size_mg,
+    price: v.price,
+    size_label: v.size_label,
+    sort_order: v.sort_order,
+    stock_status: v.stock_status || "in_stock",
+  }));
+}
+
+function staticTiersFor(variantId) {
+  for (const p of staticAllProducts()) {
+    const v = p.variants.find((x) => x.id === variantId);
+    if (v) return v.tiers || [];
+  }
+  return [];
+}
 
 // Map a Supabase product row to the shape the UI components expect.
 function normalizeProduct(row) {
@@ -41,15 +92,15 @@ const PRODUCT_COLUMNS =
  * @returns {Promise<Array>} normalized products ([] on error / no access)
  */
 export async function getProducts({ category } = {}) {
-  if (!supabase) return [];
+  if (!supabase) return staticProducts({ category });
   try {
     let q = supabase.from("products").select(PRODUCT_COLUMNS);
     if (category) q = q.eq("category_slug", category);
     const { data, error } = await q;
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data) || data.length === 0) return staticProducts({ category });
     return data.map(normalizeProduct);
   } catch {
-    return [];
+    return staticProducts({ category });
   }
 }
 
@@ -57,8 +108,13 @@ export async function getProducts({ category } = {}) {
  * Fetch a single product by slug (falls back to id).
  * @returns {Promise<object|null>}
  */
+function staticProduct(slugOrId) {
+  return staticProducts().find((p) => p.slug === slugOrId || p.id === slugOrId) || null;
+}
+
 export async function getProduct(slugOrId) {
-  if (!supabase || !slugOrId) return null;
+  if (!slugOrId) return null;
+  if (!supabase) return staticProduct(slugOrId);
   try {
     const bySlug = await supabase
       .from("products")
@@ -72,9 +128,9 @@ export async function getProduct(slugOrId) {
       .select(PRODUCT_COLUMNS)
       .eq("id", slugOrId)
       .maybeSingle();
-    return byId.data ? normalizeProduct(byId.data) : null;
+    return byId.data ? normalizeProduct(byId.data) : staticProduct(slugOrId);
   } catch {
-    return null;
+    return staticProduct(slugOrId);
   }
 }
 
@@ -82,8 +138,14 @@ export async function getProduct(slugOrId) {
  * Fetch featured, in-stock products for the homepage.
  * @returns {Promise<Array>}
  */
+function staticFeatured(limit) {
+  return staticProducts()
+    .filter((p) => p.stock_status !== "out_of_stock")
+    .slice(0, limit);
+}
+
 export async function getFeaturedProducts(limit = 8) {
-  if (!supabase) return [];
+  if (!supabase) return staticFeatured(limit);
   try {
     const { data, error } = await supabase
       .from("products")
@@ -91,10 +153,10 @@ export async function getFeaturedProducts(limit = 8) {
       .eq("featured", true)
       .neq("stock_status", "out_of_stock")
       .limit(limit);
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data) || data.length === 0) return staticFeatured(limit);
     return data.map(normalizeProduct);
   } catch {
-    return [];
+    return staticFeatured(limit);
   }
 }
 
@@ -104,17 +166,18 @@ export async function getFeaturedProducts(limit = 8) {
  * @returns {Promise<Array<{id,sku,vial_size_mg,price,size_label,sort_order,stock_status}>>}
  */
 export async function getVariants(productId) {
-  if (!supabase || !productId) return [];
+  if (!productId) return [];
+  if (!supabase) return staticVariantsFor(productId);
   try {
     const { data, error } = await supabase
       .from("product_variants")
       .select("id, sku, vial_size_mg, price, size_label, sort_order, stock_status")
       .eq("product_id", productId)
       .order("sort_order", { ascending: true });
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data) || data.length === 0) return staticVariantsFor(productId);
     return data;
   } catch {
-    return [];
+    return staticVariantsFor(productId);
   }
 }
 
@@ -123,17 +186,21 @@ export async function getVariants(productId) {
  * Public read. Returns [] on error.
  * @returns {Promise<Array<{id,product_id,vial_size_mg,size_label,price,stock_status}>>}
  */
+function staticAllVariants() {
+  return staticAllProducts().flatMap((p) => staticVariantsFor(p.id));
+}
+
 export async function getAllVariants() {
-  if (!supabase) return [];
+  if (!supabase) return staticAllVariants();
   try {
     const { data, error } = await supabase
       .from("product_variants")
       .select("id, product_id, vial_size_mg, size_label, price, stock_status")
       .order("product_id", { ascending: true });
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data) || data.length === 0) return staticAllVariants();
     return data;
   } catch {
-    return [];
+    return staticAllVariants();
   }
 }
 
@@ -143,17 +210,18 @@ export async function getAllVariants() {
  * @returns {Promise<Array<{min_quantity,unit_price,savings_pct,label}>>}
  */
 export async function getTiers(variantId) {
-  if (!supabase || !variantId) return [];
+  if (!variantId) return [];
+  if (!supabase) return staticTiersFor(variantId);
   try {
     const { data, error } = await supabase
       .from("price_tiers")
       .select("min_quantity, unit_price, savings_pct, label")
       .eq("variant_id", variantId)
       .order("min_quantity", { ascending: true });
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data) || data.length === 0) return staticTiersFor(variantId);
     return data;
   } catch {
-    return [];
+    return staticTiersFor(variantId);
   }
 }
 
@@ -198,17 +266,26 @@ export async function getReviews(productId) {
  * Fetch active research categories (excludes deprecated rows, sort_order >= 900).
  * @returns {Promise<Array>}
  */
+function staticCategoryRows() {
+  return staticCategories().map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    description: c.desc ?? c.description ?? null,
+    sort_order: c.sort ?? c.sort_order ?? 0,
+  }));
+}
+
 export async function getCategories() {
-  if (!supabase) return [];
+  if (!supabase) return staticCategoryRows();
   try {
     const { data, error } = await supabase
       .from("product_categories")
       .select("slug, name, description, sort_order")
       .lt("sort_order", 900)
       .order("sort_order", { ascending: true });
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data) || data.length === 0) return staticCategoryRows();
     return data;
   } catch {
-    return [];
+    return staticCategoryRows();
   }
 }
