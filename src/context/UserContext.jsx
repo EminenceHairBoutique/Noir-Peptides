@@ -5,6 +5,13 @@ import { ATTESTATION_VERSION } from "../config/attestation";
 
 const UserContext = createContext();
 
+// Client mirror of the server's ADMIN_EMAILS bootstrap allowlist (see
+// api/_utils/auth.js). UX-only — the server re-checks every admin call.
+const CLIENT_ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || "")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
 /* =========================
    Base User Shape
 ========================= */
@@ -362,7 +369,14 @@ export const UserProvider = ({ children }) => {
   }, [user]);
 
   const needsAttestation = authStatus === "authed" && !attestationComplete;
-  const isAdmin = (user?.role || "") === "admin";
+  // Admin UX gate: profiles.role is the source of truth, with the same
+  // email-allowlist bootstrap fallback the server uses (api/_utils/auth.js) —
+  // so a broken/drifted RLS read of profiles can't silently lock the owner
+  // out of the admin UI. Security is unaffected: every /api/admin/* call is
+  // re-checked server-side, and RLS still governs direct table access.
+  const isAdmin =
+    (user?.role || "") === "admin" ||
+    (!!user?.email && CLIENT_ADMIN_EMAILS.includes(String(user.email).toLowerCase()));
 
   return (
     <UserContext.Provider
