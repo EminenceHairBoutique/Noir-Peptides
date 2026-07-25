@@ -5,6 +5,9 @@ import App from "./App.jsx";
 import "./index.css";
 import { CartProvider } from "./context/CartContext";
 import { UserProvider } from "./context/UserContext";
+import { installErrorReporter } from "./lib/errorReporter";
+
+installErrorReporter();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

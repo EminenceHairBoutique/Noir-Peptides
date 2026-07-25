@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { reportClientError } from "../lib/errorReporter";
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -11,8 +12,8 @@ export default class ErrorBoundary extends React.Component {
     return { hasError: true, error };
   }
 
-  componentDidCatch(_error, _info) {
-    // Optional: send to logging later (Sentry/LogRocket)
+  componentDidCatch(error, _info) {
+    reportClientError(error, "boundary");
   }
 
   handleReset = () => {

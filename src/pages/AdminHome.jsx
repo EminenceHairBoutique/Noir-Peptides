@@ -18,6 +18,7 @@ import {
   Plus,
   RefreshCw,
   Flag,
+  Bug,
 } from "lucide-react";
 import SEO from "../components/SEO";
 import { adminGet, adminSend } from "../lib/adminApi";
@@ -35,6 +36,7 @@ const TABS = [
   { id: "partners", label: "Partners", icon: Users },
   { id: "coa", label: "COA Manager", icon: FileCheck2 },
   { id: "flags", label: "AI Flags", icon: Flag },
+  { id: "errors", label: "Errors", icon: Bug },
   { id: "scanner", label: "Compliance Scanner", icon: ShieldAlert },
 ];
 
@@ -91,6 +93,7 @@ function Overview() {
         <StatCard label="Back-in-stock" value={num(mod.backInStock)} sub="subscriptions" icon={Package} />
         <StatCard label="AI conversations" value={num(data?.ai?.conversations)} icon={Sparkles} />
         <StatCard label="AI flags (open)" value={num(data?.ai?.unreviewedFlags)} sub="need review" icon={Flag} />
+        <StatCard label="Client errors (open)" value={num(data?.ops?.clientErrorsOpen)} sub="production JS errors" icon={Bug} />
       </div>
       <p className="text-[12px] text-se-bone/40 font-accent">
         Deeper editors (orders fulfillment, review moderation, partner approvals) surface their
@@ -561,6 +564,89 @@ function AiFlags() {
   );
 }
 
+/* ── Client error telemetry ───────────────────────────────────────────── */
+function ClientErrors() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+  const [openId, setOpenId] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    adminGet("/api/admin/client-errors")
+      .then((d) => { setRows(d.errors || []); setErr(null); })
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const setResolved = async (id, resolved) => {
+    try {
+      await adminSend("/api/admin/client-errors", "PATCH", { id, resolved });
+      setRows((rs) => rs.map((r) => (r.id === id ? { ...r, resolved } : r)));
+    } catch (e) { setErr(e.message); }
+  };
+
+  if (loading) return <p className="text-se-steel text-sm">Loading error telemetry…</p>;
+  if (err && !rows.length) return <p className="text-red-300 text-sm">{err}</p>;
+  if (!rows.length) {
+    return (
+      <div className="glass-panel p-6 text-se-bone/50 text-sm">
+        No production errors reported. Browser JS errors, unhandled promise rejections, and
+        page-crash boundary catches will appear here automatically.
+      </div>
+    );
+  }
+
+  const srcBadge = (s) =>
+    s === "boundary" ? "border-red-500/30 bg-red-500/10 text-red-300"
+    : s === "promise" ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+    : "border-white/15 bg-white/5 text-se-steel";
+
+  return (
+    <div className="space-y-3">
+      {err && <p className="text-red-300 text-sm">{err}</p>}
+      <div className="flex items-center justify-between">
+        <p className="text-[12px] text-se-bone/45 font-accent">
+          Grouped by error signature; repeats within 24h increment the count instead of adding rows.
+        </p>
+        <button onClick={load} className="inline-flex items-center gap-1.5 text-[12px] text-se-steel hover:text-se-gold">
+          <RefreshCw size={13} /> Refresh
+        </button>
+      </div>
+      {rows.map((r) => (
+        <div key={r.id} className={`glass-panel p-4 ${r.resolved ? "opacity-50" : ""}`}>
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`shrink-0 text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 border ${srcBadge(r.source)}`}>{r.source}</span>
+              <span className="text-[11px] text-se-steel font-accent truncate">
+                {r.path || "—"} · {r.hits}× · last {new Date(r.last_seen_at).toLocaleString()}
+              </span>
+            </div>
+            <div className="shrink-0 flex items-center gap-3">
+              {r.stack && (
+                <button onClick={() => setOpenId(openId === r.id ? null : r.id)} className="text-[11px] text-se-steel hover:text-se-bone">
+                  {openId === r.id ? "Hide stack" : "Stack"}
+                </button>
+              )}
+              <button
+                onClick={() => setResolved(r.id, !r.resolved)}
+                className={`text-[11px] ${r.resolved ? "text-amber-300" : "text-emerald-300"} hover:underline`}
+              >
+                {r.resolved ? "Reopen" : "Resolve"}
+              </button>
+            </div>
+          </div>
+          <p className="text-[12.5px] text-se-bone/85 font-mono break-words">{r.message}</p>
+          {openId === r.id && r.stack && (
+            <pre className="mt-2 max-h-[240px] overflow-auto rounded-lg border border-white/10 bg-black/40 p-3 text-[11px] leading-relaxed text-se-bone/60 whitespace-pre-wrap break-words">{r.stack}</pre>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminHome() {
   const [tab, setTab] = useState("overview");
   return (
@@ -596,6 +682,7 @@ export default function AdminHome() {
           {tab === "partners" && <Partners />}
           {tab === "coa" && <CoaManager />}
           {tab === "flags" && <AiFlags />}
+          {tab === "errors" && <ClientErrors />}
           {tab === "scanner" && <ComplianceScanner />}
         </div>
       </div>

@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { resolveProductImages } from "../utils/productMedia";
 import { unitPriceForQuantity } from "../lib/catalog";
+import { trackAddToCart } from "../utils/track";
 
 // Server-authoritative per-line bounds (lib/pricing.js clamps 1..99). Mirror
 // them client-side so the cart never displays a total the server will reduce.
@@ -98,6 +99,7 @@ export function CartProvider({ children }) {
       return [...prev, normalized];
     });
 
+    trackAddToCart(normalized);
     setIsOpen(true);
   };
 

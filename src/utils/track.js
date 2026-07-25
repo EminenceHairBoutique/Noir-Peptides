@@ -127,6 +127,7 @@ function toItem(src = {}) {
     item_id: src.id || src.slug || src.name,
     item_name: src.displayName || src.name,
     item_category: src.type || src.category_slug || "product",
+    item_variant: src.sizeLabel || src.sku || undefined,
     item_brand: "Noir Peptides",
     price: Number(src.price || 0) || undefined,
     quantity: Number(src.quantity || 1) || 1,
@@ -150,6 +151,13 @@ export function trackAddToCart(lineItem) {
 export function trackBeginCheckout({ items = [], value } = {}) {
   const safeItems = (Array.isArray(items) ? items : []).map(toItem);
   track("begin_checkout", { value: typeof value === "number" ? value : undefined, items: safeItems });
+}
+
+export function trackSearch(term) {
+  const search_term = String(term || "").trim().slice(0, 100);
+  if (search_term.length < 2) return;
+  // GA4-only event (no commerce payload); the passthrough is consent-gated.
+  trackGA("search", { search_term });
 }
 
 export function trackPurchase({ transaction_id, value, items = [] } = {}) {
