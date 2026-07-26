@@ -12,6 +12,7 @@
 import { requireAdmin } from "../_utils/auth.js";
 import { supabaseServer } from "../../lib/supabaseServer.js";
 import { sendBackInStockEmail } from "../../lib/email.js";
+import { deriveStockStatus } from "../../lib/inventory.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
 
 const STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock"];
@@ -53,6 +54,24 @@ function pickFields(kind, body) {
     if (body.is_new !== undefined) {
       if (typeof body.is_new !== "boolean") errors.push("is_new must be boolean");
       else out.is_new = body.is_new;
+    }
+  }
+  if (kind === "variant") {
+    // inventory_count: a number enables TRACKED mode (stock_status derived);
+    // explicit null/"" returns the variant to manual, untracked stock.
+    if ("inventory_count" in body) {
+      if (body.inventory_count === null || body.inventory_count === "") {
+        out.inventory_count = null;
+      } else {
+        const n = Number(body.inventory_count);
+        if (!Number.isInteger(n) || n < 0 || n > 1000000) errors.push("inventory_count must be an integer 0–1000000 (or null to untrack)");
+        else out.inventory_count = n;
+      }
+    }
+    if (has("low_stock_threshold")) {
+      const n = Number(body.low_stock_threshold);
+      if (!Number.isInteger(n) || n < 0 || n > 10000) errors.push("low_stock_threshold must be an integer 0–10000");
+      else out.low_stock_threshold = n;
     }
   }
   return { fields: out, errors };
@@ -108,7 +127,7 @@ export default async function handler(req, res) {
         .order("name"),
       supabaseServer
         .from("product_variants")
-        .select("id, product_id, sku, size_label, vial_size_mg, price, stock_status, sort_order")
+        .select("id, product_id, sku, size_label, vial_size_mg, price, stock_status, sort_order, inventory_count, low_stock_threshold")
         .order("sort_order"),
       supabaseServer
         .from("back_in_stock_subscriptions")
@@ -136,6 +155,19 @@ export default async function handler(req, res) {
     const table = kind === "variant" ? "product_variants" : "products";
     const { data: existing } = await supabaseServer.from(table).select("*").eq("id", id).maybeSingle();
     if (!existing) return json(res, 404, { error: "Not found" });
+
+    // TRACKED mode: stock_status is derived from the count, never hand-set —
+    // one source of truth, and entering a restock count flips the status
+    // through the same path that triggers the back-in-stock emails below.
+    if (kind === "variant") {
+      const effectiveCount =
+        "inventory_count" in fields ? fields.inventory_count : existing.inventory_count;
+      if (effectiveCount !== null && effectiveCount !== undefined) {
+        const threshold =
+          "low_stock_threshold" in fields ? fields.low_stock_threshold : existing.low_stock_threshold;
+        fields.stock_status = deriveStockStatus(effectiveCount, threshold);
+      }
+    }
 
     const { data: updated, error } = await supabaseServer
       .from(table)

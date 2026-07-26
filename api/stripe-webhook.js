@@ -64,7 +64,11 @@ export default async function handler(req, res) {
       case "checkout.session.completed": {
         const session = event.data.object;
 
-        const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
+        // Expand price.product so each line carries the SKU we stamped into
+        // product_data.metadata at checkout — inventory decrement keys on it.
+        const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+          expand: ["data.price.product"],
+        });
 
         const email =
           session.customer_details?.email ||

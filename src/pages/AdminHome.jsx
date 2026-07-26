@@ -581,20 +581,30 @@ function CatalogRow({ kind, row, waitCount, onSaved, onError }) {
     stock_status: row.stock_status || "in_stock",
     featured: Boolean(row.featured),
     is_new: Boolean(row.is_new),
+    inventory_count: row.inventory_count ?? "",
   }));
   const [busy, setBusy] = useState(false);
+  // Blank inventory = untracked (manual stock); a number = tracked (derived).
+  const tracked = kind === "variant" && edit.inventory_count !== "";
   const dirty =
     Number(edit.price) !== Number(row.price ?? 0) ||
     edit.stock_status !== (row.stock_status || "in_stock") ||
-    (kind === "product" && (edit.featured !== Boolean(row.featured) || edit.is_new !== Boolean(row.is_new)));
+    (kind === "product" && (edit.featured !== Boolean(row.featured) || edit.is_new !== Boolean(row.is_new))) ||
+    (kind === "variant" && String(edit.inventory_count) !== String(row.inventory_count ?? ""));
 
   const save = async () => {
     setBusy(true);
     try {
       const payload = { kind, id: row.id, price: Number(edit.price), stock_status: edit.stock_status };
       if (kind === "product") { payload.featured = edit.featured; payload.is_new = edit.is_new; }
+      if (kind === "variant") {
+        payload.inventory_count = edit.inventory_count === "" ? null : Number(edit.inventory_count);
+      }
       const r = await adminSend("/api/admin/catalog", "PATCH", payload);
       onSaved(kind, r[kind], r.restock);
+      if (kind === "variant") {
+        setEdit((s) => ({ ...s, stock_status: r[kind]?.stock_status || s.stock_status }));
+      }
     } catch (e) { onError(e.message); }
     finally { setBusy(false); }
   };
@@ -619,7 +629,15 @@ function CatalogRow({ kind, row, waitCount, onSaved, onError }) {
         $<input type="number" min="0" step="0.01" className={num} value={edit.price}
           onChange={(e) => setEdit((s) => ({ ...s, price: e.target.value }))} />
       </label>
-      <select className={sel} value={edit.stock_status}
+      {kind === "variant" && (
+        <label className="flex items-center gap-1 text-[11px] text-se-steel" title="Blank = untracked (manual stock). A number = tracked: paid orders decrement it and stock status derives from the count.">
+          inv
+          <input type="number" min="0" step="1" placeholder="∞" className={num} value={edit.inventory_count}
+            onChange={(e) => setEdit((s) => ({ ...s, inventory_count: e.target.value }))} />
+        </label>
+      )}
+      <select className={sel} value={edit.stock_status} disabled={tracked}
+        title={tracked ? "Derived from inventory count while tracked" : undefined}
         onChange={(e) => setEdit((s) => ({ ...s, stock_status: e.target.value }))}>
         {STOCK_OPTIONS.map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
       </select>
