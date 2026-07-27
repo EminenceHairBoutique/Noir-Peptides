@@ -21,14 +21,27 @@ export default async function handler(req, res) {
     orderNumber: { type: "string", required: true, max: 64 },
     status: { type: "string", required: true, enum: STATUSES },
     trackingUrl: { type: "string", max: 500 },
+    trackingCarrier: { type: "string", max: 60 },
+    fulfillmentNotes: { type: "string", max: 2000 },
   });
   if (!ok) return json(res, 400, { error: "Invalid request", details: errors });
 
+  // Tracking links must be real https URLs — they land in customer email.
+  if (value.trackingUrl && !/^https:\/\/.+/i.test(value.trackingUrl.trim())) {
+    return json(res, 400, { error: "trackingUrl must be an https:// link" });
+  }
+
+  const update = { status: value.status, updated_at: new Date().toISOString() };
+  if (value.trackingUrl) update.tracking_url = value.trackingUrl.trim();
+  if (value.trackingCarrier) update.tracking_carrier = value.trackingCarrier.trim();
+  if (value.fulfillmentNotes !== undefined) update.fulfillment_notes = value.fulfillmentNotes;
+  if (value.status === "shipped") update.shipped_at = new Date().toISOString();
+
   const { data: order, error } = await supabaseServer
     .from("orders")
-    .update({ status: value.status, updated_at: new Date().toISOString() })
+    .update(update)
     .eq("order_number", value.orderNumber)
-    .select("email")
+    .select("email, tracking_url")
     .maybeSingle();
   if (error) return json(res, 500, { error: "Could not update order" });
   if (!order) return json(res, 404, { error: "Order not found" });
@@ -39,7 +52,7 @@ export default async function handler(req, res) {
       to: order.email,
       orderNumber: value.orderNumber,
       status: value.status,
-      trackingUrl: value.trackingUrl,
+      trackingUrl: value.trackingUrl || order.tracking_url || undefined,
     });
   } catch {
     /* ignore email failures */

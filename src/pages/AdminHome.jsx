@@ -5,7 +5,7 @@
 // publish real batch COAs — no fabricated data), and a Compliance Scanner
 // (advisory RUO copy linter). Deeper editors (orders/reviews) are surfaced with
 // live counts and land in a follow-up.
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -336,12 +336,160 @@ function ComplianceScanner() {
   );
 }
 
-/* ── Orders ───────────────────────────────────────────────────────────── */
+/* ── Orders + fulfillment ─────────────────────────────────────────────── */
+// Line items arrive in two shapes (Stripe lineItems / BTCPay orderItems);
+// read both defensively.
+const lineName = (it) => it?.name || it?.description || "Item";
+const lineQty = (it) => Number(it?.quantity || 1);
+const lineUnitCents = (it) => {
+  if (Number.isFinite(Number(it?.unit_dollars))) return Math.round(Number(it.unit_dollars) * 100);
+  if (Number.isFinite(Number(it?.price?.unit_amount))) return Number(it.price.unit_amount);
+  if (Number.isFinite(Number(it?.amount_total)) && lineQty(it) > 0) return Math.round(Number(it.amount_total) / lineQty(it));
+  return null;
+};
+const lineSku = (it) => it?.sku || it?.price?.product?.metadata?.sku || null;
+
+function printPackingSlip(order) {
+  const addr = order.shipping_address || {};
+  const items = Array.isArray(order.items) ? order.items : [];
+  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const rows = items.map((it) => `
+    <tr>
+      <td>${esc(lineName(it))}${lineSku(it) ? ` <span class="mono">(${esc(lineSku(it))})</span>` : ""}</td>
+      <td class="num">${lineQty(it)}</td>
+    </tr>`).join("");
+  const w = window.open("", "_blank", "width=800,height=900");
+  if (!w) return;
+  w.document.write(`<!doctype html><html><head><title>Packing slip ${esc(order.order_number)}</title>
+    <style>
+      body { font-family: Arial, sans-serif; color: #111; max-width: 640px; margin: 32px auto; }
+      h1 { font-size: 18px; letter-spacing: 0.12em; } h2 { font-size: 13px; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: 0.1em; color: #555; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      td, th { border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: left; } .num { text-align: right; }
+      .mono { font-family: monospace; font-size: 11px; color: #555; }
+      .ruo { margin-top: 24px; border: 1.5px solid #111; padding: 10px 12px; font-size: 11.5px; font-weight: bold; }
+      .meta { font-size: 12px; color: #444; } @media print { .noprint { display: none; } }
+    </style></head><body>
+    <h1>NOIR&nbsp;·&nbsp;PEPTIDES — PACKING SLIP</h1>
+    <p class="meta">Order <strong>${esc(order.order_number)}</strong> · ${esc(new Date(order.created_at).toLocaleDateString())}</p>
+    <h2>Ship to</h2>
+    <p class="meta">${esc(order.customer_name || "")}<br/>${esc(addr.line1 || "")}${addr.line2 ? `<br/>${esc(addr.line2)}` : ""}<br/>
+      ${esc(addr.city || "")}${addr.state ? `, ${esc(addr.state)}` : ""} ${esc(addr.postal_code || "")}<br/>${esc(addr.country || "US")}</p>
+    <h2>Contents</h2>
+    <table><thead><tr><th>Item</th><th class="num">Qty</th></tr></thead><tbody>${rows || '<tr><td colspan="2">—</td></tr>'}</tbody></table>
+    <div class="ruo">FOR RESEARCH USE ONLY. NOT FOR HUMAN OR VETERINARY USE.<br/>
+      NOT FOR DIAGNOSTIC, THERAPEUTIC, OR HOUSEHOLD USE.</div>
+    <p class="meta">Batch-specific analytical documentation: noirpeptides.com/test-results · support@noirpeptides.com<br/>
+      No pricing is shown on this slip by design.</p>
+    <p class="noprint"><button onclick="window.print()">Print</button></p>
+    </body></html>`);
+  w.document.close();
+}
+
+function OrderDetail({ orderNumber, onOrderChanged, onError }) {
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tracking, setTracking] = useState({ url: "", carrier: "" });
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    adminGet(`/api/admin/orders?order=${encodeURIComponent(orderNumber)}`)
+      .then((d) => {
+        if (!alive) return;
+        setOrder(d.order);
+        setTracking({ url: d.order?.tracking_url || "", carrier: d.order?.tracking_carrier || "" });
+      })
+      .catch((e) => onError(e.message))
+      .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderNumber]);
+
+  const ship = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      await adminSend("/api/admin/order-status", "POST", {
+        orderNumber,
+        status: "shipped",
+        trackingUrl: tracking.url.trim() || undefined,
+        trackingCarrier: tracking.carrier.trim() || undefined,
+      });
+      setMsg("Marked shipped — customer emailed" + (tracking.url ? " with the tracking link." : "."));
+      setOrder((o) => (o ? { ...o, status: "shipped", tracking_url: tracking.url, tracking_carrier: tracking.carrier } : o));
+      onOrderChanged(orderNumber, "shipped");
+    } catch (e) { setMsg(e.message); }
+    finally { setBusy(false); }
+  };
+
+  if (loading) return <p className="p-4 text-se-steel text-[12px]">Loading order…</p>;
+  if (!order) return null;
+
+  const addr = order.shipping_address || {};
+  const items = Array.isArray(order.items) ? order.items : [];
+  const inp = "rounded-lg border border-white/12 bg-white/[0.03] px-2 py-1 text-se-bone text-[12px] focus:border-se-gold focus:outline-none";
+
+  return (
+    <div className="border-t border-white/5 bg-white/[0.015] p-4 grid gap-4 lg:grid-cols-[1fr_280px]">
+      <div>
+        <p className="text-[11px] uppercase tracking-wide text-se-steel mb-2">Contents</p>
+        <div className="space-y-1">
+          {items.map((it, i) => (
+            <div key={i} className="flex items-center justify-between gap-3 text-[12.5px]">
+              <span className="text-se-bone/85 truncate">
+                {lineName(it)}
+                {lineSku(it) && <span className="font-mono text-[11px] text-se-steel"> · {lineSku(it)}</span>}
+              </span>
+              <span className="shrink-0 text-se-bone/60">
+                ×{lineQty(it)}{lineUnitCents(it) != null ? ` · ${money(lineUnitCents(it))} ea` : ""}
+              </span>
+            </div>
+          ))}
+          {!items.length && <p className="text-se-bone/40 text-[12px]">No line-item snapshot on this order.</p>}
+        </div>
+        <p className="text-[11px] uppercase tracking-wide text-se-steel mt-4 mb-1">Ship to</p>
+        <p className="text-[12.5px] text-se-bone/75 leading-relaxed">
+          {order.customer_name}<br />
+          {addr.line1}{addr.line2 ? <><br />{addr.line2}</> : null}<br />
+          {addr.city}{addr.state ? `, ${addr.state}` : ""} {addr.postal_code}<br />
+          {addr.country || "US"}
+        </p>
+        {order.shipped_at && (
+          <p className="text-[11px] text-se-steel mt-2">Shipped {new Date(order.shipped_at).toLocaleString()}</p>
+        )}
+      </div>
+      <div className="space-y-2">
+        <p className="text-[11px] uppercase tracking-wide text-se-steel">Ship & track</p>
+        <input className={`${inp} w-full`} placeholder="https:// tracking link" value={tracking.url}
+          onChange={(e) => setTracking((t) => ({ ...t, url: e.target.value }))} />
+        <input className={`${inp} w-full`} placeholder="Carrier (USPS, UPS…)" value={tracking.carrier}
+          onChange={(e) => setTracking((t) => ({ ...t, carrier: e.target.value }))} />
+        <button onClick={ship} disabled={busy}
+          className="btn-primary w-full justify-center text-[12px] disabled:opacity-50">
+          {busy ? "Saving…" : "Mark shipped + email customer"}
+        </button>
+        <button onClick={() => printPackingSlip(order)} className="btn-outline w-full justify-center text-[12px]">
+          Print packing slip
+        </button>
+        {order.tracking_url && (
+          <a href={order.tracking_url} target="_blank" rel="noreferrer" className="block text-[11px] text-se-gold hover:underline truncate">
+            Current tracking link ↗
+          </a>
+        )}
+        {msg && <p className="text-[12px] text-emerald-300">{msg}</p>}
+      </div>
+    </div>
+  );
+}
+
 function OrdersManager() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [savingId, setSavingId] = useState(null);
+  const [openOrder, setOpenOrder] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -373,7 +521,10 @@ function OrdersManager() {
   return (
     <div className="space-y-3">
       {err && <p className="text-red-300 text-sm">{err}</p>}
-      <p className="text-[12px] text-se-bone/45 font-accent">Changing a status notifies the customer by email. Newest first (last 100).</p>
+      <p className="text-[12px] text-se-bone/45 font-accent">
+        Click an order number for contents, shipping address, tracking entry, and a printable
+        packing slip. Status changes email the customer. Newest first (last 100).
+      </p>
       <div className="glass-panel overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -384,23 +535,45 @@ function OrdersManager() {
           </thead>
           <tbody>
             {orders.map((o) => (
-              <tr key={o.order_number} className="border-t border-white/5">
-                <td className="p-3 font-mono text-[12px] text-se-bone">{o.order_number}</td>
-                <td className="p-3 text-se-bone/70">{o.customer_name || o.email || "—"}</td>
-                <td className="p-3 text-se-bone/80">{money(o.amount_total)}</td>
-                <td className="p-3 text-se-bone/50">{o.payment_provider || "—"}</td>
-                <td className="p-3 text-se-steel text-[12px]">{new Date(o.created_at).toLocaleDateString()}</td>
-                <td className="p-3">
-                  <select
-                    className={sel}
-                    value={o.status || "processing"}
-                    disabled={savingId === o.order_number}
-                    onChange={(e) => changeStatus(o.order_number, e.target.value)}
-                  >
-                    {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </td>
-              </tr>
+              <React.Fragment key={o.order_number}>
+                <tr className="border-t border-white/5">
+                  <td className="p-3">
+                    <button
+                      onClick={() => setOpenOrder(openOrder === o.order_number ? null : o.order_number)}
+                      className="font-mono text-[12px] text-se-gold hover:underline"
+                    >
+                      {o.order_number}
+                    </button>
+                    {o.tracking_url && <span className="ml-1.5 text-[10px] text-cyan-300" title="Tracking on file">⛟</span>}
+                  </td>
+                  <td className="p-3 text-se-bone/70">{o.customer_name || o.email || "—"}</td>
+                  <td className="p-3 text-se-bone/80">{money(o.amount_total)}</td>
+                  <td className="p-3 text-se-bone/50">{o.payment_provider || "—"}</td>
+                  <td className="p-3 text-se-steel text-[12px]">{new Date(o.created_at).toLocaleDateString()}</td>
+                  <td className="p-3">
+                    <select
+                      className={sel}
+                      value={o.status || "processing"}
+                      disabled={savingId === o.order_number}
+                      onChange={(e) => changeStatus(o.order_number, e.target.value)}
+                    >
+                      {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </td>
+                </tr>
+                {openOrder === o.order_number && (
+                  <tr>
+                    <td colSpan={6} className="p-0">
+                      <OrderDetail
+                        orderNumber={o.order_number}
+                        onOrderChanged={(num, status) =>
+                          setOrders((os) => os.map((x) => (x.order_number === num ? { ...x, status } : x)))}
+                        onError={setErr}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>

@@ -219,6 +219,12 @@ export default function ResearcherConsole() {
                             <p className="text-[12px] text-se-steel font-accent">
                               {fmtDate(o.created_at)} · {count} item{count === 1 ? "" : "s"} · {money(o.amount_total, o.currency)}
                             </p>
+                            {o.tracking_url && (
+                              <a href={o.tracking_url} target="_blank" rel="noreferrer"
+                                className="text-[11px] text-se-gold hover:underline">
+                                Track shipment{o.tracking_carrier ? ` (${o.tracking_carrier})` : ""} ↗
+                              </a>
+                            )}
                           </div>
                           <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] uppercase tracking-wide ${cls}`}>
                             {o.status || "—"}
