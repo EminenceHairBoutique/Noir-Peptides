@@ -22,6 +22,7 @@ import {
   Boxes,
   ChevronDown,
   ChevronRight,
+  Percent,
 } from "lucide-react";
 import SEO from "../components/SEO";
 import { adminGet, adminSend } from "../lib/adminApi";
@@ -39,6 +40,7 @@ const TABS = [
   { id: "reviews", label: "Reviews", icon: Star },
   { id: "partners", label: "Partners", icon: Users },
   { id: "coa", label: "COA Manager", icon: FileCheck2 },
+  { id: "discounts", label: "Discounts", icon: Percent },
   { id: "flags", label: "AI Flags", icon: Flag },
   { id: "errors", label: "Errors", icon: Bug },
   { id: "scanner", label: "Compliance Scanner", icon: ShieldAlert },
@@ -695,6 +697,147 @@ function Partners() {
   );
 }
 
+/* ── Discounts manager ────────────────────────────────────────────────── */
+const EMPTY_DISCOUNT = {
+  code: "", kind: "percent", value: "", description: "",
+  min_subtotal: "", max_redemptions: "", per_user_limit: "1",
+  excludes_bundles: true, is_public: false, active: true,
+};
+
+function DiscountsManager() {
+  const [discounts, setDiscounts] = useState([]);
+  const [form, setForm] = useState(EMPTY_DISCOUNT);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    adminGet("/api/admin/discounts")
+      .then((d) => { setDiscounts(d.discounts || []); setMsg(null); })
+      .catch((e) => setMsg({ type: "err", text: e.message }))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setMsg(null);
+    try {
+      const r = await adminSend("/api/admin/discounts", "POST", {
+        code: form.code,
+        kind: form.kind,
+        value: Number(form.value),
+        description: form.description || undefined,
+        min_subtotal: form.min_subtotal === "" ? undefined : Number(form.min_subtotal),
+        max_redemptions: form.max_redemptions === "" ? null : Number(form.max_redemptions),
+        per_user_limit: form.per_user_limit === "" ? null : Number(form.per_user_limit),
+        excludes_bundles: form.excludes_bundles,
+        is_public: form.is_public,
+        active: form.active,
+      });
+      setDiscounts((ds) => [r.discount, ...ds]);
+      setForm(EMPTY_DISCOUNT);
+      setMsg({ type: "ok", text: `Code ${r.discount.code} created.` });
+    } catch (err2) {
+      setMsg({ type: "err", text: err2.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleActive = async (d) => {
+    try {
+      const r = await adminSend("/api/admin/discounts", "PATCH", { id: d.id, active: !d.active });
+      setDiscounts((ds) => ds.map((x) => (x.id === d.id ? { ...x, ...r.discount } : x)));
+    } catch (e) { setMsg({ type: "err", text: e.message }); }
+  };
+
+  const field = "w-full rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-se-bone text-sm focus:border-se-gold focus:outline-none";
+  const describe = (d) =>
+    d.kind === "percent" ? `${Number(d.value)}% off` : `$${Number(d.value).toFixed(2)} off`;
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      <form onSubmit={submit} className="glass-panel p-6 space-y-3 h-fit">
+        <h3 className="font-display text-[16px] flex items-center gap-2"><Plus size={15} className="text-se-gold" /> New promo code</h3>
+        <p className="text-[12px] text-se-bone/45 font-accent">
+          Checkout validates codes server-side; totals are always re-priced on the server.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <input className={`${field} font-mono uppercase`} placeholder="CODE *" value={form.code}
+            onChange={(e) => set("code", e.target.value.toUpperCase())} required maxLength={32} />
+          <select className={field} value={form.kind} onChange={(e) => set("kind", e.target.value)}>
+            <option value="percent">Percent off</option>
+            <option value="fixed">Fixed $ off</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <input className={field} type="number" step="0.01" min="0.01"
+            max={form.kind === "percent" ? 100 : 10000}
+            placeholder={form.kind === "percent" ? "Value % *" : "Value $ *"}
+            value={form.value} onChange={(e) => set("value", e.target.value)} required />
+          <input className={field} type="number" step="0.01" min="0" placeholder="Min subtotal $"
+            value={form.min_subtotal} onChange={(e) => set("min_subtotal", e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <input className={field} type="number" step="1" min="1" placeholder="Max uses (blank = ∞)"
+            value={form.max_redemptions} onChange={(e) => set("max_redemptions", e.target.value)} />
+          <input className={field} type="number" step="1" min="1" placeholder="Per-user limit (blank = ∞)"
+            value={form.per_user_limit} onChange={(e) => set("per_user_limit", e.target.value)} />
+        </div>
+        <input className={field} placeholder="Internal description" value={form.description}
+          onChange={(e) => set("description", e.target.value)} maxLength={300} />
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-se-bone/70">
+          <label className="flex items-center gap-2"><input type="checkbox" checked={form.excludes_bundles} onChange={(e) => set("excludes_bundles", e.target.checked)} /> Exclude blends/kits</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_public} onChange={(e) => set("is_public", e.target.checked)} /> Show on Deals page</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={form.active} onChange={(e) => set("active", e.target.checked)} /> Active</label>
+        </div>
+        {msg && <p className={`text-[12.5px] ${msg.type === "ok" ? "text-emerald-300" : "text-red-300"}`}>{msg.text}</p>}
+        <button type="submit" disabled={busy} className="btn-primary w-full justify-center disabled:opacity-50">
+          {busy ? "Creating…" : "Create Code"}
+        </button>
+      </form>
+
+      <div>
+        <h3 className="font-display text-[16px] mb-3">Codes ({discounts.length})</h3>
+        {loading ? (
+          <p className="text-se-steel text-sm">Loading…</p>
+        ) : discounts.length === 0 ? (
+          <div className="glass-panel p-5 text-se-bone/50 text-sm">No promo codes yet.</div>
+        ) : (
+          <div className="glass-panel divide-y divide-white/5 max-h-[560px] overflow-y-auto">
+            {discounts.map((d) => (
+              <div key={d.id} className={`p-4 flex items-center justify-between gap-3 ${d.active ? "" : "opacity-50"}`}>
+                <div className="min-w-0">
+                  <p className="text-se-bone text-sm font-mono truncate">{d.code}</p>
+                  <p className="text-[12px] text-se-steel font-accent">
+                    {describe(d)}
+                    {Number(d.min_subtotal) > 0 ? ` · min $${Number(d.min_subtotal)}` : ""}
+                    {` · used ${d.redemption_count}${d.max_redemptions ? `/${d.max_redemptions}` : ""}`}
+                    {d.is_public ? " · public" : ""}
+                  </p>
+                  {d.description && <p className="text-[11px] text-se-bone/40 font-accent truncate">{d.description}</p>}
+                </div>
+                <button
+                  onClick={() => toggleActive(d)}
+                  className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] uppercase tracking-wide ${
+                    d.active ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-white/15 bg-white/5 text-se-steel"
+                  }`}
+                >
+                  {d.active ? "Active" : "Off"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── AI safety queue ──────────────────────────────────────────────────── */
 function AiFlags() {
   const [flags, setFlags] = useState([]);
@@ -1050,6 +1193,7 @@ export default function AdminHome() {
           {tab === "reviews" && <ReviewsManager />}
           {tab === "partners" && <Partners />}
           {tab === "coa" && <CoaManager />}
+          {tab === "discounts" && <DiscountsManager />}
           {tab === "flags" && <AiFlags />}
           {tab === "errors" && <ClientErrors />}
           {tab === "scanner" && <ComplianceScanner />}

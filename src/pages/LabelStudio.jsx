@@ -162,6 +162,32 @@ export default function LabelStudio() {
     }
   };
 
+  // Production print run: ONE merged PDF, one page per APPROVED label.
+  // The publishing gate applies to print artifacts too — drafts and
+  // in-review labels never reach the printer from this button.
+  const [batch, setBatch] = useState(null); // { done, total, label } while running
+  const printableConfigs = useMemo(
+    () => configs.filter((c) => (c.status === "approved" || c.status === "production_ready") && !c.recalled),
+    [configs]
+  );
+  const exportBatchPdf = async () => {
+    if (batch || !printableConfigs.length) return;
+    setErr(null);
+    setBatch({ done: 0, total: printableConfigs.length, label: "" });
+    try {
+      const { labelBatchPdfBlob } = await import("../lib/labels/pdfExport.js");
+      const blob = await labelBatchPdfBlob(printableConfigs, {
+        siteUrl: window.location.origin,
+        onProgress: (done, total, label) => setBatch({ done, total, label }),
+      });
+      downloadBlob(blob, `noir-labels-print-batch-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+      setErr(`Batch export failed: ${e.message}`);
+    } finally {
+      setBatch(null);
+    }
+  };
+
   const [pdfBusy, setPdfBusy] = useState(false);
   const exportPdf = async () => {
     if (!draft || pdfBusy) return;
@@ -196,7 +222,20 @@ export default function LabelStudio() {
                 outside this studio.
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center flex-wrap">
+              <button
+                type="button"
+                onClick={exportBatchPdf}
+                disabled={Boolean(batch) || !printableConfigs.length}
+                className="btn-outline disabled:opacity-40"
+                title={printableConfigs.length
+                  ? `One merged print PDF for all ${printableConfigs.length} approved labels`
+                  : "No approved labels yet — approve labels to enable the print batch"}
+              >
+                {batch
+                  ? `Rendering ${batch.done}/${batch.total}…`
+                  : `Print batch (${printableConfigs.length} approved)`}
+              </button>
               <button type="button" onClick={() => setShowMatrix((v) => !v)} className={showMatrix ? "btn-primary" : "btn-outline"}>
                 Catalog matrix
               </button>
