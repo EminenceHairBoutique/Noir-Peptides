@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "se_cookie_consent";
+const STORAGE_KEY = "np_cookie_consent";
 
 function readConsent() {
   try {

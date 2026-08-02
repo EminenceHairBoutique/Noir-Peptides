@@ -18,8 +18,13 @@ export default function LegalPageLayout({ seoTitle, seoDescription, content }) {
         <section className="py-14 md:py-20">
           <div className="content-wrap max-w-3xl">
             <LegalDoc content={content} />
-            <div className="mt-14 pt-8 border-t border-se-concrete">
+            <div className="mt-14 pt-8 border-t border-se-concrete space-y-4">
               <DisclaimerBanner />
+              <p className="text-[11px] text-se-steel/80 font-accent leading-relaxed">
+                This document is a claim-safe template provided for transparency
+                and is not legal advice. It must be reviewed and adapted by a
+                licensed attorney for your jurisdiction before launch.
+              </p>
             </div>
           </div>
         </section>

@@ -9,10 +9,17 @@ import React, {
   useEffect,
 } from "react";
 import { resolveProductImages } from "../utils/productMedia";
+import { unitPriceForQuantity } from "../lib/catalog";
+import { trackAddToCart } from "../utils/track";
+
+// Server-authoritative per-line bounds (lib/pricing.js clamps 1..99). Mirror
+// them client-side so the cart never displays a total the server will reduce.
+const MAX_LINE_QTY = 99;
+const clampQty = (n) => Math.max(1, Math.min(MAX_LINE_QTY, Math.floor(Number(n) || 1)));
 
 const CartContext = createContext(null);
 
-const STORAGE_KEY = "se_cart";
+const STORAGE_KEY = "np_cart";
 
 export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState(() => {
@@ -36,34 +43,39 @@ export function CartProvider({ children }) {
   const addToCart = (product, options = {}) => {
     if (!product?.id) return;
 
-    const size = options.size ?? product.size ?? null;
-    const colorway = options.colorway ?? product.colorway ?? null;
-    const quantity = Number(options.quantity ?? 1) || 1;
+    const quantity = clampQty(options.quantity ?? 1);
 
-    const price = Number(
-      options.price ?? product.price ?? 0
-    );
+    // Variant + bundle-tier identity (the server re-prices from these).
+    const variantId = options.variantId ?? product.variantId ?? null;
+    const sku = options.sku ?? product.sku ?? null;
+    const sizeLabel = options.sizeLabel ?? product.sizeLabel ?? null;
+    const tiers = options.tiers ?? product.tiers ?? [];
+    const basePrice = Number(options.basePrice ?? options.price ?? product.price ?? 0);
+
+    // Unit price reflects the bundle tier for the chosen quantity (matches the
+    // server's authoritative price).
+    const price = unitPriceForQuantity(basePrice, tiers, quantity);
 
     const images = resolveProductImages(product);
     const image =
-      options.image ||
-      product.image ||
-      images?.[0] ||
-      product.images?.[0] ||
-      null;
+      options.image || product.image || images?.[0] || product.images?.[0] || null;
 
     const isPreorder = Boolean(options.isPreorder ?? product.isPreorder ?? false);
     const leadTimeDays = Number(options.leadTimeDays ?? product.leadTimeDays ?? 0);
 
-    const cartKey = `${product.id}::${size || ""}::${colorway || ""}`;
+    // One cart line per variant (each dosage is distinct).
+    const cartKey = variantId ? `v:${variantId}` : `${product.id}`;
 
     const normalized = {
       id: product.id,
       slug: product.slug,
       name: product.displayName || product.name,
       image,
-      size,
-      colorway,
+      variantId,
+      sku,
+      sizeLabel,
+      tiers,
+      basePrice,
       price,
       quantity,
       isPreorder,
@@ -76,12 +88,18 @@ export function CartProvider({ children }) {
       const idx = prev.findIndex((p) => p.cartKey === normalized.cartKey);
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], quantity: copy[idx].quantity + normalized.quantity };
+        const q = copy[idx].quantity + normalized.quantity;
+        copy[idx] = {
+          ...copy[idx],
+          quantity: q,
+          price: unitPriceForQuantity(copy[idx].basePrice, copy[idx].tiers, q),
+        };
         return copy;
       }
       return [...prev, normalized];
     });
 
+    trackAddToCart(normalized);
     setIsOpen(true);
   };
 
@@ -89,13 +107,15 @@ export function CartProvider({ children }) {
     const hasVariant = typeof a === "string";
     const variant = hasVariant ? a : null;
     const qty = hasVariant ? b : a;
-    const nextQty = Math.max(1, Number(qty) || 1);
+    const nextQty = clampQty(qty);
 
     setCartItems((prev) =>
       prev.map((p) => {
         if (p.id !== id) return p;
         if (variant && p.variant !== variant) return p;
-        return { ...p, quantity: nextQty };
+        // Re-apply the bundle tier for the new quantity.
+        const price = unitPriceForQuantity(p.basePrice ?? p.price, p.tiers, nextQty);
+        return { ...p, quantity: nextQty, price };
       })
     );
   };
@@ -123,7 +143,7 @@ export function CartProvider({ children }) {
         const copy = [...nextArr];
         copy[mergeIdx] = {
           ...copy[mergeIdx],
-          quantity: Number(copy[mergeIdx].quantity || 0) + Number(updated.quantity || 0),
+          quantity: clampQty(Number(copy[mergeIdx].quantity || 0) + Number(updated.quantity || 0)),
         };
         return copy;
       }

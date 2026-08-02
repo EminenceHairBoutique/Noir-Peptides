@@ -1,4 +1,3 @@
-/* eslint-env node */
 /**
  * api/partners/directory-settings.js
  * Allow an approved partner to read/update their own directory settings.

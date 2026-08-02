@@ -13,6 +13,12 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { researchArticles } from "../src/data/research.js";
+import {
+  getAllProducts,
+  getCategories,
+  getProductsInCategory,
+} from "../src/data/tier1Catalog.js";
 
 const ROOT = process.cwd();
 const DIST_DIR = path.join(ROOT, "dist");
@@ -21,13 +27,48 @@ const SITE_NAME = "Noir Peptides";
 const DEFAULT_DESCRIPTION =
   "Batch-documented peptide reference materials for laboratory research. COA available. For research use only. Not for human or veterinary use.";
 
-const SITE_URL = String(
-  process.env.VITE_SITE_URL ||
-    process.env.SITE_URL ||
-    "https://www.noirpeptides.com"
-).replace(/\/+$/, "");
+const PRODUCTION_DEFAULT = "https://www.noirpeptides.com";
 
-const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/noir/noir_og_banner.svg`;
+// ── Resolve a SAFE absolute site URL ────────────────────────────────────────
+// The guard's purpose is to never ship localhost/empty canonicals or OG URLs.
+// A misconfigured VITE_SITE_URL (the live site had it set to localhost:3000) is
+// recoverable: rather than HARD-FAIL the build — which bricks the Vercel
+// deploy — we warn loudly and fall back to the production domain so canonicals
+// stay correct AND the deploy succeeds. Set SEO_STRICT_SITE_URL=1 to restore the
+// fail-the-build behavior (useful in CI that should block on a misconfig).
+function isLocalAddress(u) {
+  return /localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]/i.test(u);
+}
+
+function resolveSiteUrl() {
+  const raw = String(process.env.VITE_SITE_URL || process.env.SITE_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
+
+  if (raw && /^https?:\/\//i.test(raw) && !isLocalAddress(raw)) return raw;
+
+  const strict = /^(1|true|yes)$/i.test(process.env.SEO_STRICT_SITE_URL || "");
+  if (strict) {
+    throw new Error(
+      `[seo] VITE_SITE_URL is "${raw || "(empty)"}" — empty, local, or not absolute. ` +
+        `Set it to the public production domain (e.g. ${PRODUCTION_DEFAULT}). ` +
+        `(SEO_STRICT_SITE_URL is on, so the build fails instead of falling back.)`
+    );
+  }
+
+  if (raw) {
+    console.warn(
+      `[seo] WARNING: VITE_SITE_URL is "${raw}" (empty, local, or not absolute). ` +
+        `Falling back to ${PRODUCTION_DEFAULT} so the deploy is not blocked and no ` +
+        `localhost canonicals are emitted. Set VITE_SITE_URL in Vercel to your real domain.`
+    );
+  }
+  return PRODUCTION_DEFAULT;
+}
+
+const SITE_URL = resolveSiteUrl();
+
+const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/noir/noir-og.png`;
 
 const SEO_BEGIN = "<!-- SEO:BEGIN -->";
 const SEO_END = "<!-- SEO:END -->";
@@ -103,6 +144,156 @@ function renderJsonLd({ url, title, description, images, product }) {
   return { "@context": "https://schema.org", "@graph": graph };
 }
 
+// Article + BreadcrumbList graph for the public research/education pages (the
+// GEO/AI-search surface). Never Drug/MedicalEntity schema.
+function renderArticleJsonLd({ url, title, description }) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: `${SITE_URL}/`,
+        logo: DEFAULT_OG_IMAGE,
+      },
+      {
+        "@type": "Article",
+        "@id": `${url}#article`,
+        headline: title,
+        description,
+        url,
+        image: DEFAULT_OG_IMAGE,
+        author: { "@id": `${SITE_URL}/#organization` },
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        inLanguage: "en-US",
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+          { "@type": "ListItem", position: 2, name: "Research", item: `${SITE_URL}/research` },
+          { "@type": "ListItem", position: 3, name: title, item: url },
+        ],
+      },
+    ],
+  };
+}
+
+// Product structured data for each product page. Product schema ONLY — never
+// Drug / MedicalEntity / medicalCondition. offers carry price + availability.
+function renderProductJsonLd(p) {
+  const url = ensureSiteUrl(`/product/${p.slug}`);
+  const availability =
+    p.stock_status === "out_of_stock"
+      ? "https://schema.org/OutOfStock"
+      : "https://schema.org/InStock";
+  const offers = p.variants.map((v) => ({
+    "@type": "Offer",
+    sku: v.sku,
+    name: `${p.name} ${v.size_label}`,
+    price: Number(v.price).toFixed(2),
+    priceCurrency: "USD",
+    availability,
+    itemCondition: "https://schema.org/NewCondition",
+    url,
+  }));
+  const prices = p.variants.map((v) => Number(v.price));
+  const product = {
+    "@type": "Product",
+    "@id": `${url}#product`,
+    name: `${p.name} — Research Reference Material`,
+    description: p.description,
+    category: p.category_name,
+    sku: p.variants[0]?.sku,
+    brand: { "@type": "Brand", name: SITE_NAME },
+    image: DEFAULT_OG_IMAGE,
+    offers:
+      offers.length === 1
+        ? offers[0]
+        : {
+            "@type": "AggregateOffer",
+            priceCurrency: "USD",
+            lowPrice: Math.min(...prices).toFixed(2),
+            highPrice: Math.max(...prices).toFixed(2),
+            offerCount: offers.length,
+            availability,
+            offers,
+          },
+    additionalProperty: [
+      {
+        "@type": "PropertyValue",
+        name: "Intended use",
+        value: "Research use only — not for human or veterinary use",
+      },
+    ],
+  };
+  return renderJsonLd({
+    url,
+    title: `${p.name} — Research Reference Material`,
+    description: p.description,
+    images: [DEFAULT_OG_IMAGE],
+    product,
+  });
+}
+
+// ── Crawlable static BODY content ───────────────────────────────────────────
+// Injected into #root in the prerendered HTML. The SPA mounts with
+// createRoot().render(), which REPLACES #root's children on load — so crawlers
+// and no-JS clients get full server-side content while users get the live app.
+// (Not hydrateRoot, so there is no hydration-mismatch concern.) Keep it plain
+// semantic HTML; styling comes from the hydrated app.
+const RUO_LINE =
+  "For research use only. Not for human or veterinary use.";
+
+function fmtUsd(n) {
+  const s = Number(n).toFixed(2);
+  return `$${s.endsWith(".00") ? s.slice(0, -3) : s}`;
+}
+
+function renderProductBody(p) {
+  const from = Math.min(...p.variants.map((v) => Number(v.price)));
+  const sizes = p.variants
+    .map((v) => `<li>${escapeHtml(v.size_label)} — ${fmtUsd(v.price)}</li>`)
+    .join("");
+  return [
+    "<main>",
+    `<nav aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/shop">Shop</a> / ` +
+      `<a href="/shop/${escapeHtml(p.category_slug)}">${escapeHtml(p.category_name)}</a></nav>`,
+    `<h1>${escapeHtml(p.name)} — Research Reference Material</h1>`,
+    `<p>From ${fmtUsd(from)}</p>`,
+    `<p>${escapeHtml(p.description)}</p>`,
+    `<h2>Available sizes</h2><ul>${sizes}</ul>`,
+    `<p><strong>${RUO_LINE}</strong></p>`,
+    "</main>",
+  ].join("");
+}
+
+function renderListBody(heading, intro, prods) {
+  const items = prods
+    .map(
+      (p) =>
+        `<li><a href="/product/${escapeHtml(p.slug)}">${escapeHtml(p.name)}</a> — from ${fmtUsd(
+          p.fromPrice
+        )}</li>`
+    )
+    .join("");
+  return [
+    "<main>",
+    `<h1>${escapeHtml(heading)}</h1>`,
+    `<p>${escapeHtml(intro)}</p>`,
+    `<ul>${items}</ul>`,
+    `<p><strong>${RUO_LINE}</strong></p>`,
+    "</main>",
+  ].join("");
+}
+
+function injectBody(html, bodyHtml) {
+  if (!bodyHtml) return html;
+  return html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
+}
+
 function renderSeoMeta({
   pathname,
   title,
@@ -162,6 +353,37 @@ function renderSeoMeta({
   return lines.join("\n");
 }
 
+// Claim-safe FAQ for the home page (no human-use/efficacy claims).
+const HOME_FAQ = {
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "Are Noir Peptides products for human use?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "No. All products are supplied for laboratory research use only and are not for human or veterinary use.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Are these products drugs or supplements?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "No. They are research reference materials, not drugs, supplements, food, or cosmetics, and are not intended to diagnose, treat, cure, or prevent any condition.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "What is a Certificate of Analysis (COA)?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "A batch-specific document reporting analytical testing — identity and purity (HPLC/MS) — for the material as supplied.",
+      },
+    },
+  ],
+};
+
 async function main() {
   await fs.mkdir(DIST_DIR, { recursive: true });
 
@@ -180,6 +402,30 @@ async function main() {
       pathname: "/",
       title: "Noir Peptides | Research-Grade Peptide Materials",
       description: DEFAULT_DESCRIPTION,
+    },
+    {
+      pathname: "/about",
+      title: "About Noir Peptides | Research Material Supplier",
+      description:
+        "How Noir Peptides sources, documents, and batch-verifies peptide reference materials for laboratory research. For research use only. Not for human or veterinary use.",
+    },
+    {
+      pathname: "/faqs",
+      title: "FAQ | Ordering, Documentation & Shipping",
+      description:
+        "Answers on batch documentation, certificates of analysis, storage, ordering, and shipping for Noir Peptides research reference materials. For research use only.",
+    },
+    {
+      pathname: "/contact",
+      title: "Contact Noir Peptides | Research Support",
+      description:
+        "Contact Noir Peptides for documentation requests, order support, and qualified-purchaser enquiries. For research use only. Not for human or veterinary use.",
+    },
+    {
+      pathname: "/verify-lot",
+      title: "Verify a Lot | Batch Documentation Lookup",
+      description:
+        "Look up the certificate of analysis and batch documentation for a Noir Peptides research material lot. For research use only.",
     },
     {
       pathname: "/legal/research-use-policy",
@@ -233,10 +479,97 @@ async function main() {
     },
   ];
 
-  // The gated storefront is intentionally not prerendered. Direct requests fall
-  // through Vercel's SPA rewrite to the root document; the client guard then
-  // redirects unauthenticated visitors to /login.
-  const routes = [...staticRoutes];
+  // Public, indexable education pages (no price, no buy button) — the only SEO
+  // surface compatible with the auth wall. These funnel to registration.
+  const researchRoutes = [
+    {
+      pathname: "/research",
+      title: "Research & Education",
+      description:
+        "Educational articles on certificates of analysis, HPLC purity, and how peptide reference materials are studied in the laboratory. For research use only.",
+    },
+    {
+      pathname: "/calculator",
+      title: "Reconstitution Concentration Calculator",
+      description:
+        "A pure mass-per-volume (mg ÷ mL) laboratory aliquoting reference for research reference material. For research use only.",
+    },
+    {
+      pathname: "/deals",
+      title: "Deals & Bundle Pricing",
+      description:
+        "Current promo codes and volume bundle pricing for research reference materials. For research use only. Not for human or veterinary use.",
+    },
+    {
+      pathname: "/test-results",
+      title: "Test Results — Certificate of Analysis Library",
+      description:
+        "Batch-specific certificates of analysis (HPLC purity + mass-spec identity) for Noir Peptides research reference materials. Verify any lot. For research use only. Not for human or veterinary use.",
+    },
+    ...researchArticles.map((a) => ({
+      pathname: `/research/${a.slug}`,
+      title: a.title,
+      description: a.summary,
+      ogType: "article",
+      jsonLd: renderArticleJsonLd({
+        url: ensureSiteUrl(`/research/${a.slug}`),
+        title: a.title,
+        description: a.summary,
+      }),
+    })),
+  ];
+
+  // ── Public catalog (indexable) ──
+  // Catalog reads are public at the data layer (migration 0013), so the shop
+  // index, every category, and every product page are prerendered with real
+  // title/description/canonical/OG + Product JSON-LD (offers/price/availability)
+  // and crawlable body content. PURCHASE stays gated (checkout requires auth +
+  // a current attestation, enforced server-side). Data is mirrored from the
+  // same source as the SQL seed (src/data/tier1Catalog.js) so HTML and DB never
+  // drift.
+  const catalogProducts = getAllProducts();
+  const catalogCategories = getCategories();
+
+  const shopRoutes = [
+    {
+      pathname: "/shop",
+      title: "Research Peptide Catalog",
+      description:
+        "Browse batch-documented peptide reference materials for laboratory research. Per-batch COA available. For research use only. Not for human or veterinary use.",
+      bodyHtml: renderListBody(
+        "Research Peptide Catalog",
+        "Batch-documented peptide reference materials for laboratory research. For research use only. Not for human or veterinary use.",
+        catalogProducts
+      ),
+    },
+    ...catalogCategories.map((cat) => ({
+      pathname: `/shop/${cat.slug}`,
+      title: `${cat.name} — Research Reference Materials`,
+      description: `${cat.description} For research use only. Not for human or veterinary use.`,
+      bodyHtml: renderListBody(
+        cat.name,
+        cat.description,
+        getProductsInCategory(cat.slug)
+      ),
+    })),
+  ];
+
+  const productRoutes = catalogProducts.map((p) => ({
+    pathname: `/product/${p.slug}`,
+    title: `${p.name} — Research Reference Material`,
+    description: `${p.blurb} For research use only. Not for human or veterinary use.`,
+    ogType: "product",
+    images: [DEFAULT_OG_IMAGE],
+    jsonLd: renderProductJsonLd(p),
+    bodyHtml: renderProductBody(p),
+  }));
+
+  const routes = [
+    ...staticRoutes,
+    ...researchRoutes,
+    ...shopRoutes,
+    ...productRoutes,
+  ];
 
   for (const route of routes) {
     const pathname = route.pathname;
@@ -252,6 +585,11 @@ async function main() {
         images: images.map(abs),
       });
 
+    // Attach the FAQPage to the home page graph.
+    if (pathname === "/" && Array.isArray(jsonLd["@graph"])) {
+      jsonLd["@graph"].push(HOME_FAQ);
+    }
+
     const seoBlock = renderSeoMeta({
       pathname,
       title: route.title,
@@ -262,7 +600,8 @@ async function main() {
       jsonLd,
     });
 
-    const finalHtml = replaceSeoBlock(baseHtml, seoBlock);
+    const withSeo = replaceSeoBlock(baseHtml, seoBlock);
+    const finalHtml = injectBody(withSeo, route.bodyHtml);
 
     const outFile =
       pathname === "/"
@@ -273,23 +612,16 @@ async function main() {
     await fs.writeFile(outFile, finalHtml, "utf8");
   }
 
-  // Gated storefront is behind the auth wall — keep it out of the index.
+  // The public catalog (shop, categories, products) + education + legal pages
+  // are indexable. Only private / commerce-action / auth routes are disallowed
+  // (no index value; keep crawlers out of user-specific and transactional flows).
   const robots = [
     "User-agent: *",
-    "Allow: /$",
-    "Allow: /legal/",
+    "Allow: /",
     "",
+    "# Private, transactional, and auth routes (no index value)",
     "Disallow: /api/",
     "Disallow: /home",
-    "Disallow: /shop",
-    "Disallow: /catalog",
-    "Disallow: /product",
-    "Disallow: /products",
-    "Disallow: /coa",
-    "Disallow: /quality",
-    "Disallow: /about",
-    "Disallow: /faq",
-    "Disallow: /contact",
     "Disallow: /account",
     "Disallow: /cart",
     "Disallow: /checkout",
@@ -297,6 +629,12 @@ async function main() {
     "Disallow: /cancel",
     "Disallow: /admin",
     "Disallow: /privacy-choices",
+    "Disallow: /login",
+    "Disallow: /register",
+    "Disallow: /verify",
+    "Disallow: /forgot-password",
+    "Disallow: /reset-password",
+    "Disallow: /auth/",
     "",
     `Sitemap: ${SITE_URL}/sitemap.xml`,
     "",

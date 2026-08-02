@@ -1,46 +1,13 @@
-/* eslint-env node */
 import { supabaseServer } from "../../lib/supabaseServer.js";
-
-function json(res, status, body) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(body));
-}
-
-function getBearerToken(req) {
-  const auth = req.headers?.authorization || req.headers?.Authorization;
-  if (!auth) return null;
-  const tokenMatch = String(auth).match(/^Bearer\s+(.+)$/i);
-  return tokenMatch ? tokenMatch[1] : null;
-}
-
-function adminEmailAllowlist() {
-  const raw = process.env.ADMIN_EMAILS || process.env.VITE_ADMIN_EMAILS || "";
-  return raw
-    .split(",")
-    .map((emailAddress) => emailAddress.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-async function getUserFromReq(req) {
-  const token = getBearerToken(req);
-  if (!token) return null;
-
-  try {
-    const { data, error } = await supabaseServer.auth.getUser(token);
-    if (error) return null;
-    return data?.user || null;
-  } catch {
-    return null;
-  }
-}
+import { requireAdmin } from "../_utils/auth.js";
+import { jsonResponse as json } from "../_utils/body.js";
 
 async function safeFetchApplications() {
-  // Try to include current profile tier/status if FK exists.
+  // Try to include current profile tier/status if the FK relation exists.
   const joinedSelect =
     "id, created_at, status, email, user_id, full_name, phone, business_name, website_or_instagram, country, monthly_volume, interested_in, message, reviewed_by, reviewed_at, notes, partner_tier, profiles:profiles!partner_applications_user_id_fkey(id, email, account_tier, partner_status, partner_tier)";
 
-  let { data, error } = await supabaseServer
+  const { data, error } = await supabaseServer
     .from("partner_applications")
     .select(joinedSelect)
     .order("created_at", { ascending: false })
@@ -48,7 +15,7 @@ async function safeFetchApplications() {
 
   if (!error) return { data, error: null };
 
-  // Fallback: table exists but relation isn't available yet.
+  // Fallback: table exists but the relation isn't available.
   const fallback = await supabaseServer
     .from("partner_applications")
     .select(
@@ -63,14 +30,8 @@ async function safeFetchApplications() {
 export default async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
 
-  const user = await getUserFromReq(req);
-  if (!user) return json(res, 401, { error: "Unauthorized" });
-
-  const allow = adminEmailAllowlist();
-  const email = String(user.email || "").toLowerCase();
-  if (!allow.length || !allow.includes(email)) {
-    return json(res, 403, { error: "Forbidden" });
-  }
+  const admin = await requireAdmin(req, res);
+  if (!admin) return; // 401/403 already sent
 
   const { data, error } = await safeFetchApplications();
   if (error) {

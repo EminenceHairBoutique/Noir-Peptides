@@ -1,8 +1,9 @@
 // src/components/ProductCard.jsx — Noir Peptides
-import React from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useCart } from "../context/CartContext";
 import COABadge from "./COABadge";
+
+const LabelPreview = lazy(() => import("./labels/LabelPreview"));
 
 const STOCK_LABEL = {
   in_stock: "In Stock",
@@ -10,29 +11,40 @@ const STOCK_LABEL = {
   out_of_stock: "Out of Stock",
 };
 
-const ProductCard = ({ product }) => {
-  const { addToCart, openCart } = useCart();
+// Lightweight static label thumbnail for the grid: the procedural front panel
+// (no master raster, no WebGL) built from the approved label's real data.
+// Mounts only when the card scrolls into view.
+function LabelThumb({ label }) {
+  const ref = useRef(null);
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setShow(true);
+      return undefined;
+    }
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && setShow(true)),
+      { rootMargin: "200px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="absolute inset-0 flex items-center justify-center p-3 bg-gradient-to-b from-[#0d1118] to-[#070a10]">
+      {show && (
+        <Suspense fallback={null}>
+          <LabelPreview config={label} templateId={label.template_id} presetId="front" className="!border-0 max-h-full" />
+        </Suspense>
+      )}
+    </div>
+  );
+}
 
+const ProductCard = ({ product, label = null }) => {
   const img = product.image_url || product.images?.[0] || null;
   const isOut = product.stock_status === "out_of_stock";
   const category = product.category_slug;
-
-  const handleQuickAdd = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isOut) return;
-    addToCart(
-      {
-        id: product.id,
-        slug: product.slug,
-        name: product.name,
-        price: Number(product.price ?? 0),
-        image: img,
-      },
-      { quantity: 1 }
-    );
-    openCart();
-  };
 
   return (
     <Link
@@ -50,6 +62,8 @@ const ProductCard = ({ product }) => {
             }`}
             loading="lazy"
           />
+        ) : label ? (
+          <LabelThumb label={label} />
         ) : (
           <div
             className={`vial-visual h-full w-full ${isOut ? "opacity-40" : ""}`}
@@ -73,16 +87,12 @@ const ProductCard = ({ product }) => {
           {STOCK_LABEL[product.stock_status] || "In Stock"}
         </div>
 
-        {/* Quick add */}
+        {/* Select dosage (navigates to PDP — dosage + bundle chosen there) */}
         {!isOut && (
           <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
-            <button
-              onClick={handleQuickAdd}
-              className="w-full py-3 bg-se-gold text-[#04121b] text-[10px] font-accent font-semibold tracking-[0.2em] uppercase hover:bg-[#38d0ff] transition-colors"
-              type="button"
-            >
-              Add to Cart
-            </button>
+            <div className="w-full py-3 bg-se-gold text-[#04121b] text-[10px] font-accent font-semibold tracking-[0.2em] uppercase text-center">
+              Select Vial Size
+            </div>
           </div>
         )}
       </div>
@@ -98,16 +108,14 @@ const ProductCard = ({ product }) => {
         </h3>
 
         <p className="text-[11px] text-se-steel font-accent mb-3 line-clamp-1">
-          {product.form} · {product.vial_size_mg} mg vial
+          {product.form || "Lyophilized powder"}
         </p>
 
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2">
-            {product.compare_at_price && (
-              <span className="text-[12px] text-se-steel line-through font-accent">
-                ${product.compare_at_price}
-              </span>
-            )}
+            <span className="text-[11px] font-accent text-se-steel uppercase tracking-[0.12em]">
+              from
+            </span>
             <span className="text-[15px] font-accent font-semibold text-se-bone">
               ${product.price}
             </span>
