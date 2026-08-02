@@ -28,8 +28,8 @@ import { PRODUCT_IS_NOT, STORAGE_GUIDANCE } from "../config/compliance";
 import { trackViewItem } from "../utils/track";
 import { recordRecentlyViewed } from "../lib/recentlyViewed";
 import RecentlyViewed from "../components/RecentlyViewed";
+import { FREE_SHIP_THRESHOLD } from "../config/checkout";
 
-const FREE_SHIP_THRESHOLD = 200;
 const money = (n) => `$${Number(n || 0).toLocaleString()}`;
 
 const fadeUp = {

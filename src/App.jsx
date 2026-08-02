@@ -51,7 +51,10 @@ const About = lazy(() => import("./pages/About"));
 const Shop = lazy(() => import("./pages/Shop"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 const Cart = lazy(() => import("./pages/Cart"));
-const Checkout = lazy(() => import("./pages/Checkout"));
+// Two-step checkout (1 Personal → 2 Payment). The previous single-step flow
+// remains at src/pages/Checkout.jsx as a rollback target — revert this one
+// import to restore it.
+const Checkout = lazy(() => import("./pages/CheckoutTwoStep"));
 const Success = lazy(() => import("./pages/Success"));
 const Cancel = lazy(() => import("./pages/Cancel"));
 const Account = lazy(() => import("./pages/Account"));
