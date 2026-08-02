@@ -80,13 +80,17 @@ export default async function handler(req, res) {
   const user = await getUserFromReq(req); // optional (guest seam); null when unauthenticated
   const clamp = (s, n) => (s == null ? null : String(s).slice(0, n));
 
+  const contactName = `${value.firstName} ${value.lastName}`.trim().slice(0, 240);
+  const ip = clientIp(req);
+  const ua = clamp(req.headers["user-agent"], 500);
+
   try {
     const { data, error } = await supabaseServer
       .from("order_attestations")
       .insert({
         user_id: user?.id || null,
         email: value.email.trim().toLowerCase(),
-        contact_name: `${value.firstName} ${value.lastName}`.trim().slice(0, 240),
+        contact_name: contactName,
         research_entity: entity,
         research_protocol: protocol,
         shipping_method: clamp(body.shippingMethod, 40),
@@ -94,15 +98,54 @@ export default async function handler(req, res) {
         billing_address: body.billing || null,
         version: CHECKOUT_ATTESTATION_VERSION,
         statements,
-        ip_address: clientIp(req),
-        user_agent: clamp(req.headers["user-agent"], 500),
+        ip_address: ip,
+        user_agent: ua,
         context: "checkout",
       })
       .select("id")
       .maybeSingle();
-    if (error || !data) throw error || new Error("insert failed");
-    return json(res, 200, { complianceId: data.id });
+    if (error) throw error;
+    if (!data) throw new Error("insert returned no row");
+    return json(res, 200, { complianceId: data.id, store: "order_attestations" });
   } catch (err) {
+    // GRACEFUL DEGRADATION: if order_attestations hasn't been created yet
+    // (scripts/proposed-order-attestations.sql not run — Postgres 42P01
+    // undefined_table, or PostgREST PGRST205 unknown relation), fall back to
+    // the EXISTING attestation_audit table so the legal record is still
+    // captured server-side and checkout stays open. The research selections
+    // ride along inside `statements` so nothing is lost; re-running the SQL
+    // switches future orders to the richer table with no code change.
+    const code = String(err?.code || "");
+    const missingTable = code === "42P01" || code === "PGRST205" || /order_attestations/i.test(err?.message || "");
+    if (missingTable && user?.id) {
+      try {
+        const { data: fb, error: fbErr } = await supabaseServer
+          .from("attestation_audit")
+          .insert({
+            user_id: user.id,
+            version: CHECKOUT_ATTESTATION_VERSION,
+            statements: [
+              ...statements,
+              { id: "research_entity", text: entity, agreed: true },
+              { id: "research_protocol", text: protocol, agreed: true },
+            ],
+            legal_name: contactName || value.email,
+            ip_address: ip,
+            user_agent: ua,
+            context: "checkout",
+          })
+          .select("id")
+          .maybeSingle();
+        if (fbErr || !fb) throw fbErr || new Error("fallback insert failed");
+        console.warn(
+          "checkout-compliance: order_attestations missing — recorded in attestation_audit instead. " +
+            "Run scripts/proposed-order-attestations.sql to enable the full record."
+        );
+        return json(res, 200, { complianceId: null, store: "attestation_audit" });
+      } catch (fbErr) {
+        console.error("checkout-compliance fallback failed:", fbErr?.message || fbErr);
+      }
+    }
     console.error("checkout-compliance failed:", err?.message || err);
     // Generic message — never surface the raw Postgres error to the user.
     return json(res, 500, { error: "Could not save your research-use certification. Please try again." });

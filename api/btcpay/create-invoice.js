@@ -73,6 +73,7 @@ export default async function handler(req, res) {
     discountCode,
     redeemPoints,
     referralCode,
+    complianceId,
     shippingAddress,
   } = body || {};
   if (!researchUseAcknowledged) {
@@ -143,6 +144,7 @@ export default async function handler(req, res) {
               referral_code: referralCode
                 ? String(referralCode).trim().toUpperCase().slice(0, 32)
                 : "",
+              compliance_id: complianceId ? String(complianceId).slice(0, 32) : "",
               attestation_version: ATTESTATION_VERSION,
               research_use_acknowledged: "true",
               research_use_only: "true",

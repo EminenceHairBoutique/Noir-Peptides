@@ -81,6 +81,7 @@ export async function createHandler(req, res) {
       discountCode,
       redeemPoints,
       referralCode,
+      complianceId,
     } = req.body || {};
 
     // Per-checkout acknowledgment (defense in depth on top of the gate).
@@ -203,6 +204,9 @@ export async function createHandler(req, res) {
         loyalty_points: loyaltyPoints ? String(loyaltyPoints) : "",
         loyalty_dollars: loyaltyDollars ? String(loyaltyDollars) : "",
         referral_code: referralCode ? String(referralCode).trim().toUpperCase().slice(0, 32) : "",
+        // Links the pre-payment compliance record (api/checkout-compliance.js)
+        // to the order created by the webhook.
+        compliance_id: complianceId ? String(complianceId).slice(0, 32) : "",
       },
     });
 
