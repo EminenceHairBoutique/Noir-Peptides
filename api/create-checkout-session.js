@@ -4,6 +4,9 @@ import { requireUser } from "./_utils/auth.js";
 import { checkRateLimit } from "./_utils/rateLimit.js";
 import { ATTESTATION_VERSION } from "../lib/attestationStatements.js";
 import { priceLines, computeAdjustments } from "../lib/pricing.js";
+import { resolveOrigin, originUnconfigured } from "../lib/siteOrigin.js";
+import { resolveShipping, stripeShippingOption } from "../lib/shipping.js";
+import { failSafely } from "../lib/apiError.js";
 
 // Pin the Stripe API version so behavior is stable across SDK upgrades.
 const STRIPE_API_VERSION = "2024-06-20";
@@ -82,6 +85,7 @@ export async function createHandler(req, res) {
       redeemPoints,
       referralCode,
       complianceId,
+      shippingMethod,
     } = req.body || {};
 
     // Per-checkout acknowledgment (defense in depth on top of the gate).
@@ -98,9 +102,17 @@ export async function createHandler(req, res) {
     const userId = user.id;
     const customerEmail = user.email || profile?.email || null;
 
-    const origin =
-      req.headers.origin ||
-      `https://${req.headers["x-forwarded-host"] || req.headers.host}`;
+    // P0.2: origin comes from server config / an allowlist — NEVER from
+    // request headers, which an attacker controls.
+    if (originUnconfigured()) {
+      return failSafely(res, {
+        status: 503, code: "origin_unconfigured",
+        message: "Checkout is temporarily unavailable. Please try again shortly.",
+        error: new Error("No SITE_URL/VERCEL_URL configured; refusing to build redirect URLs"),
+        context: "create-checkout-session",
+      });
+    }
+    const origin = resolveOrigin(req);
 
     // Server-trusted re-pricing (shared with the BTCPay rail).
     const { lines, eligibleSubtotal, fullSubtotal } = await priceLines(items);
@@ -157,22 +169,18 @@ export async function createHandler(req, res) {
       appliedDiscount = { couponId: coupon.id, amount: couponDollars };
     }
 
-    // ── US-only shipping ────────────────────────────────────────────────────
-    // Restrict the address Stripe collects to the US, and attach a shipping
-    // rate (a pre-created rate id when available, else an inline flat rate).
-    const shippingOption = process.env.STRIPE_US_SHIPPING_RATE_ID
-      ? { shipping_rate: process.env.STRIPE_US_SHIPPING_RATE_ID }
-      : {
-          shipping_rate_data: {
-            type: "fixed_amount",
-            display_name: "Standard US Shipping",
-            fixed_amount: { amount: 900, currency: "usd" },
-            delivery_estimate: {
-              minimum: { unit: "business_day", value: 2 },
-              maximum: { unit: "business_day", value: 5 },
-            },
-          },
-        };
+    // ── US-only shipping (P0.1: server-authoritative) ───────────────────────
+    // Charged shipping is resolved by lib/shipping.js from the SAME config the
+    // storefront renders, so the free-shipping threshold and the customer's
+    // selected method are actually honored. A pre-created Stripe rate id is NOT
+    // used here: it is a single fixed rate and cannot express "free over
+    // threshold" or a per-order method choice, which is what produced the
+    // original mismatch.
+    const shipping = resolveShipping({
+      methodId: shippingMethod,
+      subtotalCents: Math.round(fullSubtotal * 100),
+    });
+    const shippingOption = stripeShippingOption(shipping);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -207,12 +215,19 @@ export async function createHandler(req, res) {
         // Links the pre-payment compliance record (api/checkout-compliance.js)
         // to the order created by the webhook.
         compliance_id: complianceId ? String(complianceId).slice(0, 32) : "",
+        shipping_method: shipping.methodId,
+        shipping_cents: String(shipping.amountCents),
+        shipping_free: shipping.free ? "true" : "false",
       },
     });
 
     res.json({ url: session.url });
   } catch (err) {
-    console.error("Stripe error:", err?.message || err);
-    res.status(500).json({ error: err?.message || "Stripe error" });
+    // P0.3: never return provider/database internals to the customer.
+    failSafely(res, {
+      status: 500, code: "checkout_failed",
+      message: "We couldn't start checkout. Please try again, or contact support with this reference.",
+      error: err, context: "create-checkout-session", meta: { userId: user?.id },
+    });
   }
 }

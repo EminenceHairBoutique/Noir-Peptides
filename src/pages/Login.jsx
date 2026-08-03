@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 import AuthLayout, { authInput, authLabel } from "../components/AuthLayout";
+import { safeRedirectPath } from "../lib/safeRedirect";
 
 export default function Login() {
   const { login, loginWithGoogle, authStatus, attestationComplete } = useUser();
@@ -21,9 +22,9 @@ export default function Login() {
     if (!attestationComplete) {
       navigate("/register/attestation", { replace: true });
     } else {
-      navigate(intended && intended !== "/login" ? intended : "/home", {
-        replace: true,
-      });
+      // Open-redirect guard: a stored pathname like "//evil.example" is
+      // protocol-relative and would navigate off-site (see lib/safeRedirect.js).
+      navigate(safeRedirectPath(intended), { replace: true });
     }
   }, [authStatus, attestationComplete, intended, navigate]);
 

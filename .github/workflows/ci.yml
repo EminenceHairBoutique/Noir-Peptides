@@ -1,0 +1,121 @@
+# Noir Peptides — CI (audit P0.4)
+#
+# Before this, nothing verified a pull request: lint, tests, the production
+# build, and migration ordering were all trust-based. Every check here is one
+# this repository already has and can fail on — no aspirational gates.
+#
+# Secrets are deliberately NOT required: the build and tests must pass without
+# them, which also proves the app degrades safely when a rail is unconfigured.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install (locked)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit + audit suites
+        run: npm run test:unit
+
+      - name: Product data audit
+        run: npm run audit:products
+
+      - name: Production build
+        run: npm run build
+
+      - name: Dependency vulnerabilities (production deps)
+        # Advisory: reports high/critical without blocking the merge on a
+        # transitive advisory that has no patch yet.
+        run: npm audit --omit=dev --audit-level=high || true
+
+  migrations:
+    name: Migration hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No duplicate migration numbers
+        run: |
+          dupes=$(ls supabase/migrations/*.sql | xargs -n1 basename \
+            | grep -oE '^[0-9]{4}' | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "::error::Duplicate migration prefixes: $dupes"; exit 1
+          fi
+          echo "Migration numbering OK"
+
+      - name: Migrations apply cleanly to a fresh Postgres
+        run: |
+          docker run -d --name pg -e POSTGRES_PASSWORD=pw -p 5432:5432 postgres:16
+          for i in $(seq 1 30); do
+            docker exec pg pg_isready -U postgres && break || sleep 2
+          done
+          # Supabase-provided objects the migrations assume.
+          docker exec -i pg psql -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          create schema if not exists auth;
+          create table if not exists auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
+          create or replace function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
+          alter database postgres set check_function_bodies = off;
+          SQL
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            case "$f" in *PROPOSED*) echo "skip (proposed): $f"; continue;; esac
+            # pgvector isn't present on the stock image; shim it so ordering is
+            # still validated end to end.
+            if grep -qE 'ivfflat|vector\(' "$f"; then
+              sed -E -e 's/extension if not exists vector/extension if not exists pg_trgm/' \
+                     -e 's/vector\([0-9]+\)/text/g' -e '/idx_embeddings_vector/,+1d' "$f" \
+                | docker exec -i pg psql -U postgres -v ON_ERROR_STOP=1 >/dev/null \
+                || { echo "::error::Migration failed: $f"; exit 1; }
+            else
+              docker exec -i pg psql -U postgres -v ON_ERROR_STOP=1 < "$f" >/dev/null \
+                || { echo "::error::Migration failed: $f"; exit 1; }
+            fi
+            echo "applied: $(basename "$f")"
+          done
+          echo "All migrations applied cleanly."
+
+  e2e:
+    name: End-to-end (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
