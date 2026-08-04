@@ -136,8 +136,7 @@ export default function CheckoutTwoStep() {
           qualifiedPurchaserConfirmed: true,
           shippingMethod: form.shippingMethod,
           complianceId: complianceId || undefined,
-          brand: "Noir Peptides",
-        }),
+          brand: "Noir Peptides",        }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
