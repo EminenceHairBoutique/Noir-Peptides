@@ -5,6 +5,7 @@
 import { requireAdmin } from "../_utils/auth.js";
 import { supabaseServer } from "../../lib/supabaseServer.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
+import { failSafely } from "../../lib/apiError.js";
 
 const COLS = "id, product_id, rating, aspect, title, body, verified_purchase, status, created_at";
 
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
       .eq("id", body.id)
       .select("id, status")
       .maybeSingle();
-    if (error) return json(res, 500, { error: error.message || "Could not update review" });
+    if (error) return failSafely(res, { status: 500, code: "review_update_failed", message: "Could not update the review. Please try again.", error, context: "admin/reviews:update" });
     return json(res, 200, { review: data });
   }
 

@@ -5,6 +5,7 @@
 import { requireAdmin } from "../_utils/auth.js";
 import { supabaseServer } from "../../lib/supabaseServer.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
+import { failSafely } from "../../lib/apiError.js";
 
 const COLUMNS = "id, user_id, feature, kind, prompt, reply, reviewed, created_at";
 
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
       .eq("id", body.id)
       .select("id, reviewed")
       .maybeSingle();
-    if (error) return json(res, 500, { error: error.message || "Could not update flag" });
+    if (error) return failSafely(res, { status: 500, code: "flag_update_failed", message: "Could not update the flag. Please try again.", error, context: "admin/ai-flags:update" });
     return json(res, 200, { flag: data });
   }
 

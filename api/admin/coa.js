@@ -5,6 +5,7 @@
 import { requireAdmin } from "../_utils/auth.js";
 import { supabaseServer } from "../../lib/supabaseServer.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
+import { failSafely } from "../../lib/apiError.js";
 
 const COLUMNS =
   "id, product_id, batch_number, lot_number, lab_name, file_url, purity_percent, " +
@@ -46,7 +47,7 @@ export default async function handler(req, res) {
     if (!fields.product_id) return json(res, 400, { error: "product_id is required" });
     if (!fields.lot_number) return json(res, 400, { error: "lot_number (or batch_number) is required" });
     const { data, error } = await supabaseServer.from("coas").insert(fields).select(COLUMNS).maybeSingle();
-    if (error) return json(res, 500, { error: error.message || "Could not create COA" });
+    if (error) return failSafely(res, { status: 500, code: "coa_create_failed", message: "Could not save the COA. Please try again.", error, context: "admin/coa:create" });
     return json(res, 200, { coa: data });
   }
 
@@ -57,7 +58,7 @@ export default async function handler(req, res) {
     const fields = pickCoaFields(body || {});
     delete fields.product_id; // don't allow reparenting on edit
     const { data, error } = await supabaseServer.from("coas").update(fields).eq("id", id).select(COLUMNS).maybeSingle();
-    if (error) return json(res, 500, { error: error.message || "Could not update COA" });
+    if (error) return failSafely(res, { status: 500, code: "coa_update_failed", message: "Could not update the COA. Please try again.", error, context: "admin/coa:update" });
     return json(res, 200, { coa: data });
   }
 
