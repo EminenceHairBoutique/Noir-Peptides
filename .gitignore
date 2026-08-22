@@ -61,3 +61,5 @@ src/output.css
 /*.png
 /*.gif
 /*.webp
+# Mobile audit scratch (screenshots + ad-hoc capture scripts)
+.mobile-audit/

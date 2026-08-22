@@ -1,0 +1,39 @@
+# Noir Peptides — Mobile Enhancement Roadmap
+
+_Stage 9 proposals, ranked by impact-to-effort. These are upgrades beyond the
+defect fixes in `MOBILE_AUDIT.md`. Effort: S (<½ day) · M (1–3 days) · L (week+).
+"Before launch?" reflects that nearly all traffic here is phone traffic._
+
+## Do before launch
+
+| # | Enhancement | Why it fits this audience | Effort | Before launch? |
+| --- | --- | --- | --- | --- |
+| 1 | ~~**Sticky add-to-cart bar on the PDP**~~ — **✅ BUILT this pass** (`src/components/StickyBuyBar.jsx`). variant · price · Add to Cart; appears once the inline CTA scrolls out of view (IntersectionObserver), `env(safe-area-inset-bottom)` padding, hidden while the cart drawer is open, `md:hidden` so desktop is untouched, `aria-hidden`+`tabIndex -1` while off. Out-of-stock variants show "Notify Me" → scrolls to the restock form. Verified: hidden when inline CTA visible, shown otherwise; 0 overflow regression | The PDP is long on mobile; the buy action stranded at the top. Biggest mobile conversion lever | M | **Done** |
+| 2 | ~~**Filter/sort as a bottom sheet**~~ — **✅ BUILT this pass.** New accessible primitive `src/components/ui/BottomSheet.jsx` (role=dialog, aria-modal, focus trap, initial focus, focus restore, Escape, `#root` inert, body-scroll lock, safe-area) — the reusable scaffold the sequencing note called for. On mobile the "Filters" button opens the sheet with the same facets; desktop keeps the inline panel. Verified at 320px: aria-modal, labelled, focus trapped inside, `#root` inert, "Show results" footer | Native mobile pattern; gives facets real room | M | **Done** |
+| 3 | **Raise primary tap targets to 44px** — **PARTIAL this pass.** Filter facet chips, the sheet close button, and the sort `<select>` (43→44) are now ≥44px. **Remaining:** category-tab strip and footer/breadcrumb **text links** (~17px tall) — these share link styling site-wide; raising them is a deliberate shared-style change, tracked here | mis-taps on the category nav are the likeliest daily friction | S | Partial |
+| 4 | **Skeleton loading states** for the catalog grid and PDP | The grid currently pops in after a data fetch (layout shift). Skeletons hold the layout and read as premium | S | **Yes** |
+| 5 | **1-column card layout ≤359px** | Removes the last title-clamp on the longest names and gives price/COA full width on the smallest phones | S | Nice-to-have |
+
+## Do soon after launch
+
+| # | Enhancement | Why | Effort | Before launch? |
+| --- | --- | --- | --- | --- |
+| 6 | **QR-scan entry to lot verification** — camera → `/v/<code>` | The single most mobile-native feature this business could have: scan the vial in hand, land on its certificate. The verification route already exists; this is the front door to it. A genuine differentiator (the benchmark competitor is web-only) | M | Soon |
+| 7 | **PWA shell** — installable, offline catalog shell, app icons | Returning research buyers reorder; an installed icon + instant shell is high-retention, low-risk | M | Soon |
+| 8 | **Bottom navigation** for primary destinations (Catalog · Verify · Account · Cart) | Frees the crowded top chrome and puts core destinations in thumb reach | M | Soon |
+| 9 | **Swipe gallery** on the PDP media / 3D vial | Natural touch interaction; the media column already supports multiple views | S | Soon |
+
+## Later / evaluate
+
+| # | Enhancement | Why | Effort |
+| --- | --- | --- | --- |
+| 10 | **Haptics** on add-to-cart and successful lot verification (`navigator.vibrate`, progressive) | Small delight on confirmations; trivial and guarded | S |
+| 11 | **Pull-to-refresh** on the catalog | Familiar gesture; only worth it if catalog data becomes more dynamic | S |
+| 12 | **Reduced-motion pass** on catalog card entrance staggering | If cards animate on scroll, honor `prefers-reduced-motion`; audit before adding more motion | S |
+
+## Sequencing note
+
+Items 1–4 are the launch set and share infrastructure: the bottom sheet (#2) and
+sticky bar (#1) both want one accessible, safe-area-aware sheet/dialog primitive.
+Build that primitive once, then #1, #2, and any future mobile modal reuse it —
+that's the highest-leverage first move.

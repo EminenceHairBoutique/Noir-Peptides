@@ -103,7 +103,13 @@ const ProductCard = ({ product, label = null }) => {
           {category ? category.replace(/-/g, " ") : "Research Material"}
         </p>
 
-        <h3 className="text-[14px] text-se-bone font-display tracking-[0.02em] mb-1 line-clamp-1">
+        {/* Two lines so full names like "TB-500 (Thymosin β4)" aren't cut
+            mid-word in the 2-col grid; min-height keeps card rows even when
+            one title is 1 line and its neighbor is 2. Full name in title. */}
+        <h3
+          title={product.name}
+          className="text-[14px] text-se-bone font-display tracking-[0.02em] mb-1 line-clamp-2 min-h-[2.5em] leading-tight"
+        >
           {product.name}
         </h3>
 
@@ -111,9 +117,11 @@ const ProductCard = ({ product, label = null }) => {
           {product.form || "Lyophilized powder"}
         </p>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-baseline gap-2">
-            <span className="text-[11px] font-accent text-se-steel uppercase tracking-[0.12em]">
+        {/* flex-wrap + shrink-0 so at 320px the COA marker drops to its own
+            line instead of overlapping the price (was a two-line collision). */}
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+          <div className="flex items-baseline gap-1.5 shrink-0">
+            <span className="text-[10px] font-accent text-se-steel uppercase tracking-[0.1em]">
               from
             </span>
             <span className="text-[15px] font-accent font-semibold text-se-bone">
@@ -121,9 +129,9 @@ const ProductCard = ({ product, label = null }) => {
             </span>
           </div>
           {product.coa_url ? (
-            <COABadge coaUrl={product.coa_url} />
+            <div className="shrink-0"><COABadge coaUrl={product.coa_url} /></div>
           ) : (
-            <span className="text-[9px] font-accent uppercase tracking-[0.14em] text-se-steel">
+            <span className="shrink-0 whitespace-nowrap text-[9px] font-accent uppercase tracking-[0.1em] text-se-steel">
               COA on request
             </span>
           )}

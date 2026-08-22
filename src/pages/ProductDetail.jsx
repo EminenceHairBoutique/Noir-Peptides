@@ -1,5 +1,5 @@
 // src/pages/ProductDetail.jsx — Noir Peptides Research Material PDP
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ChevronLeft, FileText, Snowflake, XCircle, Truck } from "lucide-react";
 import { motion as Motion } from "framer-motion";
@@ -23,6 +23,7 @@ import CoaCard from "../components/CoaCard";
 import { getCoasForProduct } from "../lib/coas";
 import { getProductLabel } from "../lib/labelsApi";
 import VialPreview from "../components/product3d/VialPreview";
+import StickyBuyBar from "../components/StickyBuyBar";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import { PRODUCT_IS_NOT, STORAGE_GUIDANCE } from "../config/compliance";
 import { trackViewItem } from "../utils/track";
@@ -43,7 +44,11 @@ const fadeUp = {
 
 export default function ProductDetail() {
   const { slug } = useParams();
-  const { addToCart } = useCart();
+  const { addToCart, isOpen: cartOpen } = useCart();
+  // Anchor the sticky mobile buy bar observes: it appears once this inline CTA
+  // scrolls out of view.
+  const mainCtaRef = useRef(null);
+  const notifyRef = useRef(null);
 
   const [product, setProduct] = useState(null);
   const [variants, setVariants] = useState([]);
@@ -434,6 +439,7 @@ export default function ProductDetail() {
                   </div>
 
                   <button
+                    ref={mainCtaRef}
                     type="button"
                     onClick={handleAddToCart}
                     className="btn-primary w-full py-4 text-[12px] tracking-[0.2em] mb-3"
@@ -477,10 +483,12 @@ export default function ProductDetail() {
                   >
                     Out of Stock
                   </button>
-                  <BackInStockForm
-                    productId={product.id}
-                    variantId={selectedVariant?.id}
-                  />
+                  <div ref={notifyRef}>
+                    <BackInStockForm
+                      productId={product.id}
+                      variantId={selectedVariant?.id}
+                    />
+                  </div>
                 </>
               )}
 
@@ -679,6 +687,17 @@ export default function ProductDetail() {
 
         <RecentlyViewed excludeSlug={product.slug} />
       </main>
+
+      <StickyBuyBar
+        ctaRef={mainCtaRef}
+        name={product.name}
+        sizeLabel={selectedVariant?.size_label || (selectedVariant?.vial_size_mg ? `${selectedVariant.vial_size_mg} mg` : "")}
+        priceLabel={money(lineTotal)}
+        isOut={isOut}
+        cartOpen={cartOpen}
+        onAdd={handleAddToCart}
+        onNotify={() => notifyRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+      />
     </>
   );
 }
