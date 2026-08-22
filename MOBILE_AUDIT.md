@@ -186,12 +186,19 @@ needs confirming against production once an approved label is live]
   or self-hosting the faces. Out of scope for a layout pass — logged for the
   performance workstream. **[VERIFIED as measured here; production impact SUSPECTED]**
 
-- **Sub-44px tap targets** — the guard reports ~16–18 per catalog view, almost all
-  **inline text links** (category tabs at ~17px tall, footer links, breadcrumbs,
-  the sort `<select>` at 43px). These are a spacing/hit-area design decision, not
-  broken layout; raising them touches shared link styling site-wide and is better
-  done deliberately. The spec logs the full list every run so a *new* undersized
-  control is caught. **[REPORTED]**
+- **Sub-44px tap targets — RAISED (third pass).** Primary navigation now has
+  ≥44px hit boxes via padding + negative-margin expansion (hit area grows, layout
+  pixel-identical, verified by measuring the strip row height before/after):
+  category tabs 17→45px, navbar wordmark 15→45px, guest "Log In" 17→45px, PDP
+  breadcrumb and category overline →45px, footer bottom legal row →45px. Footer
+  link columns take a different, deliberate shape: the `space-y-3` gaps became
+  the links' own padding — same 32px visual pitch, full-column-width hit boxes,
+  **no overlapping targets** (a first attempt with negative margins collided
+  with the sibling margins and was caught by a geometry check, then replaced).
+  True 44px there would double the footer's height for tertiary links.
+  Still reported, deliberately exempt: in-sentence prose links (cookie banner,
+  PDP copy — WCAG 2.5.8's inline exception) and the cart item title link (dense
+  row; the row's controls are already ≥44px). **[VERIFIED]**
 - **Title clamp on the longest names** — `title` attr exposes the full value, but
   the very longest names still ellipsis on line 2 at 320px in the 2-col grid.
   Acceptable; a 1-col layout ≤359px (see `MOBILE_ROADMAP.md`) would remove it.

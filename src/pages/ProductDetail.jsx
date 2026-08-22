@@ -281,7 +281,7 @@ export default function ProductDetail() {
         <div className="content-wide pt-28 pb-4">
           <Link
             to="/shop"
-            className="inline-flex items-center gap-1.5 text-se-steel hover:text-se-gold text-[11px] font-accent tracking-[0.15em] uppercase transition-colors"
+            className="inline-flex items-center gap-1.5 py-[14px] -my-[14px] text-se-steel hover:text-se-gold text-[11px] font-accent tracking-[0.15em] uppercase transition-colors"
           >
             <ChevronLeft size={14} />
             Back to Catalog
@@ -365,7 +365,7 @@ export default function ProductDetail() {
             >
               <Link
                 to={`/shop/${product.category_slug}`}
-                className="text-overline hover:text-se-bone transition-colors mb-3"
+                className="text-overline hover:text-se-bone transition-colors mb-3 inline-block py-[14px] -my-[14px] self-start"
               >
                 {categoryName}
               </Link>

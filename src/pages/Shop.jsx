@@ -270,11 +270,12 @@ export default function Shop() {
         {/* Sticky control bar */}
         <div className="border-b border-se-concrete sticky top-0 z-30 bg-se-black/95 backdrop-blur-sm">
           <div className="content-wide py-4">
-            {/* Category tabs */}
+            {/* Category tabs. py+negative-my expands each link's hit box to
+                44px without changing the strip's visual height. */}
             <div className="flex items-center gap-6 overflow-x-auto pb-3 scrollbar-hide">
-              <Link to="/shop" className={`text-[11px] font-accent uppercase tracking-[0.18em] whitespace-nowrap transition ${!activeCategory ? "text-se-gold" : "text-se-steel hover:text-se-bone"}`}>All</Link>
+              <Link to="/shop" className={`inline-flex items-center py-[14px] -my-[14px] text-[11px] font-accent uppercase tracking-[0.18em] whitespace-nowrap transition ${!activeCategory ? "text-se-gold" : "text-se-steel hover:text-se-bone"}`}>All</Link>
               {categories.map((cat) => (
-                <Link key={cat.slug} to={`/shop/${cat.slug}`} className={`text-[11px] font-accent uppercase tracking-[0.18em] whitespace-nowrap transition ${activeCategory?.slug === cat.slug ? "text-se-gold" : "text-se-steel hover:text-se-bone"}`}>{cat.name}</Link>
+                <Link key={cat.slug} to={`/shop/${cat.slug}`} className={`inline-flex items-center py-[14px] -my-[14px] text-[11px] font-accent uppercase tracking-[0.18em] whitespace-nowrap transition ${activeCategory?.slug === cat.slug ? "text-se-gold" : "text-se-steel hover:text-se-bone"}`}>{cat.name}</Link>
               ))}
             </div>
 
