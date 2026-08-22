@@ -372,6 +372,11 @@ body::after {
   background-size: 600px 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
+/* Infinite shimmer is exactly the kind of motion reduced-motion users opt out
+   of; keep the placeholder block, drop the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .se-skeleton { animation: none; background-position: 0 0; }
+}
 
 /* ─── Focus States (Accessible + On-brand) ───────────────────────────── */
 /* WCAG 2.2 Focus Appearance (2.4.11/2.4.13): a high-contrast ring plus a dark

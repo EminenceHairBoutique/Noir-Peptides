@@ -55,6 +55,37 @@ marked and carried to "Remaining"._
   collapse is cosmetically minor here; no fixed `h-screen` full-viewport traps
   were found. Left unchanged to avoid churn. [SUSPECTED low-impact]
 
+## ⚠ Open finding: PDP layout shift (CLS ≈ 1.0) — **root cause NOT identified**
+
+Measured with a real `PerformanceObserver('layout-shift')` at 390px against the
+built preview:
+
+| Route | CLS | Verdict |
+| --- | --- | --- |
+| `/shop` | **0** | good — the skeleton grid matches the real card grid exactly |
+| `/products/bpc-157` | **~1.0** | **poor** (10× the 0.1 threshold) |
+
+The PDP records a **single** shift, `v=1.0`, at **t≈12.5s**, sourced to
+`FOOTER.bg-se-charcoal`. What I established and what I did **not**:
+
+- **Ruled out — skeleton height.** I rewrote the PDP loading skeleton to mirror
+  the real page structure (media + buy column + below-fold bands) instead of a
+  short centered block. CLS was **unchanged**, so the short skeleton was not the
+  cause. The rewrite is kept anyway: it is a strictly better loading state.
+- **Ruled out — API hang.** I suspected the backend-less preview left
+  `/api/product-label` hanging until timeout. Measured: it returns **500 in
+  20ms**. Not the trigger.
+- **Not established.** What actually changes layout at ~12.5s. Leading
+  suspects, untested: the lazy `vendor-three` chunk (913 KB) initializing the 3D
+  vial and resizing its container, or a late image/font settling. The
+  `prev=0→cur=0` rects in the shift record are also unexplained.
+
+**This needs production verification before it is treated as a real user-facing
+defect** — the sandbox has no Supabase and no serverless functions, so the load
+sequence here is not representative. If it reproduces in production, the next
+step is to bisect by disabling the 3D vial on the PDP and re-measuring.
+**[VERIFIED as measured; root cause SUSPECTED only]**
+
 ## Remaining (reported, not fixed this pass)
 
 - **Sub-44px tap targets** — the guard reports ~16–18 per catalog view, almost all
