@@ -21,6 +21,7 @@ defect fixes in `MOBILE_AUDIT.md`. Effort: S (<½ day) · M (1–3 days) · L (w
 | 6 | **QR-scan entry to lot verification** — camera → `/v/<code>` | The single most mobile-native feature this business could have: scan the vial in hand, land on its certificate. The verification route already exists; this is the front door to it. A genuine differentiator (the benchmark competitor is web-only) | M | Soon |
 | 7 | **PWA shell** — installable, offline catalog shell, app icons | Returning research buyers reorder; an installed icon + instant shell is high-retention, low-risk | M | Soon |
 | 8 | **Bottom navigation** for primary destinations (Catalog · Verify · Account · Cart) | Frees the crowded top chrome and puts core destinations in thumb reach | M | Soon |
+| 8b | **Unclip the 3D vial controls on mobile** — with an approved label live, the canvas (418px + control row) overflows the 342px square panel at 390px; Front/Back/zoom/auto-rotate are unreachable (drag-rotate still works). Options: responsive canvas height, controls outside the panel, or a taller mobile panel | The interactive preview is a differentiator; its controls should exist on the device most buyers use | S | Soon |
 | 9 | **Swipe gallery** on the PDP media / 3D vial | Natural touch interaction; the media column already supports multiple views | S | Soon |
 
 ## Later / evaluate

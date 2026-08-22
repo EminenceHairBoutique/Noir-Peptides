@@ -124,3 +124,47 @@ test.describe("layout shift", () => {
     });
   }
 });
+
+// ── Late label arrival ───────────────────────────────────────────────────────
+// In production /api/product-label returns an approved label after first
+// paint, swapping the PDP media panel from the static image to the 3D vial
+// preview and revealing its caption. That swap measured CLS 0.06–0.09 before
+// being stabilized (width-collapsing flex item + in-flow caption). The
+// sandbox's 500 response can never exercise it, so this test fulfills the API
+// with a realistic renderable payload after a delay and holds the same budget.
+const APPROVED_LABEL = {
+  template_id: "noir-clinical-core", default_preset: "front",
+  display_name: "BPC-157", quantity_label: "5 mg",
+  material_type: "Research reference material", composition: null,
+  sku: "BPC157-5", lot_number: "NP-2408-011", batch_number: "B-2408",
+  packaged_date: "2026-06-02", expiration_date: "2028-06-02", retest_date: null,
+  barcode_value: "NP2408011", verification_code: "k7f3qz",
+  storage_short: null, storage_full: null, storage_source_verified: false,
+  manufacturer: "Noir Peptides", distributed_by: "Noir Peptides",
+  country_of_origin: "USA", net_contents: "1 vial", label_version: 3,
+  product_id: "bpc-157", variant_id: "bpc-157-5mg",
+};
+
+test(`CLS under ${CLS_BUDGET} on PDP when the label API responds late`, async ({ page }) => {
+  await seed(page);
+  await page.route("**/api/product-label**", async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ label: APPROVED_LABEL }),
+    });
+  });
+  await page.addInitScript(() => {
+    window.__cls = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (!entry.hadRecentInput) window.__cls += entry.value;
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/product/bpc-157", { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(6000); // label arrives at ~1.5s; let hydration finish
+  const cls = await page.evaluate(() => window.__cls);
+  expect(cls, "PDP layout shift with late label arrival").toBeLessThan(CLS_BUDGET);
+});
