@@ -79,12 +79,28 @@ const BARE_EXACT = ["/verify"];
 // Redirect the legacy plural product path to the canonical singular one.
 function ProductAliasRedirect() {
   const { slug } = useParams();
-  return <Navigate to={`/product/${slug}`} replace />;
+  // Reserve a viewport while the redirect commits. `<Navigate>` renders no
+  // markup, so without this the Footer paints at the top of an otherwise empty
+  // screen for one frame and is then pushed a full viewport down when the real
+  // PDP mounts — measured CLS = 1.0 on this legacy path (canonical
+  // /product/:slug measures 0).
+  return (
+    <div className="min-h-screen" aria-hidden="true">
+      <Navigate to={`/product/${slug}`} replace />
+    </div>
+  );
 }
 
+// `min-h-screen` reserves the routed content area from the very first commit.
+// Without it there is a frame where the lazy route subtree is still empty, the
+// wrapper collapses to 0px, and the Footer paints at the top of the viewport —
+// then gets shoved a full viewport down once the route (or its skeleton)
+// mounts. That single reflow measured CLS = 1.0 on the PDP. It is only a floor:
+// pages taller than the viewport are unaffected.
 function Page({ children }) {
   return (
     <Motion.div
+      className="min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}

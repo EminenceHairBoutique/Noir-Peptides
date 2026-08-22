@@ -55,38 +55,80 @@ marked and carried to "Remaining"._
   collapse is cosmetically minor here; no fixed `h-screen` full-viewport traps
   were found. Left unchanged to avoid churn. [SUSPECTED low-impact]
 
-## ⚠ Open finding: PDP layout shift (CLS ≈ 1.0) — **root cause NOT identified**
+## ✅ Resolved: layout shift on the legacy product alias (was "PDP CLS ≈ 1.0")
 
-Measured with a real `PerformanceObserver('layout-shift')` at 390px against the
-built preview:
+**This finding was previously reported as an unexplained PDP defect. That was
+wrong, and the correction matters: the measurements had been taken against
+`/products/bpc-157` — the legacy *plural* alias — not the canonical
+`/product/:slug` the site actually links to.** Measured at 390×844 against the
+built preview with a real `PerformanceObserver('layout-shift')`:
 
-| Route | CLS | Verdict |
+| Route | CLS before | CLS after |
 | --- | --- | --- |
-| `/shop` | **0** | good — the skeleton grid matches the real card grid exactly |
-| `/products/bpc-157` | **~1.0** | **poor** (10× the 0.1 threshold) |
+| `/product/bpc-157` (canonical) | **0** | 0 |
+| `/products/bpc-157` (legacy alias) | **1.0** | **0** |
+| `/shop`, `/`, `/cart`, `/research`, `/verify-lot` | 0 | 0 |
 
-The PDP records a **single** shift, `v=1.0`, at **t≈12.5s**, sourced to
-`FOOTER.bg-se-charcoal`. What I established and what I did **not**:
+### Root cause
 
-- **Ruled out — skeleton height.** I rewrote the PDP loading skeleton to mirror
-  the real page structure (media + buy column + below-fold bands) instead of a
-  short centered block. CLS was **unchanged**, so the short skeleton was not the
-  cause. The rewrite is kept anyway: it is a strictly better loading state.
-- **Ruled out — API hang.** I suspected the backend-less preview left
-  `/api/product-label` hanging until timeout. Measured: it returns **500 in
-  20ms**. Not the trigger.
-- **Not established.** What actually changes layout at ~12.5s. Leading
-  suspects, untested: the lazy `vendor-three` chunk (913 KB) initializing the 3D
-  vial and resizing its container, or a late image/font settling. The
-  `prev=0→cur=0` rects in the shift record are also unexplained.
+Traced at animation-frame resolution (`footer.getBoundingClientRect()` sampled
+every rAF), the boot sequence on the alias path was:
 
-**This needs production verification before it is treated as a real user-facing
-defect** — the sandbox has no Supabase and no serverless functions, so the load
-sequence here is not representative. If it reproduces in production, the next
-step is to bisect by disabling the 3D vial on the PDP and re-measuring.
-**[VERIFIED as measured; root cause SUSPECTED only]**
+| t | State |
+| --- | --- |
+| 74ms | first React commit — Navbar is `fixed` (0 layout height) and the routed subtree is empty, so **the Footer paints at `top: 0`, filling the viewport** (doc height 1112 = footer alone) |
+| 109ms | the real page mounts; doc height → 2392, footer pushed to `top: 1280`, fully below the fold |
+| 113ms | **one shift, `[0,844] → [0,0]`, v = 1.0** (a full-viewport element displaced more than a full viewport, so the score caps at 1.0) |
+
+`/products/:slug` was routed to a bare `<Navigate>` with no page wrapper.
+`<Navigate>` renders **no markup at all**, so nothing reserved vertical space
+during the redirect frame and the footer was the only thing on screen.
+
+### Fix
+
+Reserve the content area so the footer can never paint inside the viewport:
+
+- `ProductAliasRedirect` now wraps its `<Navigate>` in a `min-h-screen` spacer.
+- The shared `Page` wrapper also carries `min-h-screen`, so any route whose lazy
+  chunk commits late gets the same floor. It is only a *floor* — pages taller
+  than the viewport are unaffected.
+
+Verified: the redirect still resolves (`/products/bpc-157` → `/product/bpc-157`)
+and CLS is **0 at 320, 390 and 1280** on both paths. **[VERIFIED]**
+
+### Hypotheses tested and disproven along the way
+
+Recording these because each one looked plausible and cost a measurement:
+
+- **Skeleton height.** Rewriting the PDP skeleton to mirror the real layout left
+  CLS unchanged. (The rewrite is kept — it is a better loading state regardless.)
+- **A hanging `/api/product-label`.** It returns 500 in ~20ms. Not a hang.
+- **The lazy `vendor-three` 3D vial chunk.** Instrumented: **no `<canvas>` ever
+  mounted** during the measurement window, so the vial was never involved.
+- **The render-blocking Google Fonts stylesheet.** It genuinely stalls this
+  sandbox (`ERR_CONNECTION_RESET` after ~12.5s, delaying `DOMContentLoaded` to
+  12.6s — which is why the shift appeared to happen "at t≈12.5s"). But aborting
+  the request dropped DCL to 91ms **and CLS stayed at 1.0**. It moved *when* the
+  shift happened, not *whether*. Worth noting separately: that stylesheet is
+  render-blocking with no fallback, so a user behind a slow or blocked Google
+  Fonts sees a blank page until it resolves. Not fixed here — flagged below.
+
+### Regression guard
+
+`tests/mobile/layout-audit.spec.js` now asserts **CLS < 0.1** on
+`/product/bpc-157`, `/products/bpc-157`, `/shop` and `/`. The same measurement
+returned 1.0 before the fix, so the guard demonstrably fails on the regression.
 
 ## Remaining (reported, not fixed this pass)
+
+- **Render-blocking Google Fonts stylesheet** — `index.html` loads three
+  families via a plain `rel="stylesheet"` with no fallback. If Google Fonts is
+  slow or unreachable (corporate proxy, restrictive network), first paint is
+  blocked until it fails. Observed directly in this sandbox: 12.6s to
+  `DOMContentLoaded`. It does **not** cause layout shift (proven above), but it
+  is a real first-paint risk. Fix would be `media="print" onload` async loading
+  or self-hosting the faces. Out of scope for a layout pass — logged for the
+  performance workstream. **[VERIFIED as measured here; production impact SUSPECTED]**
 
 - **Sub-44px tap targets** — the guard reports ~16–18 per catalog view, almost all
   **inline text links** (category tabs at ~17px tall, footer links, breadcrumbs,

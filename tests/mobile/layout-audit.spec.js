@@ -7,7 +7,7 @@
 import { test, expect } from "@playwright/test";
 
 const WIDTHS = [320, 360, 390];
-const ROUTES = ["/shop", "/products/bpc-157", "/cart", "/"];
+const ROUTES = ["/shop", "/product/bpc-157", "/products/bpc-157", "/cart", "/"];
 const MIN_TAP = 44;
 
 
@@ -94,3 +94,33 @@ for (const width of WIDTHS) {
     }
   });
 }
+
+// ── Cumulative Layout Shift guard ────────────────────────────────────────────
+// A frame in which the routed content area is empty lets the Footer paint at
+// the top of the viewport; when the real page mounts it is pushed a full
+// viewport down, which scores a maximal CLS of 1.0. That regressed on the
+// legacy /products/:slug redirect (a bare <Navigate> renders no markup) and is
+// invisible to the overflow checks above, so it gets its own guard.
+const CLS_BUDGET = 0.1; // Core Web Vitals "good" threshold
+
+test.describe("layout shift", () => {
+  for (const route of ["/product/bpc-157", "/products/bpc-157", "/shop", "/"]) {
+    test(`CLS under ${CLS_BUDGET} on ${route}`, async ({ page }) => {
+      await seed(page);
+      await page.addInitScript(() => {
+        window.__cls = 0;
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            if (!entry.hadRecentInput) window.__cls += entry.value;
+          }
+        }).observe({ type: "layout-shift", buffered: true });
+      });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(route, { waitUntil: "domcontentloaded" });
+      // Let lazy chunks, redirects and data fetches settle.
+      await page.waitForTimeout(5000);
+      const cls = await page.evaluate(() => window.__cls);
+      expect(cls, `${route} cumulative layout shift`).toBeLessThan(CLS_BUDGET);
+    });
+  }
+});
