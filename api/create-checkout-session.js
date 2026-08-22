@@ -7,6 +7,7 @@ import { priceLines, computeAdjustments } from "../lib/pricing.js";
 import { resolveOrigin, originUnconfigured } from "../lib/siteOrigin.js";
 import { resolveShipping, stripeShippingOption } from "../lib/shipping.js";
 import { failSafely } from "../lib/apiError.js";
+import { checkoutIdempotencyKey } from "../lib/idempotency.js";
 
 // Pin the Stripe API version so behavior is stable across SDK upgrades.
 const STRIPE_API_VERSION = "2024-06-20";
@@ -86,6 +87,7 @@ export async function createHandler(req, res) {
       referralCode,
       complianceId,
       shippingMethod,
+      requestToken,
     } = req.body || {};
 
     // Per-checkout acknowledgment (defense in depth on top of the gate).
@@ -146,6 +148,14 @@ export async function createHandler(req, res) {
       };
     });
 
+    // P1.1: one stable key per checkout ATTEMPT. Passed to BOTH the coupon and
+    // the session create, so a double-click/retry/second-tab returns Stripe's
+    // existing objects instead of minting duplicates.
+    const idempotencyKey = checkoutIdempotencyKey({
+      userId, items, discountCode, redeemPoints, referralCode,
+      shippingMethod, requestToken, rail: "stripe",
+    });
+
     // Promo + loyalty → ONE Stripe coupon (all amounts server-derived).
     const adj = await computeAdjustments({
       userId,
@@ -160,12 +170,15 @@ export async function createHandler(req, res) {
     let appliedDiscount = null;
     const couponCents = Math.round(couponDollars * 100);
     if (couponCents > 0) {
-      const coupon = await stripe.coupons.create({
-        amount_off: couponCents,
-        currency: "usd",
-        duration: "once",
-        name: promoCode ? `${promoCode} + rewards` : "Research rewards",
-      });
+      const coupon = await stripe.coupons.create(
+        {
+          amount_off: couponCents,
+          currency: "usd",
+          duration: "once",
+          name: promoCode ? `${promoCode} + rewards` : "Research rewards",
+        },
+        { idempotencyKey: `${idempotencyKey}_coupon` }
+      );
       appliedDiscount = { couponId: coupon.id, amount: couponDollars };
     }
 
@@ -219,7 +232,7 @@ export async function createHandler(req, res) {
         shipping_cents: String(shipping.amountCents),
         shipping_free: shipping.free ? "true" : "false",
       },
-    });
+    }, { idempotencyKey });
 
     res.json({ url: session.url });
   } catch (err) {

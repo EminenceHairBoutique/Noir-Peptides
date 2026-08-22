@@ -1,7 +1,7 @@
 // src/pages/CheckoutTwoStep.jsx
-// Two-step checkout (1 Personal → 2 Payment) — REVIEW BUILD, not yet routed.
-// Parallel to the existing single-step Checkout.jsx so nothing that works
-// today breaks (Stage 7). Activation = point the /checkout route here.
+// Two-step checkout (1 Personal → 2 Payment). LIVE — this is what /checkout
+// renders (see src/App.jsx). The previous single-step flow remains at
+// src/pages/Checkout.jsx as a one-line rollback target.
 //
 // Compliance model: this build runs in the site's EXISTING authenticated
 // model — /checkout is auth-walled and the server requires a stored
@@ -15,7 +15,7 @@
 // record server-side (POST /api/checkout-compliance — SQL in
 // scripts/proposed-order-attestations.sql), THEN advances to payment. Cart
 // state is preserved across steps and across a back-navigation.
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useUser } from "../context/UserContext";
@@ -61,7 +61,18 @@ export default function CheckoutTwoStep() {
   const [showErrors, setShowErrors] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedRail, setSelectedRail] = useState("crypto");
+  // Rail selection is set from the SERVER's available-rails response
+  // (StepPayment); no hardcoded default, so we never preselect a rail this
+  // deployment can't charge.
+  const [selectedRail, setSelectedRail] = useState("");
+
+  // P1.1: one token per checkout ATTEMPT. Double-clicks, retries and a second
+  // tab of THIS page share it, so the server's idempotency key collapses them
+  // into a single Stripe session + coupon. A fresh page load starts a new
+  // attempt and legitimately gets a new session.
+  const requestTokenRef = useRef(
+    (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  );
 
   // Single source of Step-1 state; preserved across step navigation.
   const [form, setForm] = useState({
@@ -136,7 +147,9 @@ export default function CheckoutTwoStep() {
           qualifiedPurchaserConfirmed: true,
           shippingMethod: form.shippingMethod,
           complianceId: complianceId || undefined,
-          brand: "Noir Peptides",        }),
+          requestToken: requestTokenRef.current,
+          brand: "Noir Peptides",
+        }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));

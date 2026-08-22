@@ -19,6 +19,7 @@ import {
   STATUS_TRANSITIONS,
 } from "../../lib/labelConstants.js";
 import { seedFieldsForVariant } from "../../lib/labelSeed.js";
+import { failSafely } from "../../lib/apiError.js";
 
 const COLS = "*";
 
@@ -165,7 +166,10 @@ export default async function handler(req, res) {
           created.push(data.id);
           await snapshotHistory(data.id, "created:bulk", admin.id, data);
         } catch (e) {
-          failed.push({ product_id: v.product_id, variant_id: v.id, error: e.message });
+          // Log the real cause server-side; the response carries only a
+          // generic marker so provider internals never reach the client.
+          console.error(`label bulk_seed failed for ${v.product_id}/${v.id}:`, e?.message || e);
+          failed.push({ product_id: v.product_id, variant_id: v.id, error: "seed failed" });
         }
       }
       await auditLog(req, admin.id, "label.bulk_seed", "catalog", { created: created.length, failed: failed.length });
@@ -204,7 +208,7 @@ export default async function handler(req, res) {
     try {
       code = await uniqueVerificationCode();
     } catch (e) {
-      return json(res, 500, { error: e.message });
+      return failSafely(res, { status: 500, code: "label_code_failed", message: "Could not generate a verification code. Please try again.", error: e, context: "admin/labels:code" });
     }
 
     const { data, error } = await supabaseServer
@@ -219,7 +223,7 @@ export default async function handler(req, res) {
           error: "The selected product/variant no longer exists in this database. Reload the studio and pick again.",
         });
       }
-      return json(res, 500, { error: error.message || "Could not create label config" });
+      return failSafely(res, { status: 500, code: "label_create_failed", message: "Could not create the label. Please try again.", error, context: "admin/labels:create" });
     }
 
     await snapshotHistory(data.id, "created", admin.id, data);
@@ -266,7 +270,7 @@ export default async function handler(req, res) {
       .eq("id", id)
       .select(COLS)
       .maybeSingle();
-    if (error) return json(res, 500, { error: error.message || "Could not update label config" });
+    if (error) return failSafely(res, { status: 500, code: "label_update_failed", message: "Could not update the label. Please try again.", error, context: "admin/labels:update" });
 
     await snapshotHistory(id, action, admin.id, data);
     await auditLog(req, admin.id, `label.${action}`, id, { status: data.status });
