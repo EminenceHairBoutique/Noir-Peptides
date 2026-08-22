@@ -7,7 +7,7 @@ import { useUser } from "../context/UserContext";
 function Logo({ className = "" }) {
   return (
     <Link to="/" className={`flex items-center gap-2 leading-none ${className}`}>
-      <span className="font-display text-[17px] md:text-[19px] tracking-[0.22em] text-se-bone font-extrabold">
+      <span className="font-display text-[15px] sm:text-[17px] md:text-[19px] tracking-[0.12em] sm:tracking-[0.22em] text-se-bone font-extrabold whitespace-nowrap">
         NOIR
       </span>
       <span
@@ -15,7 +15,7 @@ function Logo({ className = "" }) {
         aria-hidden="true"
         style={{ boxShadow: "0 0 8px rgba(0,194,255,0.8)" }}
       />
-      <span className="font-display text-[17px] md:text-[19px] tracking-[0.22em] text-se-bone font-extrabold">
+      <span className="font-display text-[15px] sm:text-[17px] md:text-[19px] tracking-[0.12em] sm:tracking-[0.22em] text-se-bone font-extrabold whitespace-nowrap">
         PEPTIDES
       </span>
     </Link>
@@ -80,20 +80,23 @@ export default function Navbar() {
   return (
     <>
       <header
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
         className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
           scrolled
             ? "bg-se-black/95 backdrop-blur-md border-b border-se-concrete"
             : "bg-se-black/70 backdrop-blur-sm border-b border-transparent"
         }`}
       >
-        {/* Compliance announcement bar */}
-        <div className="bg-se-charcoal border-b border-se-concrete text-center py-1.5">
-          <p className="text-label text-[9px] tracking-[0.25em] text-se-steel">
+        {/* Compliance announcement bar. Tracking relaxes below sm: heavy
+            letter-spacing on this long line at 320px orphaned "use" onto its
+            own line. balanced wrap keeps it to two even lines when it must. */}
+        <div className="bg-se-charcoal border-b border-se-concrete text-center py-1.5 px-3">
+          <p className="text-label text-[9px] tracking-[0.1em] sm:tracking-[0.25em] text-se-steel [text-wrap:balance]">
             For research use only — Not for human or veterinary use
           </p>
         </div>
 
-        <div className="max-w-[1440px] mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-2">
           {isAuthed ? (
             <button
               type="button"
@@ -151,16 +154,26 @@ export default function Navbar() {
             </>
           ) : (
             // Guest chrome (only shown on public legal pages) — auth entry only.
-            <div className="flex items-center gap-3">
+            // shrink-0 + no-wrap so at 320px these never overlap the wordmark or
+            // clip off the right edge; tracking/padding relax below sm.
+            <div className="flex items-center gap-3 shrink-0">
               <Link
                 to="/login"
-                className="text-[11px] font-accent uppercase tracking-[0.18em] text-se-bone/70 hover:text-se-gold transition"
+                className="text-[11px] font-accent uppercase tracking-[0.1em] sm:tracking-[0.18em] text-se-bone/70 hover:text-se-gold transition whitespace-nowrap"
               >
                 Log In
               </Link>
-              <Link to="/register" className="btn-primary text-[10px] px-4 py-2">
-                Create Account
-              </Link>
+              {/* Three inline elements (wordmark + both actions) can't fit
+                  320px, so the CTA is hidden below sm. Wrapped in a span so the
+                  `hidden` actually applies — btn-primary sets display:inline-flex,
+                  which overrides a `hidden` placed directly on the Link. The Log
+                  In link above reaches /login (which links to registration), so
+                  both auth paths stay one tap away. */}
+              <span className="hidden sm:inline-flex">
+                <Link to="/register" className="btn-primary text-[10px] px-4 py-2 whitespace-nowrap">
+                  Create Account
+                </Link>
+              </span>
             </div>
           )}
         </div>

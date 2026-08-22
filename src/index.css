@@ -306,6 +306,16 @@ body::after {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   border: 1px solid transparent;
+  white-space: nowrap;
+}
+/* In the 2-column grid at phone widths the purity chip and the stock badge
+   sit on opposite corners of a ~150px card and can meet in the middle. Tighten
+   tracking + padding so both stay clear of each other and of the vial art. */
+@media (max-width: 400px) {
+  .badge {
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.45rem;
+  }
 }
 .badge-new {
   background: rgba(0, 194, 255, 0.12);
@@ -361,6 +371,11 @@ body::after {
   );
   background-size: 600px 100%;
   animation: shimmer 1.6s ease-in-out infinite;
+}
+/* Infinite shimmer is exactly the kind of motion reduced-motion users opt out
+   of; keep the placeholder block, drop the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .se-skeleton { animation: none; background-position: 0 0; }
 }
 
 /* ─── Focus States (Accessible + On-brand) ───────────────────────────── */
@@ -595,4 +610,12 @@ table {
 .trust-bar {
   border-top: 1px solid var(--noir-border);
   border-bottom: 1px solid var(--noir-border);
+}
+
+/* Bottom-sheet primitive (BottomSheet.jsx) — MOBILE_ROADMAP #2. */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[slideUp_\.28s_cubic-bezier\(\.2\,\.8\,\.2\,1\)\],
+  .animate-\[fadeIn_\.2s_ease\] { animation: none !important; }
 }

@@ -14,6 +14,7 @@ import { getApprovedProductLabels } from "../lib/labelsApi";
 import ProductCard from "../components/ProductCard";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import SEO from "../components/SEO";
+import BottomSheet from "../components/ui/BottomSheet";
 import { trackSearch } from "../utils/track";
 
 const SORT_OPTIONS = [
@@ -196,13 +197,53 @@ export default function Shop() {
   const facetChip = (active, onClick, label) => (
     <button
       type="button"
+      key={label}
       onClick={onClick}
-      className={`rounded-full border px-3 py-1.5 text-[11px] font-accent uppercase tracking-[0.1em] transition ${
+      className={`rounded-full border px-4 min-h-[44px] inline-flex items-center text-[11px] font-accent uppercase tracking-[0.1em] transition ${
         active ? "border-se-gold text-se-gold bg-se-gold/10" : "border-white/12 text-se-bone/60 hover:border-se-gold/40"
       }`}
     >
       {label}
     </button>
+  );
+
+  // The facet controls, shared by the desktop inline panel and the mobile
+  // bottom sheet (one source, no duplication).
+  const filterFacets = (
+    <>
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.16em] text-se-steel mb-2">Vial size</p>
+        <div className="flex flex-wrap gap-1.5">
+          {allSizes.map((mg) => facetChip(sizes.has(mg), () => toggleSize(mg), `${mg} mg`))}
+          {allSizes.length === 0 && <span className="text-[11px] text-se-steel">—</span>}
+        </div>
+      </div>
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.16em] text-se-steel mb-2">Attributes</p>
+        <div className="flex flex-wrap gap-1.5">
+          {facetChip(inStockOnly, () => setInStockOnly((v) => !v), "In stock")}
+          {facetChip(coaOnly, () => setCoaOnly((v) => !v), "COA on file")}
+          {facetChip(featuredOnly, () => setFeaturedOnly((v) => !v), "Featured")}
+          {facetChip(newOnly, () => setNewOnly((v) => !v), "New")}
+        </div>
+      </div>
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.16em] text-se-steel mb-2">
+          Max price {priceCap != null ? `· ${money(priceCap)}` : ""}
+        </p>
+        <input
+          type="range"
+          min={priceBounds[0]} max={priceBounds[1]}
+          value={priceCap ?? priceBounds[1]}
+          onChange={(e) => setPriceCap(Number(e.target.value))}
+          className="w-full accent-se-gold"
+          aria-label="Maximum price"
+        />
+        <div className="flex justify-between text-[10px] text-se-steel mt-1">
+          <span>{money(priceBounds[0])}</span><span>{money(priceBounds[1])}</span>
+        </div>
+      </div>
+    </>
   );
 
   return (
@@ -248,68 +289,42 @@ export default function Shop() {
                 />
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Wraps at phone widths (was a non-wrapping row that overflowed
+                  320px, running "Filters" and "Compare" together and clipping
+                  the sort control). Each control is shrink-0 with a ≥44px tap
+                  height; the sort select takes its own line below sm. */}
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowFilters((s) => !s)}
-                  className={`inline-flex items-center gap-2 px-3 py-2 border text-[11px] font-accent uppercase tracking-[0.12em] transition ${showFilters || activeFilterCount ? "border-se-gold text-se-gold" : "border-se-concrete text-se-bone/70 hover:border-se-gold/40"}`}
+                  className={`shrink-0 inline-flex items-center gap-2 px-3 py-2.5 border text-[11px] font-accent uppercase tracking-[0.12em] transition whitespace-nowrap ${showFilters || activeFilterCount ? "border-se-gold text-se-gold" : "border-se-concrete text-se-bone/70 hover:border-se-gold/40"}`}
                 >
                   <SlidersHorizontal size={13} /> Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setCompareMode((m) => !m); if (compareMode) { setCompareIds([]); setCompareOpen(false); } }}
-                  className={`inline-flex items-center gap-2 px-3 py-2 border text-[11px] font-accent uppercase tracking-[0.12em] transition ${compareMode ? "border-se-gold text-se-gold" : "border-se-concrete text-se-bone/70 hover:border-se-gold/40"}`}
+                  className={`shrink-0 inline-flex items-center gap-2 px-3 py-2.5 border text-[11px] font-accent uppercase tracking-[0.12em] transition whitespace-nowrap ${compareMode ? "border-se-gold text-se-gold" : "border-se-concrete text-se-bone/70 hover:border-se-gold/40"}`}
                 >
                   <GitCompare size={13} /> Compare
                 </button>
                 <select
                   value={sortParam} onChange={(e) => updateSort(e.target.value)} aria-label="Sort"
-                  className="bg-se-charcoal border border-se-concrete px-3 py-2 text-[11px] font-accent uppercase tracking-[0.12em] text-se-bone focus:outline-none focus:border-se-gold cursor-pointer"
+                  className="w-full sm:w-auto bg-se-charcoal border border-se-concrete px-3 py-2.5 min-h-[44px] text-[11px] font-accent uppercase tracking-[0.12em] text-se-bone focus:outline-none focus:border-se-gold cursor-pointer"
                 >
                   {SORT_OPTIONS.map((opt) => <option key={opt.key} value={opt.key} className="bg-se-charcoal">{opt.label}</option>)}
                 </select>
               </div>
             </div>
 
-            {/* Filter panel */}
+            {/* Filter panel — inline expand on DESKTOP only; on mobile the same
+                facets render inside an accessible bottom sheet (below). */}
             {showFilters && (
-              <div className="mt-3 pt-3 border-t border-se-concrete grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-se-steel mb-2">Vial size</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {allSizes.map((mg) => facetChip(sizes.has(mg), () => toggleSize(mg), `${mg} mg`))}
-                    {allSizes.length === 0 && <span className="text-[11px] text-se-steel">—</span>}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-se-steel mb-2">Attributes</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {facetChip(inStockOnly, () => setInStockOnly((v) => !v), "In stock")}
-                    {facetChip(coaOnly, () => setCoaOnly((v) => !v), "COA on file")}
-                    {facetChip(featuredOnly, () => setFeaturedOnly((v) => !v), "Featured")}
-                    {facetChip(newOnly, () => setNewOnly((v) => !v), "New")}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-se-steel mb-2">
-                    Max price {priceCap != null ? `· ${money(priceCap)}` : ""}
-                  </p>
-                  <input
-                    type="range"
-                    min={priceBounds[0]} max={priceBounds[1]}
-                    value={priceCap ?? priceBounds[1]}
-                    onChange={(e) => setPriceCap(Number(e.target.value))}
-                    className="w-full accent-se-gold"
-                    aria-label="Maximum price"
-                  />
-                  <div className="flex justify-between text-[10px] text-se-steel mt-1">
-                    <span>{money(priceBounds[0])}</span><span>{money(priceBounds[1])}</span>
-                  </div>
-                </div>
+              <div className="hidden md:grid mt-3 pt-3 border-t border-se-concrete gap-4 md:grid-cols-4">
+                {filterFacets}
                 <div className="flex items-end">
                   {activeFilterCount > 0 && (
-                    <button onClick={clearFilters} className="inline-flex items-center gap-1.5 text-[11px] text-se-steel hover:text-se-gold">
+                    <button onClick={clearFilters} className="inline-flex items-center gap-1.5 min-h-[44px] text-[11px] text-se-steel hover:text-se-gold">
                       <X size={13} /> Clear all filters
                     </button>
                   )}
@@ -318,6 +333,31 @@ export default function Shop() {
             )}
           </div>
         </div>
+
+        {/* Mobile filter bottom sheet — same facets as the desktop panel,
+            in the accessible BottomSheet primitive (md:hidden built in). */}
+        <BottomSheet
+          open={showFilters}
+          onClose={() => setShowFilters(false)}
+          title={`Filters${activeFilterCount ? ` (${activeFilterCount})` : ""}`}
+          footer={
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={clearFilters}
+                disabled={activeFilterCount === 0}
+                className="inline-flex items-center gap-1.5 min-h-[44px] text-[11px] text-se-steel hover:text-se-gold disabled:opacity-40"
+              >
+                <X size={14} /> Clear all
+              </button>
+              <button type="button" onClick={() => setShowFilters(false)} className="btn-primary text-[11px] px-6 min-h-[44px]">
+                Show results
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-6">{filterFacets}</div>
+        </BottomSheet>
 
         {/* Grid */}
         <section className="section-pad">

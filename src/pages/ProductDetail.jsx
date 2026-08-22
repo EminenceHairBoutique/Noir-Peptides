@@ -1,5 +1,5 @@
 // src/pages/ProductDetail.jsx — Noir Peptides Research Material PDP
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ChevronLeft, FileText, Snowflake, XCircle, Truck } from "lucide-react";
 import { motion as Motion } from "framer-motion";
@@ -23,6 +23,7 @@ import CoaCard from "../components/CoaCard";
 import { getCoasForProduct } from "../lib/coas";
 import { getProductLabel } from "../lib/labelsApi";
 import VialPreview from "../components/product3d/VialPreview";
+import StickyBuyBar from "../components/StickyBuyBar";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import { PRODUCT_IS_NOT, STORAGE_GUIDANCE } from "../config/compliance";
 import { trackViewItem } from "../utils/track";
@@ -43,7 +44,11 @@ const fadeUp = {
 
 export default function ProductDetail() {
   const { slug } = useParams();
-  const { addToCart } = useCart();
+  const { addToCart, isOpen: cartOpen } = useCart();
+  // Anchor the sticky mobile buy bar observes: it appears once this inline CTA
+  // scrolls out of view.
+  const mainCtaRef = useRef(null);
+  const notifyRef = useRef(null);
 
   const [product, setProduct] = useState(null);
   const [variants, setVariants] = useState([]);
@@ -181,17 +186,43 @@ export default function ProductDetail() {
   }, [product, selectedVariant, isOut, addToCart, basePrice, tiers, quantity]);
 
   if (loading) {
+    // The skeleton MIRRORS the real page's vertical structure (media + buy
+    // column, then the spec/reviews/related bands) rather than being a short
+    // centered block. Measured: the old centered skeleton produced CLS ≈ 1.0 at
+    // 390px — the footer sat near the top and slammed down a full viewport when
+    // the real content arrived. Approximating the final height keeps the footer
+    // roughly in place, so the shift never happens.
     return (
-      <div className="min-h-screen bg-se-black flex items-center justify-center">
-        <div className="content-wide grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 pt-28 w-full">
+      <main className="min-h-screen bg-se-black" aria-busy="true" aria-label="Loading material">
+        <div className="content-wide pt-28 pb-4">
+          <div className="h-4 w-32 glass-panel se-skeleton" aria-hidden="true" />
+        </div>
+        <div className="content-wide grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 w-full">
           <div className="aspect-square glass-panel se-skeleton" aria-hidden="true" />
-          <div className="space-y-4">
-            <div className="h-8 w-2/3 glass-panel se-skeleton" />
+          <div className="space-y-4" aria-hidden="true">
             <div className="h-4 w-1/3 glass-panel se-skeleton" />
-            <div className="h-32 glass-panel se-skeleton" />
+            <div className="h-9 w-2/3 glass-panel se-skeleton" />
+            <div className="h-4 w-full glass-panel se-skeleton" />
+            <div className="h-4 w-5/6 glass-panel se-skeleton" />
+            <div className="h-10 w-1/2 glass-panel se-skeleton mt-6" />
+            <div className="h-24 w-full glass-panel se-skeleton" />
+            <div className="h-24 w-full glass-panel se-skeleton" />
+            <div className="h-14 w-full glass-panel se-skeleton mt-6" />
+            <div className="h-3 w-full glass-panel se-skeleton" />
           </div>
         </div>
-      </div>
+        {/* Below-fold bands: specs, reviews, related — these are what pushed the
+            footer when they appeared. */}
+        <div className="content-wide mt-16 space-y-6" aria-hidden="true">
+          <div className="h-48 w-full glass-panel se-skeleton" />
+          <div className="h-40 w-full glass-panel se-skeleton" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="aspect-[3/4] glass-panel se-skeleton" />
+            ))}
+          </div>
+        </div>
+      </main>
     );
   }
 
@@ -434,6 +465,7 @@ export default function ProductDetail() {
                   </div>
 
                   <button
+                    ref={mainCtaRef}
                     type="button"
                     onClick={handleAddToCart}
                     className="btn-primary w-full py-4 text-[12px] tracking-[0.2em] mb-3"
@@ -477,10 +509,12 @@ export default function ProductDetail() {
                   >
                     Out of Stock
                   </button>
-                  <BackInStockForm
-                    productId={product.id}
-                    variantId={selectedVariant?.id}
-                  />
+                  <div ref={notifyRef}>
+                    <BackInStockForm
+                      productId={product.id}
+                      variantId={selectedVariant?.id}
+                    />
+                  </div>
                 </>
               )}
 
@@ -679,6 +713,17 @@ export default function ProductDetail() {
 
         <RecentlyViewed excludeSlug={product.slug} />
       </main>
+
+      <StickyBuyBar
+        ctaRef={mainCtaRef}
+        name={product.name}
+        sizeLabel={selectedVariant?.size_label || (selectedVariant?.vial_size_mg ? `${selectedVariant.vial_size_mg} mg` : "")}
+        priceLabel={money(lineTotal)}
+        isOut={isOut}
+        cartOpen={cartOpen}
+        onAdd={handleAddToCart}
+        onNotify={() => notifyRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+      />
     </>
   );
 }

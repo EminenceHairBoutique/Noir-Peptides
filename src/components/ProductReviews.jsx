@@ -11,7 +11,7 @@ const ASPECTS = ["quality", "packaging", "coa", "shipping", "service"];
 
 function Stars({ value = 0, onSelect }) {
   return (
-    <span className="inline-flex gap-0.5" role={onSelect ? "radiogroup" : undefined}>
+    <span className="inline-flex flex-wrap gap-0.5 max-w-full" role={onSelect ? "radiogroup" : undefined}>
       {[1, 2, 3, 4, 5].map((n) => {
         const filled = n <= Math.round(value);
         const star = (
@@ -27,7 +27,7 @@ function Stars({ value = 0, onSelect }) {
             aria-checked={n === Math.round(value)}
             aria-label={`${n} star${n > 1 ? "s" : ""}`}
             onClick={() => onSelect(n)}
-            className="min-h-[44px] min-w-[28px] flex items-center justify-center"
+            className="min-h-[44px] min-w-[28px] shrink flex items-center justify-center"
           >
             {star}
           </button>
