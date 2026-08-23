@@ -216,7 +216,7 @@ export default function ProductDetail() {
         <div className="content-wide mt-16 space-y-6" aria-hidden="true">
           <div className="h-48 w-full glass-panel se-skeleton" />
           <div className="h-40 w-full glass-panel se-skeleton" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 max-[359px]:grid-cols-1 md:grid-cols-4 gap-5">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="aspect-[3/4] glass-panel se-skeleton" />
             ))}
@@ -717,7 +717,7 @@ export default function ProductDetail() {
               <h2 className="font-display text-xl tracking-[0.04em] text-se-bone mb-10">
                 FROM THE SAME RESEARCH DOMAIN
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+              <div className="grid grid-cols-2 max-[359px]:grid-cols-1 md:grid-cols-4 gap-5">
                 {related.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}
