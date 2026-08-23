@@ -119,6 +119,62 @@ Recording these because each one looked plausible and cost a measurement:
 `/product/bpc-157`, `/products/bpc-157`, `/shop` and `/`. The same measurement
 returned 1.0 before the fix, so the guard demonstrably fails on the regression.
 
+## Production CLS chase — second pass (post-merge)
+
+The alias fix above zeroed CLS *in the sandbox*, but every measurement to that
+point shared two blind spots: **fonts never loaded** (the sandbox proxy resets
+the browser's `fonts.googleapis.com` connection) and **the label API always
+500s** (no backend). Both were closed by fulfilling those requests inside the
+harness with real bytes — the actual Google Fonts CSS + woff2 files fetched
+via the proxy, and a realistic approved-label payload for
+`/api/product-label`.
+
+### Font swap: measured, negligible
+
+With all six faces really loading and swapping (`display=swap`), including a
+slow-network simulation (CSS 1.5s, woff2 1s) and 4× CPU throttle:
+`/product/bpc-157` 0.0002 · `/shop` 0.0002 · `/` 0–0.0008. The swap does shift
+the navbar account link and hero spans, but at 1/500th of the 0.1 budget.
+**Font swap is not a CLS problem on this site.** [VERIFIED]
+
+### Late label arrival: the real production CLS — found and fixed
+
+When `/api/product-label` returns an approved label (production behavior the
+sandbox's 500 can never show), the PDP media panel swaps from the static image
+to the 3D vial preview. That swap measured **CLS 0.06–0.09** — near the 0.1
+"good" ceiling before any other real-world shift stacks on top. Three
+mechanisms, each fixed:
+
+| Mechanism | Measured | Fix |
+| --- | --- | --- |
+| Caption `<p>` ("Interactive label preview…") renders in flow only after the response, pushing the info column down ~58px | up to 0.023 | Caption is now an absolute overlay pinned to the panel bottom — out of flow, cannot push anything. `lg`-only: on phones the canvas overflows the square and fills the bottom edge with the bright vial body, leaving no legible ground (verified by screenshot — it was unreadable); desktop has ~110px of empty glass where it reads cleanly |
+| VialPreview host was a centered **flex item with no intrinsic width**: it rendered ~2px wide, then snapped to 324px when the scene mounted (`prev[x194,w2] → cur[x33,w324]`) | 0.062 | The wrapper is a plain block (`h-full w-full p-2`), full-width from the first commit |
+| `items-center` re-centered the content every time hydration changed its height (skeleton 420 → scene 420 + controls ≈ 470) | (part of above) | Top-pinned: late growth extends into the clipped overflow instead of moving visible content |
+
+**After: CLS = 0.0002** in every scenario (label at 100ms, at 2.5s, user
+scrolled mid-page, scrolled deep). The only remaining entry is the navbar
+account link growing ~18px on font swap. [VERIFIED]
+
+Visual verification (both states screenshotted): mobile framing *improved* —
+the vial cap and full label are now visible (the centered crop cut the cap);
+desktop shows the full vial, all controls, and the caption. No copy changed;
+the caption text is intact, shown where it is legible.
+
+The spec now includes a **late-label CLS test** that fulfills
+`/api/product-label` with a realistic payload after 1.5s and holds the same
+&lt;0.1 budget — the scenario the sandbox otherwise cannot produce. 35/35 green.
+
+### Found while chasing, flagged (not fixed): 3D controls clipped on mobile
+
+With a real label, the vial canvas (418px + control row) overflows the 342px
+square panel at 390px: the Front/Back/zoom/reset buttons and the auto-rotate
+toggle are **fully clipped and unreachable on phones** (drag-rotate on the
+canvas still works, so the preview degrades rather than breaks). Desktop shows
+everything. Fixing this properly is a design decision — shrink the canvas
+responsively, move controls out of the panel, or let the panel grow — each
+with tradeoffs; deferred to `MOBILE_ROADMAP.md`. [VERIFIED clipped; behavior
+needs confirming against production once an approved label is live]
+
 ## Remaining (reported, not fixed this pass)
 
 - **Render-blocking Google Fonts stylesheet** — `index.html` loads three
@@ -130,12 +186,19 @@ returned 1.0 before the fix, so the guard demonstrably fails on the regression.
   or self-hosting the faces. Out of scope for a layout pass — logged for the
   performance workstream. **[VERIFIED as measured here; production impact SUSPECTED]**
 
-- **Sub-44px tap targets** — the guard reports ~16–18 per catalog view, almost all
-  **inline text links** (category tabs at ~17px tall, footer links, breadcrumbs,
-  the sort `<select>` at 43px). These are a spacing/hit-area design decision, not
-  broken layout; raising them touches shared link styling site-wide and is better
-  done deliberately. The spec logs the full list every run so a *new* undersized
-  control is caught. **[REPORTED]**
+- **Sub-44px tap targets — RAISED (third pass).** Primary navigation now has
+  ≥44px hit boxes via padding + negative-margin expansion (hit area grows, layout
+  pixel-identical, verified by measuring the strip row height before/after):
+  category tabs 17→45px, navbar wordmark 15→45px, guest "Log In" 17→45px, PDP
+  breadcrumb and category overline →45px, footer bottom legal row →45px. Footer
+  link columns take a different, deliberate shape: the `space-y-3` gaps became
+  the links' own padding — same 32px visual pitch, full-column-width hit boxes,
+  **no overlapping targets** (a first attempt with negative margins collided
+  with the sibling margins and was caught by a geometry check, then replaced).
+  True 44px there would double the footer's height for tertiary links.
+  Still reported, deliberately exempt: in-sentence prose links (cookie banner,
+  PDP copy — WCAG 2.5.8's inline exception) and the cart item title link (dense
+  row; the row's controls are already ≥44px). **[VERIFIED]**
 - **Title clamp on the longest names** — `title` attr exposes the full value, but
   the very longest names still ellipsis on line 2 at 320px in the 2-col grid.
   Acceptable; a 1-col layout ≤359px (see `MOBILE_ROADMAP.md`) would remove it.

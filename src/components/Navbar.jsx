@@ -6,7 +6,7 @@ import { useUser } from "../context/UserContext";
 
 function Logo({ className = "" }) {
   return (
-    <Link to="/" className={`flex items-center gap-2 leading-none ${className}`}>
+    <Link to="/" className={`flex items-center gap-2 leading-none py-[15px] -my-[15px] ${className}`}>
       <span className="font-display text-[15px] sm:text-[17px] md:text-[19px] tracking-[0.12em] sm:tracking-[0.22em] text-se-bone font-extrabold whitespace-nowrap">
         NOIR
       </span>
@@ -159,7 +159,7 @@ export default function Navbar() {
             <div className="flex items-center gap-3 shrink-0">
               <Link
                 to="/login"
-                className="text-[11px] font-accent uppercase tracking-[0.1em] sm:tracking-[0.18em] text-se-bone/70 hover:text-se-gold transition whitespace-nowrap"
+                className="inline-flex items-center py-[14px] -my-[14px] text-[11px] font-accent uppercase tracking-[0.1em] sm:tracking-[0.18em] text-se-bone/70 hover:text-se-gold transition whitespace-nowrap"
               >
                 Log In
               </Link>

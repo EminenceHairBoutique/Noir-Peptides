@@ -281,7 +281,7 @@ export default function ProductDetail() {
         <div className="content-wide pt-28 pb-4">
           <Link
             to="/shop"
-            className="inline-flex items-center gap-1.5 text-se-steel hover:text-se-gold text-[11px] font-accent tracking-[0.15em] uppercase transition-colors"
+            className="inline-flex items-center gap-1.5 py-[14px] -my-[14px] text-se-steel hover:text-se-gold text-[11px] font-accent tracking-[0.15em] uppercase transition-colors"
           >
             <ChevronLeft size={14} />
             Back to Catalog
@@ -299,7 +299,15 @@ export default function ProductDetail() {
             >
               <div className="relative aspect-square glass-panel overflow-hidden">
                 {vialLabel ? (
-                  <div className="h-full w-full flex items-center justify-center p-2">
+                  /* Plain block, NOT a centering flexbox. As the vial preview
+                     hydrates (placeholder → 3D scene + controls) its intrinsic
+                     size changes; as a centered flex item it first collapsed
+                     to ~2px wide and then snapped to full width on mount, and
+                     vertical re-centering moved it too — together a measured
+                     CLS of ~0.06 on label arrival. A block child fills the
+                     width from the first commit and pins to the top, so late
+                     growth only extends into the clipped overflow. */
+                  <div className="h-full w-full p-2">
                     <VialPreview config={vialLabel} templateId={vialLabel.template_id} />
                   </div>
                 ) : product.image_url || product.images?.[0] ? (
@@ -319,14 +327,21 @@ export default function ProductDetail() {
                     Out of stock
                   </div>
                 )}
+                {vialLabel && (
+                  /* Absolutely positioned: this caption appears only after the
+                     label API responds, so keeping it out of flow means its
+                     arrival cannot shift the layout below the panel (in-flow it
+                     measured ~0.02 CLS). lg-only: on phones the 3D canvas
+                     overflows the square and fills the bottom edge with the
+                     bright vial body, leaving no legible ground for the text;
+                     on desktop the panel has ~110px of empty glass below the
+                     preview where it reads cleanly. */
+                  <p className="hidden lg:block absolute inset-x-0 bottom-0 px-4 py-2 text-[11px] text-se-steel font-accent text-center bg-gradient-to-t from-[#05080f]/90 to-transparent">
+                    Interactive label preview · every vial ships with a scannable QR linking to its
+                    batch verification and COA.
+                  </p>
+                )}
               </div>
-
-              {vialLabel && (
-                <p className="mt-2 text-[11px] text-se-steel font-accent text-center">
-                  Interactive label preview · every vial ships with a scannable QR linking to its
-                  batch verification and COA.
-                </p>
-              )}
 
               <div className="grid grid-cols-3 gap-3 mt-3">
                 {["Identity", "Purity", "Batch"].map((tag) => (
@@ -350,7 +365,7 @@ export default function ProductDetail() {
             >
               <Link
                 to={`/shop/${product.category_slug}`}
-                className="text-overline hover:text-se-bone transition-colors mb-3"
+                className="text-overline hover:text-se-bone transition-colors mb-3 inline-block py-[14px] -my-[14px] self-start"
               >
                 {categoryName}
               </Link>
