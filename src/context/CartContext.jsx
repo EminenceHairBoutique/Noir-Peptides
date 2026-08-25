@@ -11,6 +11,7 @@ import React, {
 import { resolveProductImages } from "../utils/productMedia";
 import { unitPriceForQuantity } from "../lib/catalog";
 import { trackAddToCart } from "../utils/track";
+import { hapticConfirm } from "../lib/haptics";
 
 // Server-authoritative per-line bounds (lib/pricing.js clamps 1..99). Mirror
 // them client-side so the cart never displays a total the server will reduce.
@@ -100,6 +101,7 @@ export function CartProvider({ children }) {
     });
 
     trackAddToCart(normalized);
+    hapticConfirm();
     setIsOpen(true);
   };
 

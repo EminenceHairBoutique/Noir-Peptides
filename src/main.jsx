@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { MotionConfig } from "framer-motion";
 import App from "./App.jsx";
 import "./index.css";
 import { CartProvider } from "./context/CartContext";
@@ -23,11 +24,15 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
+      {/* Site-wide: framer-motion animations collapse to instant transitions
+          for users whose OS asks for reduced motion (MOBILE_ROADMAP #12). */}
+      <MotionConfig reducedMotion="user">
       <UserProvider>
         <CartProvider>
           <App />
         </CartProvider>
       </UserProvider>
+      </MotionConfig>
     </BrowserRouter>
   </React.StrictMode>
 );

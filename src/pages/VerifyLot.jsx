@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useParams, Link } from "react-router-dom";
 import { CheckCircle2, XCircle, AlertTriangle, Search, ScanLine } from "lucide-react";
 import QrScanner from "../components/QrScanner";
+import { hapticVerified } from "../lib/haptics";
 import SEO from "../components/SEO";
 import CoaCard from "../components/CoaCard";
 import { lookupByLot } from "../lib/coas";
@@ -34,7 +35,11 @@ function CodeResult({ code }) {
   useEffect(() => {
     let alive = true;
     setResult(null);
-    verifyCode(code).then((r) => alive && setResult(r));
+    verifyCode(code).then((r) => {
+      if (!alive) return;
+      setResult(r);
+      if (r?.state === "verified") hapticVerified();
+    });
     return () => {
       alive = false;
     };

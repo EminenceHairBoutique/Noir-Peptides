@@ -28,9 +28,9 @@ defect fixes in `MOBILE_AUDIT.md`. Effort: S (<½ day) · M (1–3 days) · L (w
 
 | # | Enhancement | Why | Effort |
 | --- | --- | --- | --- |
-| 10 | **Haptics** on add-to-cart and successful lot verification (`navigator.vibrate`, progressive) | Small delight on confirmations; trivial and guarded | S |
-| 11 | **Pull-to-refresh** on the catalog | Familiar gesture; only worth it if catalog data becomes more dynamic | S |
-| 12 | **Reduced-motion pass** on catalog card entrance staggering | If cards animate on scroll, honor `prefers-reduced-motion`; audit before adding more motion | S |
+| 10 | ~~**Haptics**~~ — **✅ DONE (ninth pass).** `src/lib/haptics.js`: single 15ms tick on add-to-cart (CartContext), double tick on a `verified` lot result. Guarded: silent no-op where `navigator.vibrate` is absent (iOS Safari), suppressed for `prefers-reduced-motion` users, never fires on errors/not_found, and can never break the action it confirms. 4 e2e tests with a stubbed vibrate | Small delight on confirmations; trivial and guarded | S |
+| 11 | **Pull-to-refresh** — **evaluated, DECLINED (ninth pass).** Android browsers already reload on overscroll natively; a custom implementation means scroll-hijacking (against this project's no-user-hostile-measures rule) to duplicate a built-in gesture. Revisit only if the catalog gains in-place refresh semantics that a full reload does not serve | Familiar gesture; only worth it if catalog data becomes more dynamic | S |
+| 12 | ~~**Reduced-motion pass**~~ — **✅ DONE (ninth pass).** Site-wide `<MotionConfig reducedMotion="user">` in `main.jsx`: every framer-motion animation (PDP fade-ups, card entrances, anything future) drops its transform/layout motion for users whose OS requests reduced motion; opacity fades remain, per the WCAG motion criterion. Complements the existing `se-skeleton` shimmer guard and the gallery's reduced-motion dot scrolls | If cards animate on scroll, honor `prefers-reduced-motion`; audit before adding more motion | S |
 
 ## Sequencing note
 
