@@ -22,7 +22,7 @@ import COABadge from "../components/COABadge";
 import CoaCard from "../components/CoaCard";
 import { getCoasForProduct } from "../lib/coas";
 import { getProductLabel } from "../lib/labelsApi";
-import VialPreview from "../components/product3d/VialPreview";
+import MediaGallery from "../components/product3d/MediaGallery";
 import StickyBuyBar from "../components/StickyBuyBar";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import { PRODUCT_IS_NOT, STORAGE_GUIDANCE } from "../config/compliance";
@@ -299,17 +299,12 @@ export default function ProductDetail() {
             >
               <div className="relative aspect-square glass-panel overflow-hidden">
                 {vialLabel ? (
-                  /* Plain block, NOT a centering flexbox. As the vial preview
-                     hydrates (placeholder → 3D scene + controls) its intrinsic
-                     size changes; as a centered flex item it first collapsed
-                     to ~2px wide and then snapped to full width on mount, and
-                     vertical re-centering moved it too — together a measured
-                     CLS of ~0.06 on label arrival. A block child fills the
-                     width from the first commit and pins to the top, so late
-                     growth only extends into the clipped overflow. */
-                  <div className="h-full w-full p-2">
-                    <VialPreview config={vialLabel} templateId={vialLabel.template_id} />
-                  </div>
+                  /* Swipeable media gallery (3D vial + flat label renders).
+                     Inside it, the vial slide keeps the plain-block, top-
+                     pinned wrapper — a centered flex item collapsed to ~2px
+                     wide pre-hydration and re-centered on every height
+                     change, a measured CLS of ~0.06 on label arrival. */
+                  <MediaGallery vialLabel={vialLabel} />
                 ) : product.image_url || product.images?.[0] ? (
                   <img
                     src={product.image_url || product.images[0]}
@@ -336,7 +331,7 @@ export default function ProductDetail() {
                      bright vial body, leaving no legible ground for the text;
                      on desktop the panel has ~110px of empty glass below the
                      preview where it reads cleanly. */
-                  <p className="hidden lg:block absolute inset-x-0 bottom-0 px-4 py-2 text-[11px] text-se-steel font-accent text-center bg-gradient-to-t from-[#05080f]/90 to-transparent">
+                  <p className="hidden lg:block absolute inset-x-0 bottom-0 px-4 py-2 text-[11px] text-se-steel font-accent text-center bg-gradient-to-t from-[#05080f]/90 to-transparent pointer-events-none">
                     Interactive label preview · every vial ships with a scannable QR linking to its
                     batch verification and COA.
                   </p>
