@@ -379,11 +379,11 @@ export default function Shop() {
                 <button onClick={() => window.location.reload()} className="btn-outline">Retry</button>
               </div>
             ) : loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 max-[359px]:grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[3/4] glass-panel se-skeleton" aria-hidden="true" />)}
               </div>
             ) : filtered.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 max-[359px]:grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {filtered.map((product, i) => {
                   const selected = compareIds.includes(product.id);
                   return (

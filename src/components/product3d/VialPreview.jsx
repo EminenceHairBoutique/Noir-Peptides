@@ -21,6 +21,9 @@ function webglSupported() {
   }
 }
 
+// The placeholder/skeleton heights below MUST match VialScene's canvas
+// height expression — a mismatch reintroduces a layout shift when the scene
+// mounts (see MOBILE_AUDIT.md, late-label CLS).
 export default function VialPreview({ config, templateId, accent }) {
   const hostRef = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -67,9 +70,9 @@ export default function VialPreview({ config, templateId, accent }) {
       {!supported ? (
         fallback
       ) : !visible ? (
-        <div className="rounded-xl border border-white/10 se-skeleton" style={{ height: 420 }} aria-hidden="true" />
+        <div className="rounded-xl border border-white/10 se-skeleton" style={{ height: "min(420px, 85vw - 60px)" }} aria-hidden="true" />
       ) : (
-        <Suspense fallback={<div className="rounded-xl border border-white/10 se-skeleton" style={{ height: 420 }} aria-hidden="true" />}>
+        <Suspense fallback={<div className="rounded-xl border border-white/10 se-skeleton" style={{ height: "min(420px, 85vw - 60px)" }} aria-hidden="true" />}>
           <VialScene config={config} templateId={templateId} accent={accent} reducedMotion={reducedMotion} />
         </Suspense>
       )}

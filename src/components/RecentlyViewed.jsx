@@ -39,7 +39,7 @@ export default function RecentlyViewed({ excludeSlug }) {
         <h2 className="font-display text-xl tracking-[0.04em] text-se-bone mb-10">
           RECENTLY VIEWED
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 max-[359px]:grid-cols-1 md:grid-cols-4 gap-5">
           {items.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}

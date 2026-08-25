@@ -208,7 +208,7 @@ export default function VialScene({ config, templateId, accent, reducedMotion = 
 
   return (
     <div>
-      <div className="relative rounded-xl border border-white/10 bg-gradient-to-b from-[#0d1118] to-[#070a10] overflow-hidden" style={{ height: 420, touchAction: "pan-y" }}>
+      <div className="relative rounded-xl border border-white/10 bg-gradient-to-b from-[#0d1118] to-[#070a10] overflow-hidden" style={{ height: "min(420px, 85vw - 60px)", touchAction: "pan-y" }}>
         <Canvas
           frameloop="demand"
           dpr={[1, 2]}
