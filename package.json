@@ -13,7 +13,7 @@
     "audit:products": "node scripts/audit-products.mjs",
     "test:guardrail": "node scripts/test-guardrail.mjs",
     "test:compliance": "node scripts/test-compliance-scan.mjs",
-    "test:unit": "node scripts/test-guardrail.mjs && node scripts/test-compliance-scan.mjs && node scripts/test-labels.mjs && node scripts/test-cart-pricing.mjs && node scripts/test-error-telemetry.mjs && node scripts/test-admin-catalog.mjs && node scripts/test-inventory.mjs && node scripts/test-fulfillment.mjs && node scripts/test-batch-discounts.mjs && node tests/checkout/checkout-validation.test.mjs && node tests/checkout/compliance-enforcement.test.mjs && node tests/checkout/activation.test.mjs && node tests/audit/p0-payment-security.test.mjs && node tests/audit/open-redirect.test.mjs && node tests/audit/p1-checkout-hardening.test.mjs",
+    "test:unit": "node scripts/test-guardrail.mjs && node scripts/test-compliance-scan.mjs && node scripts/test-labels.mjs && node scripts/test-cart-pricing.mjs && node scripts/test-error-telemetry.mjs && node scripts/test-admin-catalog.mjs && node scripts/test-inventory.mjs && node scripts/test-fulfillment.mjs && node scripts/test-batch-discounts.mjs && node scripts/test-qr-parse.mjs && node tests/checkout/checkout-validation.test.mjs && node tests/checkout/compliance-enforcement.test.mjs && node tests/checkout/activation.test.mjs && node tests/audit/p0-payment-security.test.mjs && node tests/audit/open-redirect.test.mjs && node tests/audit/p1-checkout-hardening.test.mjs",
     "test:e2e": "playwright test",
     "test:labels": "node scripts/test-labels.mjs",
     "test:cart": "node scripts/test-cart-pricing.mjs"
@@ -29,6 +29,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "framer-motion": "^12.23.26",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.552.0",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",

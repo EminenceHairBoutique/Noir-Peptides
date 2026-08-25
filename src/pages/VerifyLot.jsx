@@ -6,7 +6,8 @@
 //                         label fields + linked published COA)
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useParams, Link } from "react-router-dom";
-import { CheckCircle2, XCircle, AlertTriangle, Search } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Search, ScanLine } from "lucide-react";
+import QrScanner from "../components/QrScanner";
 import SEO from "../components/SEO";
 import CoaCard from "../components/CoaCard";
 import { lookupByLot } from "../lib/coas";
@@ -87,6 +88,7 @@ export default function VerifyLot() {
   const [input, setInput] = useState(lot);
   const [coa, setCoa] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | loading | found | notfound
+  const [scanOpen, setScanOpen] = useState(false);
 
   const nameById = useMemo(() => {
     const m = {};
@@ -145,7 +147,17 @@ export default function VerifyLot() {
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="mt-6 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setScanOpen(true)}
+            className="mt-6 inline-flex items-center gap-2 min-h-[44px] rounded-lg border border-se-gold/50 px-5 font-accent text-sm uppercase tracking-wide text-se-gold hover:bg-se-gold/10 transition"
+          >
+            <ScanLine size={16} aria-hidden="true" />
+            Scan vial QR
+          </button>
+          <QrScanner open={scanOpen} onClose={() => setScanOpen(false)} />
+
+          <form onSubmit={onSubmit} className="mt-4 flex gap-2">
             <input
               type="text"
               value={input}
