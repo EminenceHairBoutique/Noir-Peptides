@@ -11,6 +11,7 @@ import useRouteAnalytics from "./hooks/useRouteAnalytics";
 // Layout
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import BottomNav from "./components/BottomNav";
 import ScrollToTop from "./components/ScrollToTop";
 
 // Guards
@@ -220,6 +221,7 @@ export default function App() {
 
         {!isBare && <CookieBanner />}
         {!isBare && <Footer />}
+        {!isBare && <BottomNav />}
       </div>
     </>
   );
