@@ -7,7 +7,7 @@
 import { supabase } from "./supabaseClient";
 
 const COA_COLUMNS =
-  "id, product_id, batch_number, lot_number, lab_name, file_url, " +
+  "id, product_id, batch_number, lot_number, lab_name, file_url, cas_number, " +
   "purity_percent, hplc, mass_spec, ms_confirmed, endotoxin, tested_at, " +
   "is_published, created_at";
 

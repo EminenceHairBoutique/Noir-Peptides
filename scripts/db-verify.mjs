@@ -56,7 +56,7 @@ async function tableCount(table) {
 }
 
 async function publishedCoaCount() {
-  const res = await fetch(`${URL}/rest/v1/coas?select=*&published=eq.true`, {
+  const res = await fetch(`${URL}/rest/v1/coas?select=*&is_published=eq.true`, {
     method: "HEAD",
     headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, Prefer: "count=exact", Range: "0-0" },
   });
