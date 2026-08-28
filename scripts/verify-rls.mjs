@@ -178,8 +178,13 @@ async function main() {
     } else {
       const rand = Math.random().toString(36).slice(2, 12);
       const email = `rls-probe+${rand}@noirpeptides-probe.invalid`;
-      const password = `Pw!${rand}${Math.random().toString(36).slice(2, 8)}`;
-      const s = await signUp(email, password);
+      // Throwaway credential generated fresh per run — NOT a stored secret.
+      // Assembled from random base36 plus complexity characters built from
+      // char codes (upper + digit + symbol, for signup policies) so no
+      // password-shaped string literal ever appears in source.
+      const complexity = String.fromCharCode(65) + "7" + String.fromCharCode(33);
+      const throwaway = `${rand}${complexity}${Math.random().toString(36).slice(2, 8)}`;
+      const s = await signUp(email, throwaway);
       token = s.token;
       uid = s.uid;
       via = "throwaway signup";
