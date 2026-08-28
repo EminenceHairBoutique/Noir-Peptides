@@ -63,6 +63,24 @@ below are operator/legal/business actions the code cannot perform.
 - [ ] Set `ADMIN_EMAILS` to bootstrap the first admin, then flip that user's
       `profiles.role` to `'admin'` (the canonical admin source of truth).
 
+## 7b) Security headers (vercel.json)
+
+- Headers are set in `vercel.json` (`X-Content-Type-Options`, `Referrer-Policy`,
+  `Permissions-Policy`, HSTS, and a strict CSP). `X-XSS-Protection` and
+  `X-Frame-Options` were removed: the former is deprecated, the latter is
+  superseded by CSP `frame-ancestors 'none'` (they were contradictory —
+  SAMEORIGIN vs none — and CSP wins in modern browsers).
+- `img-src` is the named set actually used: `'self' data: blob:` +
+  `*.supabase.co` (product/COA images from Supabase storage) +
+  `*.google-analytics.com` and `www.facebook.com` (GA4/Meta pixel image
+  beacons). Verified: zero CSP violations on `/`, `/shop`, a PDP, and the label
+  studio.
+- **Known accepted tradeoff:** `script-src` includes `'unsafe-inline'` for the
+  Vite SPA inline bootstrap + GA/Meta snippets. Revisit post-launch by moving
+  to per-response nonces (requires emitting a nonce in the HTML and on the CSP
+  header together). Tracked here because `vercel.json` is pure JSON and cannot
+  carry an inline comment.
+
 ## 8) Pre-launch verification
 
 - [ ] `npm run build` and `npm run lint` are green.
