@@ -36,6 +36,7 @@ const ResearchArticle = lazy(() => import("./pages/ResearchArticle"));
 const Calculator = lazy(() => import("./pages/Calculator"));
 const Deals = lazy(() => import("./pages/Deals"));
 const TestResults = lazy(() => import("./pages/TestResults"));
+const TestResultsProduct = lazy(() => import("./pages/TestResultsProduct"));
 const VerifyLot = lazy(() => import("./pages/VerifyLot"));
 
 // ── Public legal docs ──
@@ -155,6 +156,8 @@ export default function App() {
               <Route path="/calculator" element={<Page><Calculator /></Page>} />
               <Route path="/deals" element={<Page><Deals /></Page>} />
               <Route path="/test-results" element={<Page><TestResults /></Page>} />
+              {/* W4: per-product batch-history permalink */}
+              <Route path="/test-results/:productSlug" element={<Page><TestResultsProduct /></Page>} />
               <Route path="/verify-lot" element={<Page><VerifyLot /></Page>} />
               {/* Label QR deep link: short, non-enumerable verification code. */}
               <Route path="/v/:code" element={<Page><VerifyLot /></Page>} />

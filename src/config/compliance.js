@@ -28,7 +28,15 @@ export const CHECKOUT_ACK =
 export const FOOTER_LEGAL =
   "All products sold by Noir Peptides are intended for laboratory research " +
   "use only. Not for human consumption. Not for veterinary use. Not intended " +
-  "to diagnose, treat, cure, or prevent any disease. By purchasing, you " +
+  "to diagnose, treat, cure, or prevent any disease. " +
+  // ⚠ DRAFT — PENDING ATTORNEY REVIEW (trust-surface W7 / gap G10). The
+  // 503A/503B non-status sentence below states what this business is NOT; the
+  // exact wording must be reviewed by counsel before launch. Do not remove
+  // without replacing — scripts/test-compliance-scan.mjs fails the build if
+  // the footer disclaimer loses its 503A/503B disclosure.
+  "Noir Peptides is not a pharmacy, is not a 503A compounding pharmacy, and " +
+  "is not a 503B outsourcing facility; its products are not compounded drugs. " +
+  "By purchasing, you " +
   "confirm you are a qualified purchaser and agree to our Terms of Service " +
   "and Research Use Disclaimer.";
 

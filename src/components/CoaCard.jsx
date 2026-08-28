@@ -49,6 +49,13 @@ export default function CoaCard({ coa, productName, origin = "", showQr = true }
             <dt className="text-se-steel text-[11px] uppercase tracking-wide">Testing lab</dt>
             <dd className="text-se-bone">{coa.lab_name || "—"}</dd>
           </div>
+          {/* Lot-level CAS (W1): OMITTED entirely when null — never "N/A". */}
+          {coa.cas_number && (
+            <div>
+              <dt className="text-se-steel text-[11px] uppercase tracking-wide">CAS</dt>
+              <dd className="text-se-bone font-mono">{coa.cas_number}</dd>
+            </div>
+          )}
           <div>
             <dt className="text-se-steel text-[11px] uppercase tracking-wide">Test date</dt>
             <dd className="text-se-bone">{fmtDate(coa.tested_at)}</dd>

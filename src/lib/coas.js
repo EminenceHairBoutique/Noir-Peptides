@@ -7,7 +7,7 @@
 import { supabase } from "./supabaseClient";
 
 const COA_COLUMNS =
-  "id, product_id, batch_number, lot_number, lab_name, file_url, " +
+  "id, product_id, batch_number, lot_number, lab_name, file_url, cas_number, " +
   "purity_percent, hplc, mass_spec, ms_confirmed, endotoxin, tested_at, " +
   "is_published, created_at";
 
@@ -72,4 +72,38 @@ export async function lookupByLot(lot) {
   } catch {
     return null;
   }
+}
+
+
+// ── W5: one shared latest-certificate map for card surfaces ──────────────
+// Product cards must show a real published certificate when one exists, but
+// grids render dozens of cards — a per-card query would be an N+1. This
+// module-level memoized fetch runs ONE query per session and every card reads
+// from the same map. Returns {} without a client or on error, in which case
+// cards fall back to their static behavior.
+let _latestCoaPromise = null;
+
+export function getLatestCoaMap() {
+  if (!_latestCoaPromise) {
+    _latestCoaPromise = (async () => {
+      if (!supabase) return {};
+      try {
+        const { data, error } = await supabase
+          .from("coas")
+          .select("id, product_id, lot_number, batch_number, tested_at, file_url")
+          .order("tested_at", { ascending: false, nullsFirst: false })
+          .limit(500);
+        if (error || !Array.isArray(data)) return {};
+        const map = {};
+        for (const row of data) {
+          // rows arrive newest-first; keep the first (latest) per product
+          if (row.product_id && !map[row.product_id]) map[row.product_id] = normalize(row);
+        }
+        return map;
+      } catch {
+        return {};
+      }
+    })();
+  }
+  return _latestCoaPromise;
 }

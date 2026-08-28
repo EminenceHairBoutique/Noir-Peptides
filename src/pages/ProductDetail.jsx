@@ -19,6 +19,7 @@ import PeptideSpecsPanel from "../components/PeptideSpecsPanel";
 import ProductReviews from "../components/ProductReviews";
 import BackInStockForm from "../components/BackInStockForm";
 import COABadge from "../components/COABadge";
+import QrVerifyExplainer from "../components/QrVerifyExplainer";
 import CoaCard from "../components/CoaCard";
 import { getCoasForProduct } from "../lib/coas";
 import { getProductLabel } from "../lib/labelsApi";
@@ -618,12 +619,39 @@ export default function ProductDetail() {
                         typeof window !== "undefined" ? window.location.origin : ""
                       }
                     />
-                    <Link
-                      to="/test-results"
-                      className="inline-block text-[12px] text-se-gold underline underline-offset-2 font-accent"
-                    >
-                      View all certificates &amp; verify a lot →
-                    </Link>
+                    {/* W6: analytical panel breadth — summarized from this
+                        product's published certificates only; suppressed when
+                        the data is absent. */}
+                    {(coas.some((c) => c.hplc || c.purity_percent != null) ||
+                      coas.some((c) => c.ms_confirmed === true)) && (
+                      <p className="text-[11px] font-accent text-se-bone/60" data-testid="panel-breadth">
+                        Analytical panel across {coas.length} published{" "}
+                        {coas.length === 1 ? "lot" : "lots"}:{" "}
+                        {[
+                          coas.some((c) => c.hplc || c.purity_percent != null) && "HPLC purity",
+                          coas.some((c) => c.ms_confirmed === true) && "MS identity confirmed",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {/* W4: per-product batch-history permalink */}
+                      <Link
+                        to={`/test-results/${product.slug}`}
+                        className="inline-block text-[12px] text-se-gold underline underline-offset-2 font-accent"
+                      >
+                        Full batch history for {product.name} →
+                      </Link>
+                      <Link
+                        to="/test-results"
+                        className="inline-block text-[12px] text-se-gold underline underline-offset-2 font-accent"
+                      >
+                        All certificates &amp; lot verification →
+                      </Link>
+                    </div>
+                    {/* W8: how the on-vial QR maps to this data */}
+                    <QrVerifyExplainer compact />
                   </div>
                 ) : product.coa_url ? (
                   <COABadge coaUrl={product.coa_url} batchNumber={product.batch_number} />

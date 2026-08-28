@@ -113,7 +113,7 @@ function Overview() {
 /* ── COA Manager ──────────────────────────────────────────────────────── */
 const EMPTY_COA = {
   product_id: "", lot_number: "", lab_name: "", tested_at: "",
-  hplc: "", purity_percent: "", mass_spec: "", ms_confirmed: false,
+  hplc: "", purity_percent: "", mass_spec: "", ms_confirmed: false, cas_number: "",
   file_url: "", is_published: true,
 };
 
@@ -184,6 +184,9 @@ function CoaManager() {
         <div className="grid grid-cols-2 gap-3">
           <input className={field} type="date" value={form.tested_at} onChange={(e) => set("tested_at", e.target.value)} />
           <input className={field} placeholder="HPLC purity (e.g. 99.2%)" value={form.hplc} onChange={(e) => set("hplc", e.target.value)} />
+          {/* W1: lot-level CAS. Server validates format + check digit and
+              rejects malformed input with a 400; leave blank when unknown. */}
+          <input className={field} placeholder="CAS number (optional, NNNNNNN-NN-N)" value={form.cas_number} onChange={(e) => set("cas_number", e.target.value)} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <input className={field} type="number" step="0.01" placeholder="Purity % (number)" value={form.purity_percent} onChange={(e) => set("purity_percent", e.target.value)} />

@@ -44,6 +44,27 @@ for (const t of MUST_PASS) {
 }
 
 const total = MUST_FLAG.length + MUST_PASS.length;
+// ── W7 (gap G10): the footer disclaimer must carry the 503A/503B
+// non-status disclosure. Wording is DRAFT pending attorney review (see the
+// comment at the string in src/config/compliance.js); this rule guards its
+// PRESENCE — losing the line fails the build, same severity as any other
+// compliance failure here.
+console.log("\nFooter 503A/503B non-status disclosure:");
+const { FOOTER_LEGAL } = await import("../src/config/compliance.js");
+if (/503A/.test(FOOTER_LEGAL) && /503B/.test(FOOTER_LEGAL) && /not a (503A )?compounding pharmacy/i.test(FOOTER_LEGAL) && /outsourcing facility/i.test(FOOTER_LEGAL)) {
+  console.log("  ✓ footer disclaimer states 503A/503B non-status");
+} else {
+  fail("footer disclaimer is missing the 503A/503B non-status disclosure");
+}
+// NOTE: the disclaimer is deliberately NOT run through scanCopy — it is a
+// NEGATIVE compliance statement, and the keyword scanner correctly fires on
+// phrases like "not intended to … treat, cure, or prevent any disease"
+// regardless of negation. Disclaimers are canonical constants, not scanner
+// targets. The rule below guards the PRESENCE of the exact drafted sentence.
+const sentence = "Noir Peptides is not a pharmacy, is not a 503A compounding pharmacy, and is not a 503B outsourcing facility; its products are not compounded drugs.";
+if (FOOTER_LEGAL.includes(sentence)) console.log("  ✓ the drafted sentence appears verbatim in the footer disclaimer");
+else fail("drafted 503A/503B sentence drifted from the footer disclaimer");
+
 if (failures) {
   console.error(`\n${failures}/${total} compliance-scan tests FAILED`);
   process.exit(1);
