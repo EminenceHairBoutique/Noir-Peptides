@@ -40,9 +40,11 @@ await build({
   logLevel: "silent",
 });
 const mod = await import(`file://${outfile}`);
-const { BusinessIdentity, BUSINESS } = mod;
+const { BusinessIdentity, FulfillmentStatements, FreeShipProgress, BUSINESS, FREE_SHIP_THRESHOLD } = mod;
 
 const render = (variant) => renderToStaticMarkup(createElement(BusinessIdentity, { variant }));
+const renderStatements = (variant) => renderToStaticMarkup(createElement(FulfillmentStatements, { variant }));
+const renderShip = (subtotal) => renderToStaticMarkup(createElement(FreeShipProgress, { subtotal }));
 
 console.log("Business-identity config — default (all null):");
 // 1. Default config → renders nothing at all (null), both variants.
@@ -93,6 +95,54 @@ ok(
     !onlyGuarantee.includes("tel:") &&
     !onlyGuarantee.includes("<address"),
   "only the set field (guarantee) renders; others absent"
+);
+
+// ── Task 5: fulfilment statements (discreet packaging + billing descriptor) ──
+// Both are factual claims about the real operation. A wrong billing descriptor
+// turns an unrecognised charge into a chargeback, so nothing may render until
+// the owner sets the true value.
+console.log("\nFulfilment statements — default (all null):");
+Object.assign(BUSINESS, { discreetPackaging: null, billingDescriptor: null });
+const fs0 = renderStatements();
+ok(fs0 === "", "renders empty string with neither value set (no DOM at all)");
+ok(renderStatements("inline") === "", "inline variant also renders nothing");
+
+console.log("\nFulfilment statements — values set:");
+BUSINESS.discreetPackaging = "Ships in plain, unbranded outer packaging.";
+const fsPack = renderStatements();
+ok(fsPack.includes("plain, unbranded outer packaging"), "packaging statement renders verbatim from config");
+ok(!fsPack.includes("statement as"), "billing descriptor absent while unset");
+
+BUSINESS.billingDescriptor = "NP RESEARCH LLC";
+const fsBoth = renderStatements();
+ok(fsBoth.includes("NP RESEARCH LLC"), "billing descriptor renders");
+ok(fsBoth.includes('data-testid="billing-descriptor"'), "descriptor is individually addressable");
+ok(fsBoth.includes("plain, unbranded outer packaging"), "both statements coexist");
+
+// Descriptor alone, without packaging.
+BUSINESS.discreetPackaging = null;
+const fsDesc = renderStatements();
+ok(
+  fsDesc.includes("NP RESEARCH LLC") && !fsDesc.includes("unbranded"),
+  "only the set statement renders; the unset one leaves no empty wrapper"
+);
+Object.assign(BUSINESS, { discreetPackaging: null, billingDescriptor: null });
+
+// ── Task 5: free-shipping progress reads the SAME threshold the server uses ──
+console.log("\nFree-shipping progress (threshold must equal the server's):");
+ok(Number.isFinite(FREE_SHIP_THRESHOLD) && FREE_SHIP_THRESHOLD > 0, "FREE_SHIP_THRESHOLD is a real number");
+ok(renderShip(0) === "", "no progress bar at a zero subtotal");
+const shipUnder = renderShip(FREE_SHIP_THRESHOLD - 25);
+ok(shipUnder.includes("$25 away from free shipping"), "remaining amount is computed from the shared threshold");
+ok(
+  shipUnder.includes(`aria-valuemax="${FREE_SHIP_THRESHOLD}"`),
+  "progressbar max is the threshold itself, not a duplicated literal"
+);
+const shipOver = renderShip(FREE_SHIP_THRESHOLD + 10);
+ok(shipOver.includes("Qualifies for free shipping"), "qualifying subtotal states it plainly");
+ok(
+  !shipOver.includes("away from free shipping"),
+  "a qualifying subtotal never also shows a remaining amount"
 );
 
 // Restore + cleanup.

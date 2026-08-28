@@ -264,6 +264,42 @@ export async function getAllVariants() {
 }
 
 /**
+ * Laboratory consumables (products.product_type = 'lab_supply', migration
+ * 0033) — bacteriostatic water, syringes, alcohol prep pads and the like.
+ *
+ * These are catalogue items in their own right, listed so a laboratory can
+ * order what it needs in one go. They are NOT presented as a step in any
+ * procedure involving the peptides: no reconstitution instruction, no ratio,
+ * no protocol. Returns [] when none are configured (the default state — the
+ * migration seeds nothing) and NEVER falls back to the bundled catalog, which
+ * contains no consumables and would otherwise invent a list.
+ * @returns {Promise<Array>}
+ */
+export async function getLabSupplies() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await selectDegrading(
+      (cols) =>
+        supabase
+          .from("products")
+          .select(cols)
+          .eq("product_type", "lab_supply")
+          .order("name", { ascending: true }),
+      PRODUCT_COLUMNS,
+      // Pre-0033 there is no product_type column at all, so there are no lab
+      // supplies to find; the degraded query is filtered out below.
+      PRODUCT_COLUMNS_BASE
+    );
+    if (error || !Array.isArray(data)) return [];
+    // Guard the degraded path: without product_type the filter cannot have
+    // applied, so drop anything that does not actually declare itself.
+    return data.filter((r) => r?.product_type === "lab_supply").map(normalizeProduct);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Fetch the bundle/volume price tiers for a VARIANT, ascending by quantity.
  * RLS-gated (attested read). Returns [] when none configured.
  * @returns {Promise<Array<{min_quantity,unit_price,savings_pct,label}>>}

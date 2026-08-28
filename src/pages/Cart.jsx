@@ -10,6 +10,7 @@ const money = (n) =>
   `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 import FreeShipProgress from "../components/FreeShipProgress";
 import CryptoIncentive from "../components/CryptoIncentive";
+import LabSuppliesCrossSell from "../components/LabSuppliesCrossSell";
 
 export default function Cart() {
   const {
@@ -141,6 +142,11 @@ export default function Cart() {
                     </p>
                   </div>
                 ))}
+
+                {/* Task 8: laboratory consumables offered as add-ons. Renders
+                    nothing until products are marked product_type='lab_supply'
+                    (migration 0033 seeds none). */}
+                <LabSuppliesCrossSell cartList={cartList} />
               </div>
 
               <div className="lg:sticky lg:top-28 self-start">

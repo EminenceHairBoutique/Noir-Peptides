@@ -23,6 +23,12 @@ import QrVerifyExplainer from "../components/QrVerifyExplainer";
 import CoaCard from "../components/CoaCard";
 import SdsLink from "../components/SdsLink";
 import { hasSds } from "../lib/sds";
+import {
+  BUSINESS,
+  hasShipCutoff,
+  hasDiscreetPackaging,
+  shipCutoffStatement,
+} from "../config/business";
 import { getCoasForProduct } from "../lib/coas";
 import { getProductLabel } from "../lib/labelsApi";
 import MediaGallery from "../components/product3d/MediaGallery";
@@ -731,9 +737,15 @@ export default function ProductDetail() {
                     Shipping &amp; Support
                   </h2>
                 </div>
+                {/* Task 5: the cutoff and the packaging description are
+                    FACTUAL claims about the operation, so they now come from
+                    src/config/business.js and render only when set there. They
+                    were previously hardcoded — asserting a 2:00 PM ET cutoff
+                    and discreet packaging that nothing in the config backed. */}
                 <ul className="space-y-1.5 text-[13px] text-se-bone/60 leading-relaxed font-accent">
-                  <li>Orders placed before 2:00 PM ET ship same business day.</li>
-                  <li>Discreet, tamper-evident packaging with a cold-pack where needed.</li>
+                  {hasShipCutoff() && <li>{shipCutoffStatement()}</li>}
+                  {hasDiscreetPackaging() && <li>{BUSINESS.discreetPackaging}</li>}
+                  <li>Tamper-evident packaging with a cold-pack where needed.</li>
                   <li>Tracking emailed on dispatch; free US shipping over ${FREE_SHIP_THRESHOLD}.</li>
                   <li>
                     Questions? See{" "}

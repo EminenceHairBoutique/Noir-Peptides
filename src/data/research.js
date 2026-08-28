@@ -74,6 +74,45 @@ export const researchArticles = [
     ],
     relatedCompounds: ["Semax", "Selank", "Epithalon"],
   },
+  {
+    // Task 7: the purity-vs-content distinction. This is the single most
+    // common misreading of a peptide COA — a 99% purity figure is a
+    // chromatographic ratio, not a statement about how much peptide is in the
+    // vial. It pairs with the net_peptide_content_mg / label_claim_mg fields
+    // recorded per certificate (migration 0032).
+    slug: "purity-vs-content",
+    title: "Purity vs. Net Peptide Content",
+    summary:
+      "Why a 99% purity figure and the mass of peptide in a vial are two different measurements, and how each is reported on a certificate of analysis.",
+    readingTime: "5 min",
+    sections: [
+      {
+        heading: "Two different questions",
+        body: "Purity and content answer different questions about the same batch. Purity asks: of the material detected in this analysis, what proportion is the named compound? Content asks: of the total mass in this vial, how many milligrams are that compound? A batch can score highly on the first and still contain less of the peptide by mass than the label figure suggests, because the two measurements are not measuring the same thing.",
+      },
+      {
+        heading: "What an HPLC purity percentage is",
+        body: "Chromatographic purity is normally reported as an area percentage: the area of the main peak divided by the total area of all detected peaks, expressed as a percentage. It is a ratio within one analysis. It describes how much of the detected signal is attributable to the main component, and says nothing about the absolute quantity of material that was injected, nor about anything the detector did not see at that wavelength.",
+      },
+      {
+        heading: "What net peptide content is",
+        body: "Net peptide content is the proportion of the total mass that is peptide, usually determined by a quantitative method such as amino acid analysis or a nitrogen determination rather than by chromatography. The remainder of the mass in a lyophilized vial is typically counterions from the final purification step (commonly trifluoroacetate), residual water, and residual salts. These are not impurities in the chromatographic sense — they are ordinary constituents of a lyophilized salt form — but they are mass, and they are not peptide.",
+      },
+      {
+        heading: "Why the two figures diverge",
+        body: "Because counterions and residual moisture contribute mass without contributing a chromatographic peak of the analyte, a material can be 99% pure by area and still be well under 99% peptide by mass. The gap is a normal property of lyophilized peptide salts, not a defect and not an indication that a batch is mislabeled. It is simply the reason the two numbers cannot be substituted for one another.",
+      },
+      {
+        heading: "Label claim and how to read it",
+        body: "The label claim is the nominal quantity stated for the vial. Where a batch has been assayed for net peptide content, a certificate can report the measured content alongside that claim, so the two can be compared directly rather than inferred. A certificate that reports purity alone is reporting a ratio; a certificate that also reports net content is reporting a mass. Where a purity value is qualified — for example as at least a stated percentage rather than an exact figure — that qualifier is part of the result and should be carried with it.",
+      },
+      {
+        heading: "What to check on a certificate",
+        body: "Read the method alongside every number: which technique produced it, at what wavelength or under what conditions, and against which batch or lot. Confirm the lot on the certificate matches the lot on the vial. Where a certificate names the issuing laboratory and that laboratory publishes its own record of the same lot, the result can be checked against the source rather than taken from the supplier alone. For laboratory research use only; not for human or veterinary use.",
+      },
+    ],
+    relatedCompounds: [],
+  },
 ];
 
 export const getResearchArticle = (slug) =>
