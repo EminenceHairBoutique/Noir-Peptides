@@ -1057,6 +1057,17 @@ async function main() {
       bodyHtml: renderLegalDocBody(SHIPPING_REFUNDS_DOC),
     },
     {
+      // COA_POLICY_DOC was imported here but no route ever emitted it, so
+      // /coa-policy shipped as a soft-404 for crawlers — reachable only through
+      // Vercel's SPA rewrite. The Document Library links to it, so it needs a
+      // real crawlable body like every other policy page.
+      pathname: "/coa-policy",
+      title: "COA Policy",
+      description:
+        "How Noir Peptides documents batch-specific Certificates of Analysis for research reference materials. For research use only.",
+      bodyHtml: renderLegalDocBody(COA_POLICY_DOC),
+    },
+    {
       // Standalone research-use agreement (its own linkable document, so an
       // auditor or a payment underwriter can cite one URL). Body comes verbatim
       // from RUO_AGREEMENT_DOC — the same string the React page renders.
