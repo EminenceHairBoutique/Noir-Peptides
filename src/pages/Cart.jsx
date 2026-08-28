@@ -9,6 +9,7 @@ import DisclaimerBanner from "../components/DisclaimerBanner";
 const money = (n) =>
   `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 import FreeShipProgress from "../components/FreeShipProgress";
+import CryptoIncentive from "../components/CryptoIncentive";
 
 export default function Cart() {
   const {
@@ -159,6 +160,10 @@ export default function Cart() {
                     <span className="text-se-bone/60">Shipping</span>
                     <span className="text-se-steel">At checkout</span>
                   </div>
+                  {/* Task 4: the crypto saving, surfaced where it can affect
+                      the decision. Renders only when the SERVER reports a live
+                      crypto rail and a real discount percentage. */}
+                  <CryptoIncentive subtotal={cartTotal} />
                   <div className="divider" />
                   <div className="flex justify-between text-[15px] font-accent font-medium">
                     <span>Total</span>

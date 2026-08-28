@@ -64,6 +64,7 @@ src/output.css
 # Mobile audit scratch (screenshots + ad-hoc capture scripts)
 .mobile-audit/
 .business-test-*.mjs
+.pricing-test-*.mjs
 .lh-run.mjs
 .seo-work/
 .ld2.cjs
