@@ -56,8 +56,16 @@ const nodesOf = (g) => (Array.isArray(g?.["@graph"]) ? g["@graph"] : g ? [g] : [
 const typeIn = (g, t) => nodesOf(g).find((n) => n?.["@type"] === t);
 
 if (!fs.existsSync(path.join(DIST, "index.html"))) {
-  console.error("dist/ not built — run `npm run build` first.");
-  process.exit(1);
+  // These checks read the BUILT output. In CI the build must precede them, so
+  // a missing dist/ there is a real failure (the gate would otherwise be
+  // silently lost). Locally, on a fresh clone with no build yet, skip loudly
+  // rather than emit a confusing failure.
+  if (process.env.CI) {
+    console.error("dist/ missing in CI — `npm run build` must run BEFORE this check.");
+    process.exit(1);
+  }
+  console.log("  ⓘ SKIPPED — dist/ not built. Run `npm run build` first to exercise this gate.");
+  process.exit(0);
 }
 
 const files = routeFiles();

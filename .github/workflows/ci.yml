@@ -39,14 +39,17 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Build FIRST: the prerender-coverage and JSON-LD suites in test:unit
+      # assert against the built dist/, and building first also fails fast on
+      # a broken build before spending time on the suites.
+      - name: Production build
+        run: npm run build
+
       - name: Unit + audit suites
         run: npm run test:unit
 
       - name: Product data audit
         run: npm run audit:products
-
-      - name: Production build
-        run: npm run build
 
       - name: Dependency vulnerabilities (production deps)
         # Advisory: reports high/critical without blocking the merge on a
