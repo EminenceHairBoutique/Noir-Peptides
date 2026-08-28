@@ -5,6 +5,7 @@ import { motion as Motion } from "framer-motion";
 import { Microscope, Boxes, ShieldCheck } from "lucide-react";
 import SEO from "../components/SEO";
 import DisclaimerBanner from "../components/DisclaimerBanner";
+import { ABOUT_COPY } from "../data/pageCopy";
 
 const fadeUp = {
   initial: { opacity: 0, y: 28 },
@@ -13,23 +14,10 @@ const fadeUp = {
   transition: { duration: 0.7, ease: [0.2, 0, 0, 1] },
 };
 
-const PILLARS = [
-  {
-    icon: Microscope,
-    title: "Purity",
-    body: "Products are positioned around analytical transparency and batch-level documentation. Where available, Certificates of Analysis provide research-facing information such as identity, purity, and related analytical data.",
-  },
-  {
-    icon: Boxes,
-    title: "Traceability",
-    body: "Batch numbers, storage conditions, product metadata, and available COA documentation are displayed clearly so qualified purchasers can review the material before ordering.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Research-Only Integrity",
-    body: "Noir Peptides does not provide human-use guidance, dosing information, administration instructions, treatment protocols, or therapeutic claims. Our products are supplied exclusively for laboratory research use.",
-  },
-];
+// Icons are presentational and stay here; all pillar TEXT comes from the
+// shared copy module so the prerendered body and the page cannot drift.
+const PILLAR_ICONS = [Microscope, Boxes, ShieldCheck];
+const PILLARS = ABOUT_COPY.pillars.map((p, i) => ({ ...p, icon: PILLAR_ICONS[i] }));
 
 export default function About() {
   return (
@@ -52,16 +40,14 @@ export default function About() {
           />
           <div className="content-wide relative">
             <Motion.div {...fadeUp}>
-              <p className="text-overline mb-5">About</p>
+              <p className="text-overline mb-5">{ABOUT_COPY.overline}</p>
               <h1 className="font-display font-extrabold text-[clamp(2.4rem,7vw,5rem)] leading-[0.95] tracking-[0.01em] mb-7">
-                WE EXIST FOR
+                {ABOUT_COPY.headingLines[0]}
                 <br />
-                <span className="text-se-gold">RESEARCHERS.</span>
+                <span className="text-se-gold">{ABOUT_COPY.headingLines[1]}</span>
               </h1>
               <p className="text-[clamp(1rem,2.2vw,1.4rem)] text-se-bone/65 leading-relaxed font-accent max-w-2xl">
-                Noir Peptides was built for researchers who need reliable,
-                batch-documented peptide reference materials without the noise
-                of consumer wellness marketing.
+                {ABOUT_COPY.intro}
               </p>
             </Motion.div>
           </div>
@@ -71,13 +57,9 @@ export default function About() {
         <section className="section-pad border-b border-se-concrete">
           <div className="content-wrap max-w-3xl">
             <Motion.div {...fadeUp}>
-              <p className="text-overline mb-4">Our Standard</p>
+              <p className="text-overline mb-4">{ABOUT_COPY.standardOverline}</p>
               <p className="text-[15px] md:text-[17px] text-se-bone/60 leading-relaxed font-accent">
-                Every Noir Peptides product page is designed around clarity:
-                product identity, batch documentation, storage requirements,
-                purity data, and research-use restrictions. We do not position
-                our products as drugs, supplements, treatments, or wellness
-                products.
+                {ABOUT_COPY.standard}
               </p>
             </Motion.div>
           </div>
@@ -122,7 +104,7 @@ export default function About() {
         <section className="py-16 md:py-24">
           <div className="content-wide text-center">
             <h2 className="font-display text-[clamp(1.4rem,3.5vw,2.2rem)] tracking-[0.02em] mb-6">
-              EXPLORE THE CATALOG
+              {ABOUT_COPY.ctaHeading}
             </h2>
             <div className="flex justify-center gap-4">
               <Link to="/shop" className="btn-primary">

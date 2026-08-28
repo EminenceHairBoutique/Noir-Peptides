@@ -1,11 +1,42 @@
 # Noir Peptides — Launch Readiness
 
-_Last updated: 2026-06-30_
+_Last updated: 2026-08-28_
 
 This tracks the Launch Remediation work (6 tasks) and what remains before going
 live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
+
+## ✅ Done (Aug-28 SEO crawlability pass — branch `claude/seo-crawlability-aug28`)
+
+- **Full-coverage prerender.** 19 routes shipped an empty `<div id="root">`;
+  now only the 4 interactive/auth routes in `PRERENDER_EMPTY_ALLOWLIST`
+  (`/login`, `/register`, `/calculator`, `/verify-lot`) do. All legal pages,
+  `/about`, `/faqs`, `/contact`, `/deals`, `/research` + its 3 articles, and
+  `/test-results` now ship real crawlable `<main>` content, sourced verbatim
+  from shared data modules imported by BOTH the page components and the
+  prerenderer (`src/data/faqs.js`, `src/data/pageCopy.js`).
+- **Structured data:** BreadcrumbList on PDPs and category pages (mirroring the
+  rendered trail exactly), FAQPage on `/faqs` built verbatim from the shared
+  FAQ data, and a missing WebSite node added so the Article graph's `isPartOf`
+  no longer dangles. Article dates deliberately OMITTED — no real date exists.
+- **Hydration no longer destroys structured data.** `SEO.jsx` was overwriting
+  the build-time `@graph` with a single bare node — a PDP collapsed from
+  `[Organization, WebSite, WebPage, Product]` to `[Product]`, and research
+  articles lost their BreadcrumbList entirely. It now preserves the build-time
+  graph for the current URL.
+- **Sitemap/robots hygiene:** `lastmod` is now derived from real git commit
+  times per source-of-truth file (omitted, never faked, when git is shallow);
+  `Disallow: /verify` was a PREFIX rule silently blocking the indexable
+  `/verify-lot` and is now exact-match; `/verify-lot`'s four-way
+  index/noindex contradiction resolved to noindex.
+- **Prerendered `/404`** with noindex + explicit not-found copy.
+- **Internal linking:** related in-category products on every PDP, and a footer
+  nav on every prerendered body (any public page ≤2 clicks from any other).
+- **New gates in `test:unit`:** `test-prerender-coverage.mjs` (coverage vs the
+  allowlist, canonical form, sitemap/robots, no-fabrication, RUO line) and
+  `test-jsonld-shapes.mjs` (every emitted JSON-LD type; no
+  Drug/MedicalEntity/Review/AggregateRating; no invented dates).
 
 ## ✅ Done (Aug-26 audit remediation — branch `claude/audit-remediation-aug26`)
 
@@ -34,9 +65,14 @@ live. Branch: `claude/noir-peptides-launch-UwkB3`.
 ## ✅ Done (earlier launch remediation)
 
 ### Task 1 + 2 — Indexability & SEO
-- Build-time prerender of **every** public route: home, shop index, **7
-  categories**, **37 product pages**, education, legal — real
+- Build-time prerender of every public route's `<head>`: home, shop index,
+  categories, product pages, education, legal — real
   `<title>`/description/canonical/OG **in the static HTML** (not post-hydration).
+  **Correction (Aug-28):** this section previously claimed prerendering covered
+  "**every** public route" and cited "7 categories / 37 product pages". In fact
+  only `<head>` metadata was universal — 19 of 73 routes shipped an EMPTY
+  `<div id="root">` with no crawlable body until the Aug-28 pass below. The live
+  catalog is 8 categories and 44 products.
 - **Product JSON-LD** per product (offers/price/availability; `Product` schema
   only — never `Drug`/`MedicalEntity`). `Organization` sitewide.
 - `sitemap.xml` lists all catalog + content URLs; `robots.txt` allows the
