@@ -75,6 +75,9 @@ export default function Contact() {
                     {BRAND.supportEmail}
                   </a>
                 </div>
+                {/* Phone/address/guarantee/cutoff — only when set in
+                    src/config/business.js; renders nothing by default. */}
+                <BusinessIdentity variant="contact" />
               </div>
 
               <p className="text-[14px] text-se-bone/60 leading-relaxed font-accent mb-8">

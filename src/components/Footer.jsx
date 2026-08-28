@@ -6,6 +6,7 @@ import { BRAND } from "../config/brand";
 import { FOOTER_LEGAL } from "../config/compliance";
 import { useUser } from "../context/UserContext";
 import { subscribeEmail } from "../utils/subscribe";
+import BusinessIdentity from "./BusinessIdentity";
 
 const Footer = () => {
   const { authStatus } = useUser();
@@ -115,6 +116,9 @@ const Footer = () => {
               <Link to="/legal/privacy" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Privacy Policy</Link>
               <Link to="/legal/shipping" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Shipping &amp; Refunds</Link>
               <a href={`mailto:${BRAND.supportEmail}`} className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">{BRAND.supportEmail}</a>
+              {/* Renders phone/address/guarantee/cutoff only when configured in
+                  src/config/business.js — nothing (byte-identical) by default. */}
+              <BusinessIdentity variant="footer" />
             </div>
           </div>
         </div>

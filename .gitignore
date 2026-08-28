@@ -63,3 +63,4 @@ src/output.css
 /*.webp
 # Mobile audit scratch (screenshots + ad-hoc capture scripts)
 .mobile-audit/
+.business-test-*.mjs
