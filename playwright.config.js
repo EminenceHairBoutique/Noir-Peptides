@@ -6,6 +6,9 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Env vars:
  *   E2E_BASE_URL — override the base URL (default: http://localhost:4173)
+ *   E2E_API_URL  — deployed API origin; when set, the server-gate specs
+ *                  (attestation/checkout) run instead of self-skipping.
+ *                  `npm run test:e2e:prod` fails fast if it is unset.
  */
 
 const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:4173";

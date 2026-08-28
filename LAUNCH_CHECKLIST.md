@@ -94,3 +94,21 @@ below are operator/legal/business actions the code cannot perform.
 - [ ] Confirm `robots.txt` and the canonical/OG URLs use the production domain.
 - [ ] Instrument Lighthouse / Core Web Vitals on the deployed build (these are
       post-deploy targets, not in-session guarantees).
+
+## 9) Post-deploy verification (run against the live deployment, in order)
+
+Once deployed with real env, run this chain against production — each step
+gates the next:
+
+1. **`npm run verify:rls`** (with `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`):
+   confirms the anon key can't read `profiles`/`orders`/`attestation_audit` and
+   can't self-escalate `role→admin`. Must be all ✅ (migration `0030` applied).
+2. **`npm run db:verify`** (with `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`):
+   confirms live row counts match the static catalog and the migration ledger is
+   complete. Reconcile any ⛔ per RUNBOOK §1 before proceeding.
+3. **`E2E_API_URL=https://www.noirpeptides.com E2E_BASE_URL=https://www.noirpeptides.com npm run test:e2e:prod`**:
+   exercises the server-side attestation/checkout gates against the live API
+   (fails fast if `E2E_API_URL` is unset, so the gates never silently skip).
+4. **Manual spot-check:** view-source on `/`, `/shop`, and one PDP — confirm the
+   canonical/OG URLs use the production domain and `robots.txt` matches; confirm
+   the apex→www 308 redirect fires once the domain is attached.
