@@ -983,6 +983,84 @@ function CatalogRow({ kind, row, waitCount, onSaved, onError }) {
   );
 }
 
+/* ── SDS + product type (migration 0033) ─────────────────────────────────
+   Shown under an expanded product. Deliberately separate from CatalogRow: the
+   SDS URL is a controlled document reference, not a day-to-day price edit, and
+   it is product-only.
+
+   The server validates the URL (absolute https) and the date shape; this form
+   only keeps the owner from having to guess the format. Clearing the URL is a
+   supported action — a withdrawn sheet must be removable, and a blank field
+   makes the product render as having no SDS rather than keeping a dead link.
+
+   Hidden entirely when the API did not return the 0033 columns (migration
+   still pending), so the form can never post a field the database lacks. */
+function SdsRow({ row, onSaved, onError }) {
+  const supported = "sds_file_url" in row;
+  const [edit, setEdit] = useState(() => ({
+    sds_file_url: row.sds_file_url ?? "",
+    sds_updated_at: row.sds_updated_at ? String(row.sds_updated_at).slice(0, 10) : "",
+    product_type: row.product_type || "peptide",
+  }));
+  const [busy, setBusy] = useState(false);
+  if (!supported) return null;
+
+  const dirty =
+    edit.sds_file_url !== (row.sds_file_url ?? "") ||
+    edit.sds_updated_at !== (row.sds_updated_at ? String(row.sds_updated_at).slice(0, 10) : "") ||
+    edit.product_type !== (row.product_type || "peptide");
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await adminSend("/api/admin/catalog", "PATCH", {
+        kind: "product",
+        id: row.id,
+        // "" is meaningful: it clears the field server-side.
+        sds_file_url: edit.sds_file_url.trim(),
+        sds_updated_at: edit.sds_updated_at,
+        product_type: edit.product_type,
+      });
+      onSaved("product", r.product, null);
+    } catch (e) { onError(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const inp = "rounded-lg border border-white/12 bg-white/[0.03] px-2 py-1 text-se-bone text-[12px] focus:border-se-gold focus:outline-none";
+  const sel = "rounded-lg border border-white/12 bg-[#0a0e16] px-2 py-1 text-se-bone text-[12px] focus:border-se-gold focus:outline-none";
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-2 pl-8 border-t border-white/5">
+      <span className="text-[11px] uppercase tracking-wide text-se-steel shrink-0">SDS</span>
+      <input
+        type="url"
+        inputMode="url"
+        placeholder="https://… (blank = no sheet published)"
+        className={`${inp} flex-1 min-w-[220px]`}
+        value={edit.sds_file_url}
+        onChange={(e) => setEdit((st) => ({ ...st, sds_file_url: e.target.value }))}
+      />
+      <label className="flex items-center gap-1 text-[11px] text-se-steel" title="Revision date printed on the sheet">
+        revised
+        <input type="date" className={inp} value={edit.sds_updated_at}
+          onChange={(e) => setEdit((st) => ({ ...st, sds_updated_at: e.target.value }))} />
+      </label>
+      <label className="flex items-center gap-1 text-[11px] text-se-steel" title="Lab supplies are offered as consumables in the cart">
+        type
+        <select className={sel} value={edit.product_type}
+          onChange={(e) => setEdit((st) => ({ ...st, product_type: e.target.value }))}>
+          <option value="peptide">peptide</option>
+          <option value="lab_supply">lab supply</option>
+        </select>
+      </label>
+      <button onClick={save} disabled={!dirty || busy}
+        className="text-[11px] rounded border border-se-gold/40 text-se-gold px-3 py-1 hover:bg-se-gold/10 disabled:opacity-30">
+        {busy ? "Saving…" : "Save"}
+      </button>
+    </div>
+  );
+}
+
 function CatalogManager() {
   const [products, setProducts] = useState([]);
   const [variants, setVariants] = useState([]);
@@ -1065,6 +1143,9 @@ function CatalogManager() {
                   <CatalogRow kind="product" row={p} waitCount={productWaiting} onSaved={onSaved} onError={setErr} />
                 </div>
               </div>
+              {open.has(p.id) && (
+                <SdsRow row={p} onSaved={onSaved} onError={setErr} />
+              )}
               {open.has(p.id) && vs.map((v) => (
                 <CatalogRow key={v.id} kind="variant" row={v}
                   waitCount={waitlist.filter((w) => w.variant_id === v.id).length}

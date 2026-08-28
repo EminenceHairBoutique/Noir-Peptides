@@ -156,6 +156,47 @@ for (const term of ["reconstitut", "dilut", "dose", "dosing", "inject", "adminis
   );
 }
 
+// ── Admin SDS entry ───────────────────────────────────────────────────────
+console.log("\nAdmin SDS entry is validated, clearable, and deploy-safe:");
+{
+  const api = read("../api/admin/catalog.js");
+  assert(
+    /url\.protocol === "https:"/.test(api),
+    "SDS URL must be https — an http link on a safety document is downgradeable"
+  );
+  assert(
+    /function validSdsUrl/.test(api) && /new URL\(String\(value\)\)/.test(api),
+    "SDS URL is parsed, so javascript:/data: and malformed values are rejected"
+  );
+  assert(
+    /out\.sds_file_url = null;/.test(api),
+    "an empty value CLEARS the sheet (a withdrawn document must be removable)"
+  );
+  assert(
+    /\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$/.test(api),
+    "the revision date is shape-checked as an ISO day"
+  );
+  assert(
+    /PRODUCT_TYPES\.includes\(body\.product_type\)/.test(api),
+    "product_type is whitelisted, not written through"
+  );
+  assert(
+    /42703/.test(api) && /migration pending/.test(api),
+    "the catalog GET degrades to pre-0033 columns instead of 500-ing before the migration runs"
+  );
+  // The endpoint must remain column-whitelisted: no spreading of the body.
+  assert(
+    !/\.update\(\s*\{\s*\.\.\.body/.test(api),
+    "the update never spreads the request body — only whitelisted fields are written"
+  );
+
+  const admin = read("../src/pages/AdminHome.jsx");
+  assert(
+    /const supported = "sds_file_url" in row;/.test(admin),
+    "the SDS form hides itself when the API did not return the 0033 columns"
+  );
+}
+
 // ── Task 7 article ────────────────────────────────────────────────────────
 console.log("\nPurity-vs-content article is published and claim-safe:");
 {
