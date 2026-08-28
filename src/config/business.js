@@ -31,6 +31,24 @@ export const BUSINESS = {
   // set. Defaults to ET (the benchmark), but is only ever rendered alongside a
   // real cutoff value.
   shipCutoffTz: "ET",
+
+  // Days the cutoff applies to, rendered only alongside a real shipCutoff.
+  shipCutoffDays: "Monday–Friday",
+
+  // Day-by-day business hours. NULL by default. When set, use an array of
+  // { day, opens, closes } — or { day, closed: true } for a closed day, e.g.
+  //   [{ day: "Monday", opens: "9:00 AM", closes: "5:00 PM" },
+  //    { day: "Saturday", closed: true }]
+  // Never invent hours: an unset value renders no hours table at all.
+  hours: null,
+
+  // Fulfilment statements. Both are FACTUAL descriptions of how orders are
+  // packed and how the charge appears — set them only once true of the real
+  // operation. Null renders nothing.
+  //   discreetPackaging: e.g. "Ships in plain, unbranded outer packaging."
+  //   billingDescriptor: the literal descriptor shown on a card statement.
+  discreetPackaging: null,
+  billingDescriptor: null,
 };
 
 // Helpers so consumers never render an empty/placeholder element. Each returns
@@ -40,6 +58,20 @@ export const hasAddress = () =>
   Array.isArray(BUSINESS.addressLines) && BUSINESS.addressLines.filter((l) => String(l || "").trim()).length > 0;
 export const hasGuarantee = () => Number.isFinite(BUSINESS.guaranteeDays) && BUSINESS.guaranteeDays > 0;
 export const hasShipCutoff = () => typeof BUSINESS.shipCutoff === "string" && BUSINESS.shipCutoff.trim() !== "";
+export const hasHours = () =>
+  Array.isArray(BUSINESS.hours) && BUSINESS.hours.filter((h) => h && h.day).length > 0;
+export const hasDiscreetPackaging = () =>
+  typeof BUSINESS.discreetPackaging === "string" && BUSINESS.discreetPackaging.trim() !== "";
+export const hasBillingDescriptor = () =>
+  typeof BUSINESS.billingDescriptor === "string" && BUSINESS.billingDescriptor.trim() !== "";
+
+/** Same-day dispatch statement, or null when no cutoff is configured. */
+export const shipCutoffStatement = () =>
+  hasShipCutoff()
+    ? `Orders placed before ${BUSINESS.shipCutoff} ${BUSINESS.shipCutoffTz}${
+        BUSINESS.shipCutoffDays ? ` ${BUSINESS.shipCutoffDays}` : ""
+      } ship the same business day.`
+    : null;
 
 // A phone href stripped to dialable characters, or null.
 export const phoneHref = () => (hasPhone() ? `tel:${BUSINESS.phone.replace(/[^\d+]/g, "")}` : null);

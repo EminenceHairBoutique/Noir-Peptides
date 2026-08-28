@@ -8,6 +8,7 @@ import DisclaimerBanner from "../components/DisclaimerBanner";
 
 const money = (n) =>
   `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+import FreeShipProgress from "../components/FreeShipProgress";
 
 export default function Cart() {
   const {
@@ -151,6 +152,9 @@ export default function Cart() {
                     <span className="text-se-bone/60">Subtotal</span>
                     <span>{money(cartTotal)}</span>
                   </div>
+                  {/* Task 5: free-shipping progress, reading the SAME threshold
+                      the server prices against — display cannot drift from charge. */}
+                  <FreeShipProgress subtotal={cartTotal} />
                   <div className="flex justify-between text-[13px] font-accent">
                     <span className="text-se-bone/60">Shipping</span>
                     <span className="text-se-steel">At checkout</span>

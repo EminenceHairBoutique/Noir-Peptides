@@ -33,6 +33,7 @@ import {
   RESEARCH_USE_POLICY_DOC,
   FDA_DISCLAIMER_DOC,
   SHIPPING_REFUNDS_DOC,
+  RUO_AGREEMENT_DOC,
   TERMS_DOC,
   PRIVACY_DOC,
   COA_POLICY_DOC,
@@ -471,10 +472,12 @@ const FOOTER_NAV = [
   { href: "/research", label: "Research & Education" },
   { href: "/test-results", label: "Test Results (COA Library)" },
   { href: "/verify-lot", label: "Verify a Lot" },
+  { href: "/documents", label: "Document Library" },
   { href: "/about", label: "About" },
   { href: "/faqs", label: "FAQ" },
   { href: "/contact", label: "Contact" },
   { href: "/legal/research-use-policy", label: "Research-Use Policy" },
+  { href: "/legal/ruo-agreement", label: "Research-Use Agreement" },
   { href: "/legal/fda-disclaimer", label: "FDA Disclaimer" },
   { href: "/legal/shipping", label: "Shipping & Refunds" },
   { href: "/legal/terms", label: "Terms & Conditions" },
@@ -610,6 +613,69 @@ function renderContactBody() {
   ]);
 }
 
+// ── Task 2: /documents static body ───────────────────────────────────────
+// The policy list and cross-links are static and always emitted. The SDS list
+// is emitted ONLY from rows that actually came back from the database; when the
+// build has no access, the section states that the list loads live rather than
+// implying the catalogue has no sheets.
+const DOCUMENTS_POLICY_LINKS = [
+  { href: "/legal/ruo-agreement", label: "Research-Use Agreement" },
+  { href: "/legal/research-use-policy", label: "Research-Use Policy" },
+  { href: "/coa-policy", label: "COA Policy" },
+  { href: "/legal/fda-disclaimer", label: "FDA Disclaimer" },
+  { href: "/legal/shipping", label: "Shipping & Refunds Policy" },
+  { href: "/legal/terms", label: "Terms & Conditions" },
+  { href: "/legal/privacy", label: "Privacy Policy" },
+];
+
+function renderDocumentsBody(sdsRows) {
+  const blocks = [
+    "<h1>Document Library</h1>",
+    "<p>Safety Data Sheets, batch certificates of analysis, lot verification and the " +
+      "policies under which these materials are supplied.</p>",
+    "<h2>Certificates and verification</h2>",
+    "<ul>" +
+      '<li><a href="/test-results">Certificates of Analysis</a> — batch-specific HPLC purity and mass-spec identity results.</li>' +
+      '<li><a href="/verify-lot">Verify a lot</a> — look up the certificate for the lot printed on your vial.</li>' +
+      "</ul>",
+    "<h2>Safety Data Sheets</h2>",
+    "<p>GHS 16-section format, covering hazard identification, handling and storage, " +
+      "exposure controls, and disposal for each material.</p>",
+  ];
+
+  if (Array.isArray(sdsRows) && sdsRows.length > 0) {
+    blocks.push(
+      "<ul>" +
+        sdsRows
+          .map((r) => {
+            const name = escapeHtml(r.name || r.slug || "");
+            const product = r.slug ? `<a href="/product/${escapeHtml(r.slug)}">${name}</a>` : name;
+            const sheet = r.sds_file_url
+              ? ` — <a href="${escapeHtml(r.sds_file_url)}">Safety Data Sheet (GHS, 16-section)</a>`
+              : "";
+            const revised = r.sds_updated_at ? ` (revised ${escapeHtml(fmtIsoDay(r.sds_updated_at))})` : "";
+            return `<li>${product}${sheet}${revised}</li>`;
+          })
+          .join("") +
+        "</ul>"
+    );
+  } else {
+    blocks.push("<p>Published Safety Data Sheets are listed here. Request the sheet for a " +
+      'specific material at <a href="/contact">contact</a>.</p>');
+  }
+
+  blocks.push("<h2>Policy documents</h2>");
+  blocks.push(
+    "<ul>" +
+      DOCUMENTS_POLICY_LINKS.map(
+        (d) => `<li><a href="${escapeHtml(d.href)}">${escapeHtml(d.label)}</a></li>`
+      ).join("") +
+      "</ul>"
+  );
+
+  return wrapBody(blocks);
+}
+
 /**
  * DB-driven pages: prerender the STATIC explanatory shell + navigation ONLY.
  * Never any row data — no synthetic offers, no synthetic COA rows. Live rows
@@ -677,6 +743,36 @@ async function fetchPublishedCoasAtBuild() {
     return rows;
   } catch (e) {
     console.warn(`[seo] COA fetch failed (${e.message}) — /test-results prerenders the static shell only`);
+    return null;
+  }
+}
+
+// ── Task 2: build-time SDS fetch for the /documents index ────────────────
+// Same contract as the COA fetch above: with database access we list the
+// materials that genuinely have a published Safety Data Sheet; without it we
+// emit the shell (cross-links + policy list) and SAY SO. Never a fabricated
+// sheet, never a "0 of 44" coverage claim we could not actually verify.
+// A 400 here also covers "migration 0033 not applied yet" — the column simply
+// does not exist, which is reported as "no data" rather than as an error.
+async function fetchSdsProductsAtBuild() {
+  const url = String(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+  const key = process.env.VITE_SUPABASE_ANON_KEY || "";
+  if (!url || !key) {
+    console.warn("[seo] no Supabase env at build — /documents prerenders the shell only (no SDS list)");
+    return null;
+  }
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/products?select=id,slug,name,sds_file_url,sds_updated_at&sds_file_url=not.is.null&order=name.asc`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    if (!res.ok) throw new Error(`products sds fetch ${res.status}`);
+    const rows = await res.json();
+    if (!Array.isArray(rows)) throw new Error("malformed products response");
+    console.log(`[seo] fetched ${rows.length} product(s) with a published SDS for /documents`);
+    return rows;
+  } catch (e) {
+    console.warn(`[seo] SDS fetch failed (${e.message}) — /documents prerenders the shell only`);
     return null;
   }
 }
@@ -869,6 +965,7 @@ async function main() {
   // W2/W4: published COA rows for the trust-surface prerender (null when the
   // build has no database access — shell-only, honestly logged).
   const coaRows = await fetchPublishedCoasAtBuild();
+  const sdsRows = await fetchSdsProductsAtBuild();
   const coaStats = coaRows ? deriveCoaStats(coaRows) : null;
   const coaGroups = coaRows ? groupByProduct(coaRows) : new Map();
   const productsBySlug = getAllProducts();
@@ -894,6 +991,13 @@ async function main() {
       description:
         "Answers on batch documentation, certificates of analysis, storage, ordering, and shipping for Noir Peptides research reference materials. For research use only.",
       bodyHtml: renderFaqsBody(),
+    },
+    {
+      pathname: "/documents",
+      title: "Document Library | Safety Data Sheets & Certificates",
+      description:
+        "Safety Data Sheets (GHS 16-section), batch certificates of analysis, lot verification and policy documents for Noir Peptides research reference materials. For research use only.",
+      bodyHtml: renderDocumentsBody(sdsRows),
     },
     {
       pathname: "/contact",
@@ -951,6 +1055,16 @@ async function main() {
       description:
         "Noir Peptides shipping and refunds policy. Research use only. All sales final once shipped.",
       bodyHtml: renderLegalDocBody(SHIPPING_REFUNDS_DOC),
+    },
+    {
+      // Standalone research-use agreement (its own linkable document, so an
+      // auditor or a payment underwriter can cite one URL). Body comes verbatim
+      // from RUO_AGREEMENT_DOC — the same string the React page renders.
+      pathname: "/legal/ruo-agreement",
+      title: "Research-Use Agreement",
+      description:
+        "The terms under which Noir Peptides supplies peptide reference materials: laboratory research use by qualified purchasers only. Not for human or veterinary use.",
+      bodyHtml: renderLegalDocBody(RUO_AGREEMENT_DOC),
     },
     {
       pathname: "/legal/returns",

@@ -15,6 +15,7 @@
 // and dynamic/DB-only data (stock, COAs, orders) is never faked.
 
 import { supabase } from "./supabaseClient";
+import { selectDegrading } from "./pgSelect";
 import {
   getAllProducts as staticAllProducts,
   getCategories as staticCategories,
@@ -80,12 +81,19 @@ function normalizeProduct(row) {
   };
 }
 
-const PRODUCT_COLUMNS =
+// Columns that exist before migration 0033. Kept as the degradation target so
+// a deploy that lands ahead of the migration still reads the LIVE catalog
+// instead of silently dropping to the bundled build-time one.
+const PRODUCT_COLUMNS_BASE =
   "id, slug, name, subtitle, category_slug, price, compare_at_price, " +
   "vial_size_mg, purity_percent, peptide_sequence, molecular_weight, form, " +
   "storage_temp, cas_number, batch_number, coa_url, research_use_only, " +
   "stock_status, image_url, gallery, short_description, description, " +
   "featured, is_new";
+
+// + migration 0033: Safety Data Sheet pointer and the peptide/lab_supply split.
+const PRODUCT_COLUMNS =
+  PRODUCT_COLUMNS_BASE + ", sds_file_url, sds_updated_at, product_type";
 
 /**
  * Fetch catalog products, optionally filtered by category slug.
@@ -94,9 +102,15 @@ const PRODUCT_COLUMNS =
 export async function getProducts({ category } = {}) {
   if (!supabase) return staticProducts({ category });
   try {
-    let q = supabase.from("products").select(PRODUCT_COLUMNS);
-    if (category) q = q.eq("category_slug", category);
-    const { data, error } = await q;
+    const { data, error } = await selectDegrading(
+      (cols) => {
+        let q = supabase.from("products").select(cols);
+        if (category) q = q.eq("category_slug", category);
+        return q;
+      },
+      PRODUCT_COLUMNS,
+      PRODUCT_COLUMNS_BASE
+    );
     if (error || !Array.isArray(data) || data.length === 0) return staticProducts({ category });
     return data.map(normalizeProduct);
   } catch {
@@ -116,18 +130,18 @@ export async function getProduct(slugOrId) {
   if (!slugOrId) return null;
   if (!supabase) return staticProduct(slugOrId);
   try {
-    const bySlug = await supabase
-      .from("products")
-      .select(PRODUCT_COLUMNS)
-      .eq("slug", slugOrId)
-      .maybeSingle();
+    const bySlug = await selectDegrading(
+      (cols) => supabase.from("products").select(cols).eq("slug", slugOrId).maybeSingle(),
+      PRODUCT_COLUMNS,
+      PRODUCT_COLUMNS_BASE
+    );
     if (bySlug.data) return normalizeProduct(bySlug.data);
 
-    const byId = await supabase
-      .from("products")
-      .select(PRODUCT_COLUMNS)
-      .eq("id", slugOrId)
-      .maybeSingle();
+    const byId = await selectDegrading(
+      (cols) => supabase.from("products").select(cols).eq("id", slugOrId).maybeSingle(),
+      PRODUCT_COLUMNS,
+      PRODUCT_COLUMNS_BASE
+    );
     return byId.data ? normalizeProduct(byId.data) : staticProduct(slugOrId);
   } catch {
     return staticProduct(slugOrId);
@@ -147,12 +161,17 @@ function staticFeatured(limit) {
 export async function getFeaturedProducts(limit = 8) {
   if (!supabase) return staticFeatured(limit);
   try {
-    const { data, error } = await supabase
-      .from("products")
-      .select(PRODUCT_COLUMNS)
-      .eq("featured", true)
-      .neq("stock_status", "out_of_stock")
-      .limit(limit);
+    const { data, error } = await selectDegrading(
+      (cols) =>
+        supabase
+          .from("products")
+          .select(cols)
+          .eq("featured", true)
+          .neq("stock_status", "out_of_stock")
+          .limit(limit),
+      PRODUCT_COLUMNS,
+      PRODUCT_COLUMNS_BASE
+    );
     if (error || !Array.isArray(data) || data.length === 0) return staticFeatured(limit);
     return data.map(normalizeProduct);
   } catch {
@@ -193,10 +212,11 @@ export async function getVariants(productId) {
 export async function getProductsAuthoritative() {
   if (!supabase) return { rows: [], error: "Supabase is not configured in this build." };
   try {
-    const { data, error } = await supabase
-      .from("products")
-      .select(PRODUCT_COLUMNS)
-      .order("name", { ascending: true });
+    const { data, error } = await selectDegrading(
+      (cols) => supabase.from("products").select(cols).order("name", { ascending: true }),
+      PRODUCT_COLUMNS,
+      PRODUCT_COLUMNS_BASE
+    );
     if (error) return { rows: [], error: error.message };
     return { rows: (data || []).map(normalizeProduct), error: null };
   } catch (e) {

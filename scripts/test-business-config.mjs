@@ -64,9 +64,26 @@ ok(footer.includes("+1 (555) 010-0143"), "phone renders");
 ok(footer.includes('href="tel:+15550100143"'), "phone dial href is digit-stripped");
 ok(footer.includes("123 Research Way"), "address line renders");
 ok(footer.includes("<address"), "address uses semantic <address>");
-ok(footer.includes("Order by 2:00 PM ET"), "shipping cutoff renders with tz");
+// Task 5: the cutoff is now a full same-day dispatch statement, not a bare
+// "Order by" fragment — it must name the time, timezone AND the days.
+ok(
+  footer.includes("Orders placed before 2:00 PM ET") && footer.includes("ship the same business day"),
+  "shipping cutoff renders as a full same-day dispatch statement with tz"
+);
 ok(footer.includes("30-day satisfaction guarantee"), "guarantee renders");
 ok(render("contact").includes("+1 (555) 010-0143"), "contact variant renders values too");
+
+// Business hours (Task 5): absent by default, table when configured.
+ok(!render("footer").includes("business-hours"), "no hours table when BUSINESS.hours is null");
+BUSINESS.hours = [
+  { day: "Monday", opens: "9:00 AM", closes: "5:00 PM" },
+  { day: "Sunday", closed: true },
+];
+const withHours = render("footer");
+ok(withHours.includes('data-testid="business-hours"'), "hours table renders when configured");
+ok(withHours.includes("Monday") && withHours.includes("9:00 AM"), "configured hours row renders");
+ok(withHours.includes("Closed"), "a closed day renders as Closed, not blank");
+BUSINESS.hours = null;
 
 // 3. Partial config — only one field set — renders only that element.
 Object.assign(BUSINESS, { phone: null, addressLines: null, shipCutoff: null, guaranteeDays: 30 });

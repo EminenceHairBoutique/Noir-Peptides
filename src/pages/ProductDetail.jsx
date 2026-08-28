@@ -1,7 +1,7 @@
 // src/pages/ProductDetail.jsx — Noir Peptides Research Material PDP
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronLeft, FileText, Snowflake, XCircle, Truck } from "lucide-react";
+import { ChevronLeft, FileText, Snowflake, XCircle, Truck, ShieldAlert } from "lucide-react";
 import { motion as Motion } from "framer-motion";
 
 import {
@@ -21,6 +21,8 @@ import BackInStockForm from "../components/BackInStockForm";
 import COABadge from "../components/COABadge";
 import QrVerifyExplainer from "../components/QrVerifyExplainer";
 import CoaCard from "../components/CoaCard";
+import SdsLink from "../components/SdsLink";
+import { hasSds } from "../lib/sds";
 import { getCoasForProduct } from "../lib/coas";
 import { getProductLabel } from "../lib/labelsApi";
 import MediaGallery from "../components/product3d/MediaGallery";
@@ -666,6 +668,42 @@ export default function ProductDetail() {
                       test-results library
                     </Link>{" "}
                     or verify the lot printed on your vial.
+                  </p>
+                )}
+              </div>
+
+              {/* Safety documentation (Task 2). The SDS is the document an
+                  institutional purchaser's EHS review asks for; it renders only
+                  when a real sheet is on file (migration 0033), and otherwise
+                  says plainly that none is published rather than linking a
+                  placeholder. */}
+              <div className="glass-panel p-6 mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <ShieldAlert className="w-4 h-4 text-se-gold" />
+                  <h2 className="text-[12px] font-accent uppercase tracking-[0.16em] text-se-gold">
+                    Safety Documentation
+                  </h2>
+                </div>
+                {hasSds(product) ? (
+                  <div className="space-y-2">
+                    <SdsLink product={product} />
+                    <p className="text-[12px] text-se-steel font-accent leading-relaxed">
+                      Handling, storage, exposure controls and disposal for this
+                      material, in the 16-section GHS format.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[12px] text-se-steel font-accent leading-relaxed">
+                    No Safety Data Sheet is published for this material yet.
+                    Request one at{" "}
+                    <Link to="/contact" className="text-se-gold underline underline-offset-2">
+                      contact
+                    </Link>
+                    , or browse the{" "}
+                    <Link to="/documents" className="text-se-gold underline underline-offset-2">
+                      document library
+                    </Link>
+                    .
                   </p>
                 )}
               </div>

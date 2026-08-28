@@ -5,14 +5,21 @@
 // the verifiable, batch-specific COA is the core trust signal (Task 3).
 
 import { supabase } from "./supabaseClient";
+import { selectDegrading } from "./pgSelect";
 
-const COA_COLUMNS =
+// Columns that exist before migration 0032 — the degradation target, so a
+// deploy landing ahead of the migration still shows the certificate library
+// (without the two-factor extras) rather than an empty page.
+const COA_COLUMNS_BASE =
   "id, product_id, batch_number, lot_number, lab_name, file_url, cas_number, " +
   "purity_percent, hplc, mass_spec, ms_confirmed, endotoxin, tested_at, " +
-  "is_published, created_at, " +
-  // Two-factor verification + net-content columns (migration 0032). The
-  // embedded labs(...) selection is a JOIN, not an extra round trip.
-  "lab_id, lab_lookup_code, purity_operator, net_peptide_content_mg, " +
+  "is_published, created_at";
+
+// + migration 0032: two-factor verification and net-content columns. The
+// embedded labs(...) selection is a JOIN, not an extra round trip.
+const COA_COLUMNS =
+  COA_COLUMNS_BASE +
+  ", lab_id, lab_lookup_code, purity_operator, net_peptide_content_mg, " +
   "label_claim_mg, published_on, status, " +
   "labs ( id, name, accreditation_body, accreditation_number, public_lookup_url_template )";
 
@@ -32,11 +39,16 @@ function normalize(row) {
 export async function getAllCoas() {
   if (!supabase) return [];
   try {
-    const { data, error } = await supabase
-      .from("coas")
-      .select(COA_COLUMNS)
-      .order("tested_at", { ascending: false, nullsFirst: false })
-      .limit(500);
+    const { data, error } = await selectDegrading(
+      (cols) =>
+        supabase
+          .from("coas")
+          .select(cols)
+          .order("tested_at", { ascending: false, nullsFirst: false })
+          .limit(500),
+      COA_COLUMNS,
+      COA_COLUMNS_BASE
+    );
     if (error || !Array.isArray(data)) return [];
     return data.map(normalize);
   } catch {
@@ -48,11 +60,16 @@ export async function getAllCoas() {
 export async function getCoasForProduct(productId) {
   if (!supabase || !productId) return [];
   try {
-    const { data, error } = await supabase
-      .from("coas")
-      .select(COA_COLUMNS)
-      .eq("product_id", productId)
-      .order("tested_at", { ascending: false, nullsFirst: false });
+    const { data, error } = await selectDegrading(
+      (cols) =>
+        supabase
+          .from("coas")
+          .select(cols)
+          .eq("product_id", productId)
+          .order("tested_at", { ascending: false, nullsFirst: false }),
+      COA_COLUMNS,
+      COA_COLUMNS_BASE
+    );
     if (error || !Array.isArray(data)) return [];
     return data.map(normalize);
   } catch {
@@ -69,12 +86,17 @@ export async function lookupByLot(lot) {
   const needle = String(lot || "").trim();
   if (!supabase || !needle) return null;
   try {
-    const { data, error } = await supabase
-      .from("coas")
-      .select(COA_COLUMNS)
-      .or(`lot_number.ilike.${needle},batch_number.ilike.${needle}`)
-      .limit(1)
-      .maybeSingle();
+    const { data, error } = await selectDegrading(
+      (cols) =>
+        supabase
+          .from("coas")
+          .select(cols)
+          .or(`lot_number.ilike.${needle},batch_number.ilike.${needle}`)
+          .limit(1)
+          .maybeSingle(),
+      COA_COLUMNS,
+      COA_COLUMNS_BASE
+    );
     if (error || !data) return null;
     return normalize(data);
   } catch {
