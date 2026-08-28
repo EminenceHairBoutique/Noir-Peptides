@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import { Mail } from "lucide-react";
 import SEO from "../components/SEO";
 import { BRAND } from "../config/brand";
+import BusinessIdentity from "../components/BusinessIdentity";
+import { CONTACT_COPY } from "../data/pageCopy";
 
 export default function Contact() {
   const [form, setForm] = useState({
@@ -52,11 +54,10 @@ export default function Contact() {
           <div className="content-wide">
             <p className="text-overline mb-4">Support</p>
             <h1 className="font-display font-extrabold text-[clamp(2rem,6vw,4rem)] tracking-[0.01em] mb-4">
-              CONTACT NOIR PEPTIDES
+              {CONTACT_COPY.heading}
             </h1>
             <p className="text-[15px] text-se-bone/50 max-w-2xl font-accent leading-relaxed">
-              For order support, documentation requests, batch inquiries, or
-              qualified research supply questions, contact our team.
+              {CONTACT_COPY.intro}
             </p>
           </div>
         </section>
@@ -81,30 +82,25 @@ export default function Contact() {
               </div>
 
               <p className="text-[14px] text-se-bone/60 leading-relaxed font-accent mb-8">
-                Before contacting us, please note: Noir Peptides does not
-                provide dosing, administration, injection, ingestion,
-                reconstitution-ratio, treatment, clinical, or human/veterinary-use
-                guidance.
+                {CONTACT_COPY.noGuidance}
               </p>
 
-              <h2 className="font-display text-[15px] tracking-[0.04em] text-se-gold mb-3">
-                For order issues, include:
-              </h2>
-              <ul className="list-disc list-outside pl-5 space-y-2 mb-8 text-[14px] text-se-bone/60 font-accent">
-                <li>Order number</li>
-                <li>Email used at checkout</li>
-                <li>Photos if reporting damage, missing items, or incorrect items</li>
-                <li>Brief description of the issue</li>
-              </ul>
-
-              <h2 className="font-display text-[15px] tracking-[0.04em] text-se-gold mb-3">
-                For COA requests, include:
-              </h2>
-              <ul className="list-disc list-outside pl-5 space-y-2 text-[14px] text-se-bone/60 font-accent">
-                <li>Product name</li>
-                <li>Batch number if available</li>
-                <li>Order number if applicable</li>
-              </ul>
+              {CONTACT_COPY.lists.map((list, li) => (
+                <React.Fragment key={list.heading}>
+                  <h2 className="font-display text-[15px] tracking-[0.04em] text-se-gold mb-3">
+                    {list.heading}
+                  </h2>
+                  <ul
+                    className={`list-disc list-outside pl-5 space-y-2 text-[14px] text-se-bone/60 font-accent${
+                      li < CONTACT_COPY.lists.length - 1 ? " mb-8" : ""
+                    }`}
+                  >
+                    {list.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </React.Fragment>
+              ))}
             </div>
 
             {/* Working contact form */}

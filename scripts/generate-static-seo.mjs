@@ -13,12 +13,30 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { researchArticles } from "../src/data/research.js";
 import {
   getAllProducts,
   getCategories,
   getProductsInCategory,
 } from "../src/data/tier1Catalog.js";
+import { FAQS, FAQ_HEADING, FAQ_INTRO } from "../src/data/faqs.js";
+import {
+  ABOUT_COPY,
+  CONTACT_COPY,
+  DEALS_SHELL,
+  TEST_RESULTS_SHELL,
+} from "../src/data/pageCopy.js";
+import {
+  RESEARCH_USE_POLICY_DOC,
+  FDA_DISCLAIMER_DOC,
+  SHIPPING_REFUNDS_DOC,
+  TERMS_DOC,
+  PRIVACY_DOC,
+  COA_POLICY_DOC,
+  QUALITY_DOC,
+} from "../src/config/legalCopy.js";
 
 const ROOT = process.cwd();
 const DIST_DIR = path.join(ROOT, "dist");
@@ -73,6 +91,71 @@ const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/noir/noir-og.png`;
 const SEO_BEGIN = "<!-- SEO:BEGIN -->";
 const SEO_END = "<!-- SEO:END -->";
 
+// ── Deterministic <lastmod> from git ──────────────────────────────────────
+// Derived from the commit time of each route's SOURCE-OF-TRUTH file. Never a
+// synthetic "today" stamp: a build-date lastmod tells crawlers every page
+// changed on every deploy, which is false and wastes crawl budget.
+//
+// SHALLOW-CLONE HAZARD (this fails SILENTLY if unguarded): in a `--depth 1`
+// clone — which `actions/checkout@v4` and most CI/hosting providers do by
+// default — `git log -1 -- <file>` resolves EVERY file to the single grafted
+// HEAD commit, so every route would share one identical, wrong date. We detect
+// that and OMIT lastmod entirely rather than emit a uniform fabricated date;
+// <lastmod> is optional in the sitemap protocol, so omission is valid.
+//
+// TZ=UTC0 normalizes the offset: %cI emits the committer's local offset, so
+// slicing the raw string to YYYY-MM-DD can land on the wrong day.
+const gitDateCache = new Map();
+
+function isShallowRepo() {
+  try {
+    return (
+      execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() === "true"
+    );
+  } catch {
+    return true; // no git available → treat as untrustworthy
+  }
+}
+
+const SHALLOW = isShallowRepo();
+
+function gitLastModified(file) {
+  if (SHALLOW) return null;
+  if (gitDateCache.has(file)) return gitDateCache.get(file);
+  let out = null;
+  try {
+    const iso = execFileSync(
+      "git",
+      ["log", "-1", "--format=%cd", "--date=iso-strict-local", "--", file],
+      { encoding: "utf8", env: { ...process.env, TZ: "UTC0" }, stdio: ["ignore", "pipe", "ignore"] }
+    ).trim();
+    out = iso ? iso.slice(0, 10) : null;
+  } catch {
+    out = null;
+  }
+  gitDateCache.set(file, out);
+  return out;
+}
+
+/** Map a route to the file that actually determines its content. */
+function sourceFileForRoute(pathname) {
+  if (pathname === "/" || pathname === "/shop" || pathname.startsWith("/shop/") || pathname.startsWith("/product/")) {
+    return "src/data/tier1Catalog.js";
+  }
+  if (pathname.startsWith("/research")) return "src/data/research.js";
+  if (pathname.startsWith("/legal/")) return "src/config/legalCopy.js";
+  if (pathname === "/faqs") return "src/data/faqs.js";
+  if (pathname === "/about" || pathname === "/contact") return "src/data/pageCopy.js";
+  if (pathname === "/deals") return "src/pages/Deals.jsx";
+  if (pathname === "/test-results") return "src/pages/TestResults.jsx";
+  if (pathname === "/verify-lot") return "src/pages/VerifyLot.jsx";
+  if (pathname === "/calculator") return "src/pages/Calculator.jsx";
+  return null;
+}
+
 function escapeHtml(str) {
   return String(str || "")
     .replace(/&/g, "&amp;")
@@ -112,7 +195,7 @@ function replaceSeoBlock(html, newBlock) {
   );
 }
 
-function renderJsonLd({ url, title, description, images, product }) {
+function renderJsonLd({ url, title, description, images, product, breadcrumb }) {
   const graph = [
     {
       "@type": "Organization",
@@ -140,8 +223,42 @@ function renderJsonLd({ url, title, description, images, product }) {
   ];
 
   if (product) graph.push(product);
+  // BreadcrumbList mirrors the trail already rendered in the prerendered body
+  // (renderProductBody's <nav aria-label="Breadcrumb">) EXACTLY — same crumbs,
+  // same order. Never invents a crumb the page does not show.
+  if (breadcrumb) graph.push(breadcrumb);
 
   return { "@context": "https://schema.org", "@graph": graph };
+}
+
+/**
+ * Build a BreadcrumbList from an ordered [{name, item}] trail.
+ * Only ever called with crumbs the page actually renders.
+ */
+function renderBreadcrumb(trail) {
+  return {
+    "@type": "BreadcrumbList",
+    "@id": `${trail[trail.length - 1].item}#breadcrumb`,
+    itemListElement: trail.map((c, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: c.name,
+      item: c.item,
+    })),
+  };
+}
+
+/** FAQPage built strictly from the shared FAQ data — no invented Q&A. */
+function renderFaqPageJsonLd(url) {
+  return {
+    "@type": "FAQPage",
+    "@id": `${url}#faq`,
+    mainEntity: FAQS.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
 }
 
 // Article + BreadcrumbList graph for the public research/education pages (the
@@ -156,6 +273,15 @@ function renderArticleJsonLd({ url, title, description }) {
         name: SITE_NAME,
         url: `${SITE_URL}/`,
         logo: DEFAULT_OG_IMAGE,
+      },
+      {
+        // WebSite node added so the Article's isPartOf reference resolves —
+        // it previously pointed at an @id that was absent from this graph.
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: `${SITE_URL}/`,
+        name: SITE_NAME,
+        publisher: { "@id": `${SITE_URL}/#organization` },
       },
       {
         "@type": "Article",
@@ -252,7 +378,7 @@ function fmtUsd(n) {
   return `$${s.endsWith(".00") ? s.slice(0, -3) : s}`;
 }
 
-function renderProductBody(p) {
+function renderProductBody(p, related = []) {
   const from = Math.min(...p.variants.map((v) => Number(v.price)));
   const sizes = p.variants
     .map((v) => `<li>${escapeHtml(v.size_label)} — ${fmtUsd(v.price)}</li>`)
@@ -265,12 +391,30 @@ function renderProductBody(p) {
     `<p>From ${fmtUsd(from)}</p>`,
     `<p>${escapeHtml(p.description)}</p>`,
     `<h2>Available sizes</h2><ul>${sizes}</ul>`,
+    // Task 5 — internal linking for crawl depth. Real, already-public catalog
+    // data (same category, excluding self); no invented relationships.
+    related.length
+      ? `<h2>More in ${escapeHtml(p.category_name)}</h2><ul>${related
+          .map(
+            (r) =>
+              `<li><a href="/product/${escapeHtml(r.slug)}">${escapeHtml(r.name)}</a> — from ${fmtUsd(
+                r.fromPrice
+              )}</li>`
+          )
+          .join("")}</ul>`
+      : "",
     `<p><strong>${RUO_LINE}</strong></p>`,
+    renderFooterNav(),
     "</main>",
   ].join("");
 }
 
-function renderListBody(heading, intro, prods) {
+function renderListBody(heading, intro, prods, trail) {
+  const crumbs = trail
+    ? `<nav aria-label="Breadcrumb">${trail
+        .map((c, i) => `${i ? " / " : ""}<a href="${escapeHtml(c.href)}">${escapeHtml(c.name)}</a>`)
+        .join("")}</nav>`
+    : "";
   const items = prods
     .map(
       (p) =>
@@ -281,17 +425,20 @@ function renderListBody(heading, intro, prods) {
     .join("");
   return [
     "<main>",
+    crumbs,
     `<h1>${escapeHtml(heading)}</h1>`,
     `<p>${escapeHtml(intro)}</p>`,
     `<ul>${items}</ul>`,
     `<p><strong>${RUO_LINE}</strong></p>`,
+    renderFooterNav(),
     "</main>",
   ].join("");
 }
 
-// Homepage crawlable body. Every other public route got body injection; the
-// homepage shipped an empty <div id="root">, so crawlers saw no content above
-// the hydrated app. Copy here is reused verbatim from the live PublicLanding
+// Homepage crawlable body. (Historical note: this comment once claimed "every
+// other public route got body injection" — that was false. As of the Aug-28
+// crawlability pass, EVERY emitted route gets a body except the four in
+// PRERENDER_EMPTY_ALLOWLIST; scripts/test-prerender-coverage.mjs enforces it.) Copy here is reused verbatim from the live PublicLanding
 // hero and the existing category data — no new claims, no "Performance" (that
 // tagline is being retired), RUO-safe throughout. React replaces this on
 // hydration; the same treatment on shop/category/product routes is CLS-clean.
@@ -309,8 +456,198 @@ function renderHomeBody(categories) {
     `<nav aria-label="Research catalog"><ul>` +
       `<li><a href="/shop">Research Catalog</a></li>${catLinks}</ul></nav>`,
     `<p><strong>${RUO_LINE}</strong></p>`,
+    renderFooterNav(),
     "</main>",
   ].join("");
+}
+
+// ── Shared crawlable-body helpers ─────────────────────────────────────────
+// A compact footer nav emitted on every prerendered informational page so any
+// public page is <=2 clicks from every other (crawl depth). Links only — no
+// copy, nothing fabricated.
+const FOOTER_NAV = [
+  { href: "/shop", label: "Research Catalog" },
+  { href: "/research", label: "Research & Education" },
+  { href: "/test-results", label: "Test Results (COA Library)" },
+  { href: "/verify-lot", label: "Verify a Lot" },
+  { href: "/about", label: "About" },
+  { href: "/faqs", label: "FAQ" },
+  { href: "/contact", label: "Contact" },
+  { href: "/legal/research-use-policy", label: "Research-Use Policy" },
+  { href: "/legal/fda-disclaimer", label: "FDA Disclaimer" },
+  { href: "/legal/shipping", label: "Shipping & Refunds" },
+  { href: "/legal/terms", label: "Terms & Conditions" },
+  { href: "/legal/privacy", label: "Privacy Policy" },
+];
+
+function renderFooterNav() {
+  const links = FOOTER_NAV.map(
+    (l) => `<li><a href="${escapeHtml(l.href)}">${escapeHtml(l.label)}</a></li>`
+  ).join("");
+  return `<nav aria-label="Site"><ul>${links}</ul></nav>`;
+}
+
+/** Wrap page blocks in <main> with the RUO line + footer nav on every page. */
+function wrapBody(blocks) {
+  return ["<main>", ...blocks, `<p><strong>${RUO_LINE}</strong></p>`, renderFooterNav(), "</main>"].join("");
+}
+
+/**
+ * Render the plain-text legal/policy documents (src/config/legalCopy.js) to
+ * semantic HTML. Mirrors src/components/LegalDoc.jsx: "# h1", "## h2",
+ * "- " lists, "N. " ordered lists, blank-line-separated paragraphs. Same
+ * source string, so the crawlable body and the React page cannot drift.
+ */
+function renderLegalDocBody(doc) {
+  const lines = String(doc || "").replace(/\r\n/g, "\n").split("\n");
+  const out = [];
+  let para = [];
+  let list = null; // { ordered: boolean, items: string[] }
+
+  const flushPara = () => {
+    if (para.length) {
+      out.push(`<p>${escapeHtml(para.join(" "))}</p>`);
+      para = [];
+    }
+  };
+  const flushList = () => {
+    if (list) {
+      const tag = list.ordered ? "ol" : "ul";
+      out.push(`<${tag}>${list.items.map((i) => `<li>${escapeHtml(i)}</li>`).join("")}</${tag}>`);
+      list = null;
+    }
+  };
+  const flushAll = () => {
+    flushPara();
+    flushList();
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (line === "") {
+      flushAll();
+      continue;
+    }
+    if (line.startsWith("## ")) {
+      flushAll();
+      out.push(`<h2>${escapeHtml(line.slice(3))}</h2>`);
+      continue;
+    }
+    if (line.startsWith("# ")) {
+      flushAll();
+      out.push(`<h1>${escapeHtml(line.slice(2))}</h1>`);
+      continue;
+    }
+    if (line.startsWith("- ")) {
+      flushPara();
+      if (!list || list.ordered) {
+        flushList();
+        list = { ordered: false, items: [] };
+      }
+      list.items.push(line.slice(2));
+      continue;
+    }
+    const om = line.match(/^(\d+)\.\s+(.*)$/);
+    if (om) {
+      flushPara();
+      if (!list || !list.ordered) {
+        flushList();
+        list = { ordered: true, items: [] };
+      }
+      list.items.push(om[2]);
+      continue;
+    }
+    flushList();
+    para.push(line);
+  }
+  flushAll();
+  return wrapBody(out);
+}
+
+function renderAboutBody() {
+  const pillars = ABOUT_COPY.pillars
+    .map((p) => `<h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.body)}</p>`)
+    .join("");
+  const cta = ABOUT_COPY.ctaLinks
+    .map((l) => `<li><a href="${escapeHtml(l.href)}">${escapeHtml(l.label)}</a></li>`)
+    .join("");
+  return wrapBody([
+    `<h1>${escapeHtml(ABOUT_COPY.heading)}</h1>`,
+    `<p>${escapeHtml(ABOUT_COPY.intro)}</p>`,
+    `<h2>${escapeHtml(ABOUT_COPY.standardOverline)}</h2>`,
+    `<p>${escapeHtml(ABOUT_COPY.standard)}</p>`,
+    pillars,
+    `<h2>${escapeHtml(ABOUT_COPY.ctaHeading)}</h2><ul>${cta}</ul>`,
+  ]);
+}
+
+function renderFaqsBody() {
+  const items = FAQS.map(
+    (f) => `<h2>${escapeHtml(f.q)}</h2><p>${escapeHtml(f.a)}</p>`
+  ).join("");
+  return wrapBody([
+    `<h1>${escapeHtml(FAQ_HEADING)}</h1>`,
+    `<p>${escapeHtml(FAQ_INTRO)}</p>`,
+    items,
+  ]);
+}
+
+function renderContactBody() {
+  const lists = CONTACT_COPY.lists
+    .map(
+      (l) =>
+        `<h2>${escapeHtml(l.heading)}</h2><ul>${l.items
+          .map((i) => `<li>${escapeHtml(i)}</li>`)
+          .join("")}</ul>`
+    )
+    .join("");
+  return wrapBody([
+    `<h1>${escapeHtml(CONTACT_COPY.heading)}</h1>`,
+    `<p>${escapeHtml(CONTACT_COPY.intro)}</p>`,
+    `<p>${escapeHtml(CONTACT_COPY.noGuidance)}</p>`,
+    lists,
+  ]);
+}
+
+/**
+ * DB-driven pages: prerender the STATIC explanatory shell + navigation ONLY.
+ * Never any row data — no synthetic offers, no synthetic COA rows. Live rows
+ * render after hydration from Supabase.
+ */
+function renderShellBody(shell, extraBlocks = []) {
+  return wrapBody([
+    `<h1>${escapeHtml(shell.heading)}</h1>`,
+    `<p>${escapeHtml(shell.intro)}</p>`,
+    ...(shell.sectionHeading ? [`<h2>${escapeHtml(shell.sectionHeading)}</h2>`] : []),
+    ...extraBlocks,
+  ]);
+}
+
+function renderResearchIndexBody(articles) {
+  const items = articles
+    .map(
+      (a) =>
+        `<li><a href="/research/${escapeHtml(a.slug)}">${escapeHtml(a.title)}</a> — ${escapeHtml(a.summary)}</li>`
+    )
+    .join("");
+  return wrapBody([
+    "<h1>Research &amp; Education</h1>",
+    `<p>${escapeHtml(
+      "Educational articles on certificates of analysis, HPLC purity, and how peptide reference materials are studied in the laboratory."
+    )}</p>`,
+    `<ul>${items}</ul>`,
+  ]);
+}
+
+function renderArticleBody(a) {
+  const sections = (a.sections || [])
+    .map((sec) => `<h2>${escapeHtml(sec.heading)}</h2><p>${escapeHtml(sec.body)}</p>`)
+    .join("");
+  return wrapBody([
+    `<h1>${escapeHtml(a.title)}</h1>`,
+    `<p>${escapeHtml(a.summary)}</p>`,
+    sections,
+  ]);
 }
 
 function injectBody(html, bodyHtml) {
@@ -408,6 +745,18 @@ const HOME_FAQ = {
   ],
 };
 
+// ════════════════════════════════════════════════════════════════════════
+// PRERENDER_EMPTY_ALLOWLIST — routes that are EMITTED but intentionally ship
+// an empty <div id="root">. These are interactive/auth surfaces with no static
+// informational content worth crawling:
+//   /login, /register  — auth forms (also noindex)
+//   /calculator        — a pure client-side input/output tool
+//   /verify-lot        — a lookup form; results come from a live API
+// Enforced by scripts/test-prerender-coverage.mjs: any OTHER route shipping an
+// empty root fails the gate. Add to this list only with a deliberate reason.
+// ════════════════════════════════════════════════════════════════════════
+export const PRERENDER_EMPTY_ALLOWLIST = ["/login", "/register", "/calculator", "/verify-lot"];
+
 async function main() {
   await fs.mkdir(DIST_DIR, { recursive: true });
 
@@ -443,59 +792,93 @@ async function main() {
       title: "About Noir Peptides | Research Material Supplier",
       description:
         "How Noir Peptides sources, documents, and batch-verifies peptide reference materials for laboratory research. For research use only. Not for human or veterinary use.",
+      bodyHtml: renderAboutBody(),
     },
     {
       pathname: "/faqs",
       title: "FAQ | Ordering, Documentation & Shipping",
       description:
         "Answers on batch documentation, certificates of analysis, storage, ordering, and shipping for Noir Peptides research reference materials. For research use only.",
+      bodyHtml: renderFaqsBody(),
     },
     {
       pathname: "/contact",
       title: "Contact Noir Peptides | Research Support",
       description:
         "Contact Noir Peptides for documentation requests, order support, and qualified-purchaser enquiries. For research use only. Not for human or veterinary use.",
+      bodyHtml: renderContactBody(),
     },
     {
+      // CONTRADICTION RESOLVED (Aug-28): this route was emitted index,follow
+      // AND listed in the sitemap, while src/pages/VerifyLot.jsx passes
+      // noindex to <SEO> and robots.txt blocked it via the "/verify" prefix.
+      // It is a lookup FORM with no static content (see
+      // PRERENDER_EMPTY_ALLOWLIST), so the component's noindex is correct and
+      // the generator now agrees: noindex + excluded from the sitemap. It stays
+      // CRAWLABLE in robots.txt on purpose — a Disallow would stop crawlers
+      // ever seeing the noindex directive.
+      noindex: true,
       pathname: "/verify-lot",
       title: "Verify a Lot | Batch Documentation Lookup",
       description:
         "Look up the certificate of analysis and batch documentation for a Noir Peptides research material lot. For research use only.",
+      bodyHtml: undefined /* interactive lookup — see PRERENDER_EMPTY_ALLOWLIST */,
     },
     {
       pathname: "/legal/research-use-policy",
       title: "Research-Use Policy",
       description:
         "Noir Peptides research-use policy. Products are supplied strictly for laboratory and research use by qualified purchasers.",
+      bodyHtml: renderLegalDocBody(RESEARCH_USE_POLICY_DOC),
     },
     {
       pathname: "/legal/fda-disclaimer",
       title: "FDA Disclaimer",
       description:
         "Noir Peptides products are not FDA approved and are not intended to diagnose, treat, cure, or prevent any disease. For research use only.",
+      bodyHtml: renderLegalDocBody(FDA_DISCLAIMER_DOC),
     },
     {
       pathname: "/legal/terms",
       title: "Terms & Conditions",
       description:
         "Terms and conditions for Noir Peptides. Research use only. Not for human or veterinary use.",
+      bodyHtml: renderLegalDocBody(TERMS_DOC),
     },
     {
       pathname: "/legal/privacy",
       title: "Privacy Policy",
       description: "Privacy policy for Noir Peptides.",
+      bodyHtml: renderLegalDocBody(PRIVACY_DOC),
     },
     {
       pathname: "/legal/shipping",
       title: "Shipping & Refunds Policy",
       description:
         "Noir Peptides shipping and refunds policy. Research use only. All sales final once shipped.",
+      bodyHtml: renderLegalDocBody(SHIPPING_REFUNDS_DOC),
     },
     {
       pathname: "/legal/returns",
       title: "Shipping & Refunds Policy",
       description:
         "Noir Peptides returns policy. Due to chain-of-custody and product integrity, all sales are final once shipped.",
+      bodyHtml: renderLegalDocBody(SHIPPING_REFUNDS_DOC),
+    },
+
+    {
+      // Prerendered 404. Vercel's SPA rewrite returns 200 for unknown paths
+      // (soft-404), so this page is BOTH noindex,nofollow AND emits explicit
+      // "not found" copy, giving crawlers an unambiguous signal even when the
+      // HTTP status cannot be 404. See the PR for the residual limitation.
+      pathname: "/404",
+      title: "Page Not Found",
+      description: "This page does not exist.",
+      noindex: true,
+      bodyHtml: wrapBody([
+        "<h1>Page Not Found</h1>",
+        "<p>This page does not exist. Use the links below to continue.</p>",
+      ]),
     },
 
     // ── Public auth screens — reachable but noindex (thin content) ──
@@ -519,6 +902,7 @@ async function main() {
   const researchRoutes = [
     {
       pathname: "/research",
+      bodyHtml: renderResearchIndexBody(researchArticles),
       title: "Research & Education",
       description:
         "Educational articles on certificates of analysis, HPLC purity, and how peptide reference materials are studied in the laboratory. For research use only.",
@@ -530,19 +914,26 @@ async function main() {
         "A pure mass-per-volume (mg ÷ mL) laboratory aliquoting reference for research reference material. For research use only.",
     },
     {
+      // DB-driven: static shell + nav only. Live offers render after hydration;
+      // no synthetic rows are ever prerendered.
       pathname: "/deals",
+      bodyHtml: renderShellBody(DEALS_SHELL),
       title: "Deals & Bundle Pricing",
       description:
         "Current promo codes and volume bundle pricing for research reference materials. For research use only. Not for human or veterinary use.",
     },
     {
+      // DB-driven: static shell + nav only. Published COAs render after
+      // hydration; no synthetic COA rows are ever prerendered.
       pathname: "/test-results",
+      bodyHtml: renderShellBody(TEST_RESULTS_SHELL),
       title: "Test Results — Certificate of Analysis Library",
       description:
         "Batch-specific certificates of analysis (HPLC purity + mass-spec identity) for Noir Peptides research reference materials. Verify any lot. For research use only. Not for human or veterinary use.",
     },
     ...researchArticles.map((a) => ({
       pathname: `/research/${a.slug}`,
+      bodyHtml: renderArticleBody(a),
       title: a.title,
       description: a.summary,
       ogType: "article",
@@ -584,8 +975,19 @@ async function main() {
       bodyHtml: renderListBody(
         cat.name,
         cat.description,
-        getProductsInCategory(cat.slug)
+        getProductsInCategory(cat.slug),
+        [
+          { name: "Home", href: "/" },
+          { name: "Shop", href: "/shop" },
+          { name: cat.name, href: `/shop/${cat.slug}` },
+        ]
       ),
+      // Mirrors the trail rendered immediately above.
+      breadcrumb: [
+        { name: "Home", item: `${SITE_URL}/` },
+        { name: "Shop", item: ensureSiteUrl("/shop") },
+        { name: cat.name, item: ensureSiteUrl(`/shop/${cat.slug}`) },
+      ],
     })),
   ];
 
@@ -596,7 +998,17 @@ async function main() {
     ogType: "product",
     images: [DEFAULT_OG_IMAGE],
     jsonLd: renderProductJsonLd(p),
-    bodyHtml: renderProductBody(p),
+    // Mirrors renderProductBody's <nav aria-label="Breadcrumb"> exactly:
+    // Home / Shop / <Category>. The product name is the <h1>, not a crumb.
+    breadcrumb: [
+      { name: "Home", item: `${SITE_URL}/` },
+      { name: "Shop", item: ensureSiteUrl("/shop") },
+      { name: p.category_name, item: ensureSiteUrl(`/shop/${p.category_slug}`) },
+    ],
+    bodyHtml: renderProductBody(
+      p,
+      getProductsInCategory(p.category_slug).filter((r) => r.slug !== p.slug).slice(0, 6)
+    ),
   }));
 
   const routes = [
@@ -623,6 +1035,16 @@ async function main() {
     // Attach the FAQPage to the home page graph.
     if (pathname === "/" && Array.isArray(jsonLd["@graph"])) {
       jsonLd["@graph"].push(HOME_FAQ);
+    }
+
+    // /faqs gets a FAQPage built strictly from the shared FAQ data.
+    if (pathname === "/faqs" && Array.isArray(jsonLd["@graph"])) {
+      jsonLd["@graph"].push(renderFaqPageJsonLd(url));
+    }
+
+    // BreadcrumbList for any route that declares a trail it actually renders.
+    if (route.breadcrumb && Array.isArray(jsonLd["@graph"])) {
+      jsonLd["@graph"].push(renderBreadcrumb(route.breadcrumb));
     }
 
     const seoBlock = renderSeoMeta({
@@ -666,7 +1088,10 @@ async function main() {
     "Disallow: /privacy-choices",
     "Disallow: /login",
     "Disallow: /register",
-    "Disallow: /verify",
+    // Exact-path rules ($ anchors them). "Disallow: /verify" was a PREFIX
+    // rule that also blocked /verify-lot — an indexable, prerendered page
+    // that is in the sitemap. Anchor it so only /verify itself is blocked.
+    "Disallow: /verify$",
     "Disallow: /forgot-password",
     "Disallow: /reset-password",
     "Disallow: /auth/",
@@ -676,19 +1101,23 @@ async function main() {
   ].join("\n");
   await fs.writeFile(path.join(DIST_DIR, "robots.txt"), robots, "utf8");
 
-  const today = new Date().toISOString().slice(0, 10);
   const sitemapRoutes = routes
     .filter((r) => !r.noindex)
-    .map((r) => ensureSiteUrl(r.pathname))
-    .sort();
+    .map((r) => {
+      const src = sourceFileForRoute(r.pathname);
+      return { loc: ensureSiteUrl(r.pathname), lastmod: src ? gitLastModified(src) : null };
+    })
+    .sort((a, b) => a.loc.localeCompare(b.loc));
 
   const sitemap =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
     sitemapRoutes
       .map(
-        (loc) =>
-          `  <url>\n    <loc>${escapeHtml(loc)}</loc>\n    <lastmod>${today}</lastmod>\n  </url>`
+        (r) =>
+          `  <url>\n    <loc>${escapeHtml(r.loc)}</loc>` +
+          (r.lastmod ? `\n    <lastmod>${r.lastmod}</lastmod>` : "") +
+          `\n  </url>`
       )
       .join("\n") +
     `\n</urlset>\n`;
@@ -699,7 +1128,15 @@ async function main() {
   console.log(`[seo] wrote robots.txt`);
 }
 
-main().catch((err) => {
-  console.error("[seo] generation failed:", err);
-  process.exit(1);
-});
+// Run only when invoked directly (`node scripts/generate-static-seo.mjs`).
+// Tests import PRERENDER_EMPTY_ALLOWLIST from this module; without this guard
+// that import would re-run the entire generator as a side effect.
+const invokedDirectly =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error("[seo] generation failed:", err);
+    process.exit(1);
+  });
+}

@@ -57,14 +57,69 @@ function upsertLink({ rel, href }) {
   el.setAttribute("href", href);
 }
 
+/**
+ * Write JSON-LD, PRESERVING the richer build-time graph on first load.
+ *
+ * The prerenderer emits a full @graph per route (Organization + WebSite +
+ * WebPage + Product/Article + BreadcrumbList). Page components pass a single
+ * bare node. Blindly overwriting therefore DESTROYED the graph on hydration —
+ * measured: a PDP went from [Organization, WebSite, WebPage, Product] to just
+ * [Product], and a research article lost its BreadcrumbList entirely. Google
+ * indexes the rendered DOM, so the build-time structured data was being thrown
+ * away.
+ *
+ * Rule: if the script already holds a graph FOR THIS URL (matched on the
+ * WebPage/Article/Product @id, so a stale graph from a previous SPA navigation
+ * never leaks), keep it — merging in the runtime node only if its @type is not
+ * already represented. Otherwise replace, which is the correct behavior for
+ * client-side navigation.
+ */
 function setJsonLd(jsonLd) {
   const script = document.getElementById("ld-json");
   if (!script) return;
   try {
-    script.textContent = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
+    const next = mergeWithBuildTimeGraph(jsonLd, script.textContent);
+    script.textContent = JSON.stringify(next).replace(/</g, "\\u003c");
   } catch {
     // ignore
   }
+}
+
+function mergeWithBuildTimeGraph(runtime, existingText) {
+  if (!existingText) return runtime;
+  let existing;
+  try {
+    existing = JSON.parse(existingText);
+  } catch {
+    return runtime;
+  }
+  const graph = existing?.["@graph"];
+  if (!Array.isArray(graph) || graph.length === 0) return runtime;
+
+  // Does the existing graph describe the page we are on right now?
+  const here = typeof window !== "undefined" ? window.location.pathname : "";
+  const describesThisPage = graph.some((n) => {
+    const id = typeof n?.["@id"] === "string" ? n["@id"] : "";
+    if (!id) return false;
+    try {
+      const p = new URL(id, window.location.origin).pathname.replace(/\/$/, "");
+      return p === here.replace(/\/$/, "");
+    } catch {
+      return false;
+    }
+  });
+  if (!describesThisPage) return runtime; // stale graph from a prior route
+
+  // Keep the build-time graph; add the runtime node only if it contributes a
+  // type the graph does not already carry.
+  const runtimeNodes = Array.isArray(runtime?.["@graph"])
+    ? runtime["@graph"]
+    : runtime && runtime["@type"]
+      ? [runtime]
+      : [];
+  const present = new Set(graph.map((n) => n?.["@type"]).filter(Boolean));
+  const additions = runtimeNodes.filter((n) => n?.["@type"] && !present.has(n["@type"]));
+  return additions.length ? { ...existing, "@graph": [...graph, ...additions] } : existing;
 }
 
 function buildDefaultJsonLd({ url, name, description, image }) {
