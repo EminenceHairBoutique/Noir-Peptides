@@ -2,6 +2,7 @@
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import COABadge from "./COABadge";
+import { getLatestCoaMap } from "../lib/coas";
 
 const LabelPreview = lazy(() => import("./labels/LabelPreview"));
 
@@ -42,6 +43,21 @@ function LabelThumb({ label }) {
 }
 
 const ProductCard = ({ product, label = null }) => {
+  // W5: latest PUBLISHED certificate for this product, from ONE shared,
+  // module-memoized query (getLatestCoaMap) — no per-card requests. Null
+  // until resolved or when none exists; the card then falls back to its
+  // static behavior ("COA on request" only when genuinely none exists).
+  const [latestCoa, setLatestCoa] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    getLatestCoaMap().then((map) => {
+      if (alive) setLatestCoa(map[product.id] || null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [product.id]);
+
   const img = product.image_url || product.images?.[0] || null;
   const isOut = product.stock_status === "out_of_stock";
   const category = product.category_slug;
@@ -128,7 +144,23 @@ const ProductCard = ({ product, label = null }) => {
               ${product.price}
             </span>
           </div>
-          {product.coa_url ? (
+          {latestCoa?.file_url ? (
+            /* W5: a real published certificate exists — link it with lot +
+               test date visible. Inner anchor inside the card Link follows
+               the existing COABadge pattern; stopPropagation keeps the card
+               navigation from firing. */
+            <a
+              href={latestCoa.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 whitespace-nowrap text-[9px] font-accent uppercase tracking-[0.1em] text-se-gold border border-se-gold/40 px-2 py-1 hover:bg-se-gold/[0.08] transition"
+              aria-label={`Certificate of Analysis for lot ${latestCoa.lot}${latestCoa.tested_at ? `, tested ${String(latestCoa.tested_at).slice(0, 10)}` : ""}`}
+            >
+              ✓ COA · {latestCoa.lot}
+              {latestCoa.tested_at ? ` · ${String(latestCoa.tested_at).slice(0, 10)}` : ""}
+            </a>
+          ) : product.coa_url ? (
             <div className="shrink-0"><COABadge coaUrl={product.coa_url} /></div>
           ) : (
             <span className="shrink-0 whitespace-nowrap text-[9px] font-accent uppercase tracking-[0.1em] text-se-steel">
