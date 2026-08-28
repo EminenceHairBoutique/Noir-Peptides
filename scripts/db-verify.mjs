@@ -33,10 +33,18 @@ const bold = (s) => `\x1b[1m${s}\x1b[0m`;
 
 function printSetup() {
   console.log(bold("\ndb:verify — Supabase service-role credentials not set.\n"));
-  console.log("Set both, then re-run (read-only; safe to run any time):");
-  console.log("  export SUPABASE_URL=https://<project-ref>.supabase.co");
-  console.log("  export SUPABASE_SERVICE_ROLE_KEY=<service-role-key>   # server-only, never commit");
-  console.log("  npm run db:verify");
+  console.log("Read-only; safe to run any time. Needs SUPABASE_URL (or");
+  console.log("VITE_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.");
+  console.log(bold("\nEasiest (any OS — npm run db:verify reads .env automatically):"));
+  console.log("  1. Copy .env.example to .env  (it is gitignored)");
+  console.log("  2. Fill in VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
+  console.log("  3. npm run db:verify");
+  console.log(bold("\nOr set them for one shell session:"));
+  console.log("  PowerShell:  $env:SUPABASE_URL=\"https://<project-ref>.supabase.co\"");
+  console.log("               $env:SUPABASE_SERVICE_ROLE_KEY=\"<service-role-key>\"");
+  console.log("  bash/zsh:    export SUPABASE_URL=https://<project-ref>.supabase.co");
+  console.log("               export SUPABASE_SERVICE_ROLE_KEY=<service-role-key>");
+  console.log(red("\n  The service-role key is server-only — never commit it."));
   console.log("\nThe service-role key bypasses RLS so counts are true table totals.");
   console.log("Find it: Supabase dashboard → Settings → API → service_role secret.");
 }

@@ -140,10 +140,50 @@ Anything else means data was already present — investigate before proceeding.
 
 ## Step 4 — repository checks
 
-```bash
+Both commands talk to the live project, so they need credentials first. Without
+them each one prints setup instructions and does nothing — it does not pass.
+
+**Set the credentials once (works on Windows, macOS and Linux alike):**
+
+1. Copy `.env.example` to `.env` in the repository root. `.env` is gitignored,
+   so the keys never get committed.
+2. Fill in three values from **Supabase dashboard → Settings → API**:
+
+   | Variable | Where it comes from |
+   | --- | --- |
+   | `VITE_SUPABASE_URL` | Project URL |
+   | `VITE_SUPABASE_ANON_KEY` | `anon` `public` key |
+   | `SUPABASE_SERVICE_ROLE_KEY` | `service_role` secret — **server-only, never commit or paste into a browser** |
+
+3. Run the checks. Both npm scripts read `.env` automatically:
+
+```
 npm run verify:rls   # policies behave as written
 npm run db:verify    # read-only reachability of the expected tables/columns
 ```
+
+If you would rather not keep a `.env`, set the variables for one shell session
+instead — note that `export` is bash syntax and does **not** work in PowerShell:
+
+```powershell
+# PowerShell
+$env:VITE_SUPABASE_URL="https://<project-ref>.supabase.co"
+$env:VITE_SUPABASE_ANON_KEY="<anon-key>"
+$env:SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
+```
+
+```bash
+# bash / zsh
+export VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+export VITE_SUPABASE_ANON_KEY=<anon-key>
+export SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+```
+
+**What each proves.** `verify:rls` confirms `profiles`, `orders` and
+`attestation_audit` are invisible to the anon key, and that a signed-in user
+cannot promote itself to admin. `db:verify` is strictly read-only: it compares
+live row counts against the static catalogue and reports drift. Run them after
+applying the migrations, not before.
 
 ---
 
