@@ -13,9 +13,11 @@ language (`dose`, `dosage`, `administer`, `inject`, `cycle`, `recovery`, `heal`,
 > only. No human/veterinary use, dosing, route-of-administration, therapeutic
 > benefit, or physiological-effect language.
 
-**Per the engagement's stop-gate, NO copy rewrites have been merged.** This
-report lists findings and *proposed* changes for your review. Approve and I'll
-apply them in a follow-up commit.
+**Status: MED-1 APPLIED 2026-08-26** (owner sign-off given). The "Performance"
+tagline was replaced with "Provenance" everywhere it appeared
+(`src/config/brand.js`, `src/pages/PublicLanding.jsx`); "Performance" now
+appears nowhere in `src/` or the built `dist/`. LOW-1 / LOW-2 ("Dosage" →
+"Size") remain proposed and unapplied. Original report below.
 
 ---
 
@@ -40,18 +42,16 @@ No High-severity (human-use / therapeutic-claim) copy was found.
 
 ## Findings
 
-### MED-1 — "Performance" in the brand tagline
-- **Files:** `src/config/brand.js:8` (`tagline: "Precision. Purity. Performance."`),
-  `src/pages/PublicLanding.jsx:61` (`Precision · Purity · Performance`).
+### MED-1 — "Performance" in the brand tagline — ✅ APPLIED (2026-08-26)
+- **Files:** `src/config/brand.js:8`, `src/pages/PublicLanding.jsx:61`.
 - **Why flagged:** in a peptide context, "Performance" can be read as a
   human physical/athletic-performance claim, even though it's intended as a
   brand value (product/analytical performance).
-- **Proposed rewrite (for review — not applied):**
+- **Applied rewrite:**
   - `brand.js:8` → `tagline: "Precision. Purity. Provenance."`
   - `PublicLanding.jsx:61` → `Precision · Purity · Provenance`
-  - Alternatives: "Precision. Purity. Documentation." / "…Traceability."
-- **Note:** `BRAND.subTagline` (footer) should be checked against the same rule
-  when you pick the replacement, to keep the wording consistent.
+- **subTagline check:** `BRAND.subTagline` is `"For Research Purposes Only."` —
+  already claim-safe; no change needed, and "Provenance" is consistent with it.
 
 ### LOW-1 — "Dosage" selector label on the PDP
 - **File:** `src/pages/ProductDetail.jsx:300–311` (the vial-size selector is
