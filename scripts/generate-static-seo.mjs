@@ -289,6 +289,30 @@ function renderListBody(heading, intro, prods) {
   ].join("");
 }
 
+// Homepage crawlable body. Every other public route got body injection; the
+// homepage shipped an empty <div id="root">, so crawlers saw no content above
+// the hydrated app. Copy here is reused verbatim from the live PublicLanding
+// hero and the existing category data — no new claims, no "Performance" (that
+// tagline is being retired), RUO-safe throughout. React replaces this on
+// hydration; the same treatment on shop/category/product routes is CLS-clean.
+function renderHomeBody(categories) {
+  const catLinks = categories
+    .map((c) => `<li><a href="/shop/${escapeHtml(c.slug)}">${escapeHtml(c.name)}</a></li>`)
+    .join("");
+  return [
+    "<main>",
+    "<h1>Noir Peptides — Research-Grade Peptide Reference Materials</h1>",
+    "<p>A research-grade peptide reference catalog for qualified purchasers. " +
+      "Access requires an account and a completed research-use attestation.</p>",
+    "<p>Batch-documented peptide reference materials for laboratory research. " +
+      "Per-batch certificate of analysis available.</p>",
+    `<nav aria-label="Research catalog"><ul>` +
+      `<li><a href="/shop">Research Catalog</a></li>${catLinks}</ul></nav>`,
+    `<p><strong>${RUO_LINE}</strong></p>`,
+    "</main>",
+  ].join("");
+}
+
 function injectBody(html, bodyHtml) {
   if (!bodyHtml) return html;
   return html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
@@ -390,18 +414,29 @@ async function main() {
   const indexPath = path.join(DIST_DIR, "index.html");
   const baseHtml = await fs.readFile(indexPath, "utf8");
 
-  // AUTH WALL / INDEXABILITY SPLIT
-  // Only the public tier (landing + legal) is prerendered and indexable. The
-  // entire gated storefront (catalog, products, COAs, account, cart, checkout)
-  // is intentionally NOT emitted as crawlable HTML and is marked noindex — it
-  // lives behind the authentication wall and Supabase RLS. Auth screens are
-  // emitted but noindex (thin/duplicate content).
+  // WHAT THIS SCRIPT EMITS (keep this accurate — do not "fix" toward an
+  // auth-wall model; the catalog IS meant to be indexable).
+  //   INDEXABLE, with crawlable <main> body content:
+  //     - home (/), the shop index and all category pages, every product page,
+  //       the education pages (/research/*, /calculator, /deals, /test-results),
+  //       /about /faqs /contact /verify-lot, and the /legal/* pages.
+  //     Catalog reads are public at the data layer (migration 0013), so these
+  //     render for anonymous visitors and crawlers. PURCHASE stays gated
+  //     (checkout requires auth + a current attestation, enforced server-side).
+  //   NOINDEX (emitted but marked noindex,nofollow — thin/transactional):
+  //     - /login and /register only.
+  //   NOT emitted here (SPA-only, Disallowed in robots.txt): account, cart,
+  //     checkout, success/cancel, admin, auth callbacks.
+  // Product/list bodies are mirrored from the SAME source as the SQL seed
+  // (src/data/tier1Catalog.js) so the static HTML and the DB never drift.
+  const homeCategories = getCategories();
   const staticRoutes = [
     // ── Public + indexable ──
     {
       pathname: "/",
       title: "Noir Peptides | Research-Grade Peptide Materials",
       description: DEFAULT_DESCRIPTION,
+      bodyHtml: renderHomeBody(homeCategories),
     },
     {
       pathname: "/about",

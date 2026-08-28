@@ -16,10 +16,16 @@ rotate on any suspected exposure or staff change.
 
 ## Do BEFORE rotating the anon key (order matters)
 
-1. **Apply `scripts/proposed-fix-profiles-rls.sql`** (fixes the escalation the
-   public key otherwise enables). Validated: blocks `role→admin`, allows
-   ordinary self-edits.
-2. **Run the live RLS probe** (below). Must return `[]` for all three.
+1. **Apply `supabase/migrations/0030_profiles_rls_escalation_fix.sql`** (the
+   formalized, idempotent version of the former
+   `scripts/proposed-fix-profiles-rls.sql`) — fixes the escalation the public
+   key otherwise enables. Validated on fresh PG16: blocks `role→admin`, allows
+   ordinary self-edits, revokes UPDATE from anon/authenticated.
+2. **Run `npm run verify:rls`** (with `VITE_SUPABASE_URL` +
+   `VITE_SUPABASE_ANON_KEY` in env). It performs the three read probes below
+   AND an active escalation attempt, printing a green ✅ table on pass and a red
+   ⛔ summary (non-zero exit) on any failure. With no env it prints the manual
+   curl commands instead. The manual probe remains documented below.
 
 ## Live RLS probe — run yourself (sandbox can't reach the project)
 

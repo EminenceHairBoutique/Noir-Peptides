@@ -58,7 +58,7 @@ export default function PublicLanding() {
               </span>
             </div>
 
-            <p className="text-overline mb-6">Precision · Purity · Performance</p>
+            <p className="text-overline mb-6">Precision · Purity · Provenance</p>
 
             <p className="text-[15px] md:text-[16px] text-se-bone/60 font-accent leading-relaxed max-w-lg mx-auto mb-2">
               A research-grade peptide reference catalog for qualified

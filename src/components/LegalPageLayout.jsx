@@ -4,7 +4,7 @@ import SEO from "./SEO";
 import LegalDoc from "./LegalDoc";
 import DisclaimerBanner from "./DisclaimerBanner";
 
-export default function LegalPageLayout({ seoTitle, seoDescription, content }) {
+export default function LegalPageLayout({ seoTitle, seoDescription, content, prelude }) {
   return (
     <>
       <SEO title={seoTitle} description={seoDescription} />
@@ -17,6 +17,7 @@ export default function LegalPageLayout({ seoTitle, seoDescription, content }) {
         </section>
         <section className="py-14 md:py-20">
           <div className="content-wrap max-w-3xl">
+            {prelude}
             <LegalDoc content={content} />
             <div className="mt-14 pt-8 border-t border-se-concrete space-y-4">
               <DisclaimerBanner />

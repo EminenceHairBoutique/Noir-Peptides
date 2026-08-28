@@ -5,7 +5,7 @@ export const BRAND = {
   name: "Noir Peptides",
   fullName: "Noir Peptides",
   logoMark: "NOIR · PEPTIDES",
-  tagline: "Precision. Purity. Performance.",
+  tagline: "Precision. Purity. Provenance.",
   subTagline: "For Research Purposes Only.",
   supportEmail: "support@noirpeptides.com",
   origin: "Research-Grade Peptide Reference Materials",
