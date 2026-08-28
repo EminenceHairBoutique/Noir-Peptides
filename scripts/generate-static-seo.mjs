@@ -289,6 +289,30 @@ function renderListBody(heading, intro, prods) {
   ].join("");
 }
 
+// Homepage crawlable body. Every other public route got body injection; the
+// homepage shipped an empty <div id="root">, so crawlers saw no content above
+// the hydrated app. Copy here is reused verbatim from the live PublicLanding
+// hero and the existing category data — no new claims, no "Performance" (that
+// tagline is being retired), RUO-safe throughout. React replaces this on
+// hydration; the same treatment on shop/category/product routes is CLS-clean.
+function renderHomeBody(categories) {
+  const catLinks = categories
+    .map((c) => `<li><a href="/shop/${escapeHtml(c.slug)}">${escapeHtml(c.name)}</a></li>`)
+    .join("");
+  return [
+    "<main>",
+    "<h1>Noir Peptides — Research-Grade Peptide Reference Materials</h1>",
+    "<p>A research-grade peptide reference catalog for qualified purchasers. " +
+      "Access requires an account and a completed research-use attestation.</p>",
+    "<p>Batch-documented peptide reference materials for laboratory research. " +
+      "Per-batch certificate of analysis available.</p>",
+    `<nav aria-label="Research catalog"><ul>` +
+      `<li><a href="/shop">Research Catalog</a></li>${catLinks}</ul></nav>`,
+    `<p><strong>${RUO_LINE}</strong></p>`,
+    "</main>",
+  ].join("");
+}
+
 function injectBody(html, bodyHtml) {
   if (!bodyHtml) return html;
   return html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
@@ -396,12 +420,14 @@ async function main() {
   // is intentionally NOT emitted as crawlable HTML and is marked noindex — it
   // lives behind the authentication wall and Supabase RLS. Auth screens are
   // emitted but noindex (thin/duplicate content).
+  const homeCategories = getCategories();
   const staticRoutes = [
     // ── Public + indexable ──
     {
       pathname: "/",
       title: "Noir Peptides | Research-Grade Peptide Materials",
       description: DEFAULT_DESCRIPTION,
+      bodyHtml: renderHomeBody(homeCategories),
     },
     {
       pathname: "/about",
