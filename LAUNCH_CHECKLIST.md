@@ -20,7 +20,11 @@ below are operator/legal/business actions the code cannot perform.
 - [ ] Set **`VITE_SITE_URL`** to the real production domain (e.g.
       `https://www.noirpeptides.com`). The build THROWS if it is empty or points
       at localhost — so canonicals/OG can never leak a local address.
-- [ ] Purchase + connect the domain.
+- [ ] Purchase + connect the domain. The apex→www redirect is already in
+      `vercel.json` (host-conditioned 308 `noirpeptides.com` → `www.noirpeptides.com`),
+      so **attach the domain in Vercel → the redirect goes live automatically**;
+      then set `VITE_SITE_URL` to `https://www.noirpeptides.com` and redeploy.
+      It is inert (host never matches) until the apex is attached to the project.
 
 ## 2) Supabase
 
