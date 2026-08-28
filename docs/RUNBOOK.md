@@ -18,6 +18,12 @@ Migrations live in `supabase/migrations/` and are run **by pasting into the
 Supabase SQL editor** (this project has no CLI ledger). All are idempotent —
 re-running is safe.
 
+**Run `npm run db:verify` before and after** any seed/migration work (with
+`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in env): it reconciles live row
+counts against the static catalog and checks the migration ledger, printing the
+exact gaps. It is strictly read-only. Then use the SQL check below to confirm
+per-feature.
+
 **Run this first — it reports what's still missing on YOUR database:**
 
 ```sql
