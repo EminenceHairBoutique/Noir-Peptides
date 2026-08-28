@@ -414,12 +414,21 @@ async function main() {
   const indexPath = path.join(DIST_DIR, "index.html");
   const baseHtml = await fs.readFile(indexPath, "utf8");
 
-  // AUTH WALL / INDEXABILITY SPLIT
-  // Only the public tier (landing + legal) is prerendered and indexable. The
-  // entire gated storefront (catalog, products, COAs, account, cart, checkout)
-  // is intentionally NOT emitted as crawlable HTML and is marked noindex — it
-  // lives behind the authentication wall and Supabase RLS. Auth screens are
-  // emitted but noindex (thin/duplicate content).
+  // WHAT THIS SCRIPT EMITS (keep this accurate — do not "fix" toward an
+  // auth-wall model; the catalog IS meant to be indexable).
+  //   INDEXABLE, with crawlable <main> body content:
+  //     - home (/), the shop index and all category pages, every product page,
+  //       the education pages (/research/*, /calculator, /deals, /test-results),
+  //       /about /faqs /contact /verify-lot, and the /legal/* pages.
+  //     Catalog reads are public at the data layer (migration 0013), so these
+  //     render for anonymous visitors and crawlers. PURCHASE stays gated
+  //     (checkout requires auth + a current attestation, enforced server-side).
+  //   NOINDEX (emitted but marked noindex,nofollow — thin/transactional):
+  //     - /login and /register only.
+  //   NOT emitted here (SPA-only, Disallowed in robots.txt): account, cart,
+  //     checkout, success/cancel, admin, auth callbacks.
+  // Product/list bodies are mirrored from the SAME source as the SQL seed
+  // (src/data/tier1Catalog.js) so the static HTML and the DB never drift.
   const homeCategories = getCategories();
   const staticRoutes = [
     // ── Public + indexable ──
