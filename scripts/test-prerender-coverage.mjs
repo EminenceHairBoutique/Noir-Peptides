@@ -19,6 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { PRERENDER_EMPTY_ALLOWLIST } from "./generate-static-seo.mjs";
+import { researchArticles, researchDrafts } from "../src/data/research.js";
 
 const DIST = path.join(process.cwd(), "dist");
 
@@ -160,6 +161,18 @@ for (const f of files) {
   if (!/For research use only/i.test(root)) missingRuo.push(route);
 }
 ok(missingRuo.length === 0, `every prerendered body carries the RUO line (missing: ${JSON.stringify(missingRuo)})`);
+
+// ── 7. Unpublished drafts must never reach the build ────────────────────
+// researchDrafts is a separate export precisely so drafts cannot leak; this
+// asserts it, and that no draft slug collides with a published one.
+const distBlob = files.map((f) => fs.readFileSync(f, "utf8")).join("") + sitemap + robots;
+const leaked = researchDrafts.filter((d) => distBlob.includes(d.slug));
+ok(leaked.length === 0, `no unpublished research draft reaches dist (leaked: ${JSON.stringify(leaked.map((d) => d.slug))})`);
+const published = new Set(researchArticles.map((a) => a.slug));
+ok(
+  researchDrafts.every((d) => !published.has(d.slug)),
+  "no draft slug collides with a published article slug"
+);
 
 if (failures) {
   console.error(`\n${failures} prerender-coverage check(s) FAILED`);
