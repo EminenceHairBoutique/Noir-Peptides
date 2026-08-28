@@ -7,7 +7,31 @@ live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
 
-## ✅ Done (in this remediation)
+## ✅ Done (Aug-26 audit remediation — branch `claude/audit-remediation-aug26`)
+
+- **RLS escalation fix formalized** as idempotent migration
+  `0030_profiles_rls_escalation_fix.sql` (validated on fresh PG16), plus
+  `npm run verify:rls` (read probes + active `role→admin` escalation test) and a
+  static SQL unit test.
+- **`npm run db:verify`** — read-only live-vs-catalog reconcile (row counts +
+  migration ledger) with RUNBOOK §1 fix commands; derivation unit-tested.
+- **Stripe live-key interlock** — a live `sk_live_` key without
+  `PAYMENTS_STRIPE_LIVE_ACK` excludes the Stripe rail everywhere and makes
+  `create-checkout-session` return 503; 16 new assertions, existing 47 untouched.
+- **Homepage prerender** now emits crawlable `<h1>` + body + category links.
+- **Compliance tagline** "Performance" → "Provenance" applied everywhere.
+- **Stale auth-wall comment** in the SEO generator replaced with an accurate one
+  (byte-identical route output).
+- **Security headers** — dropped deprecated `X-XSS-Protection` and contradictory
+  `X-Frame-Options`; tightened `img-src` to the named set; apex→www 308 redirect
+  staged (inert until the domain is attached).
+- **Business-identity config** (`src/config/business.js`) — phone/address/
+  guarantee/cutoff render only when set; null by default (byte-identical);
+  snapshot-tested.
+- **`npm run test:e2e:prod`** fail-fast gate + a post-deploy verification chain
+  in `LAUNCH_CHECKLIST.md §9`.
+
+## ✅ Done (earlier launch remediation)
 
 ### Task 1 + 2 — Indexability & SEO
 - Build-time prerender of **every** public route: home, shop index, **7
