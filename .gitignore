@@ -70,3 +70,5 @@ src/output.css
 .ctest.cjs
 .ldtest.cjs
 .spanav.cjs
+.trust-check.cjs
+.cardcheck.cjs
