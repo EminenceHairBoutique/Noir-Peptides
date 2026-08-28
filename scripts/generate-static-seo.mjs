@@ -14,6 +14,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { deriveCoaStats, groupByProduct } from "../src/lib/coaStats.js";
 import { fileURLToPath } from "node:url";
 import { researchArticles } from "../src/data/research.js";
 import {
@@ -650,6 +651,91 @@ function renderArticleBody(a) {
   ]);
 }
 
+// ── W2/W4: build-time published-COA fetch for the trust surface ──────────
+// The /test-results counters and per-product batch tables must be present in
+// the PRERENDERED HTML, so when the build environment has Supabase access
+// (Vercel deploys do; the sandbox/CI may not) we fetch published rows once via
+// the anon REST API (published COAs are public-read by policy, migration
+// 0013/0014). With no credentials or on any failure we emit the static shell
+// only and SAY SO — never fabricated rows, never placeholder numbers.
+async function fetchPublishedCoasAtBuild() {
+  const url = String(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+  const key = process.env.VITE_SUPABASE_ANON_KEY || "";
+  if (!url || !key) {
+    console.warn("[seo] no Supabase env at build — /test-results prerenders the static shell only (no counters/batch rows)");
+    return null;
+  }
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/coas?select=id,product_id,batch_number,lot_number,lab_name,file_url,cas_number,purity_percent,hplc,mass_spec,ms_confirmed,tested_at,is_published&is_published=eq.true&order=tested_at.desc.nullslast&limit=500`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    if (!res.ok) throw new Error(`coas fetch ${res.status}`);
+    const rows = await res.json();
+    if (!Array.isArray(rows)) throw new Error("malformed coas response");
+    console.log(`[seo] fetched ${rows.length} published COA row(s) for the trust-surface prerender`);
+    return rows;
+  } catch (e) {
+    console.warn(`[seo] COA fetch failed (${e.message}) — /test-results prerenders the static shell only`);
+    return null;
+  }
+}
+
+function fmtIsoDay(d) {
+  return d ? String(d).slice(0, 10) : "";
+}
+
+/** W2 counters as static, crawlable HTML. Suppressed entirely at zero. */
+function renderCoaStatsBlock(stats) {
+  if (!stats || stats.totalCerts === 0) return "";
+  const metric = (val, label) => `<div><strong>${escapeHtml(String(val))}</strong> ${escapeHtml(label)}</div>`;
+  const extra = [];
+  if (stats.avgPurity !== null) {
+    extra.push(
+      `<p>Average assay purity ${escapeHtml(String(stats.avgPurity))}% across ${escapeHtml(String(stats.purityLots))} published lots.</p>`
+    );
+  }
+  if (stats.msConfirmedLots > 0) {
+    extra.push(
+      `<p>Analytical panel: HPLC purity on ${escapeHtml(String(stats.hplcLots))} lots; mass-spec identity confirmed on ${escapeHtml(String(stats.msConfirmedLots))}.</p>`
+    );
+  }
+  return (
+    `<section aria-label="Certificate library summary">` +
+    metric(stats.productsWithCerts, "products with published certificates") +
+    metric(stats.totalCerts, "published certificates (batches)") +
+    (stats.latestTestedAt ? metric(fmtIsoDay(stats.latestTestedAt), "date of most recent certificate") : "") +
+    extra.join("") +
+    `</section>`
+  );
+}
+
+/** W4 batch table as static, crawlable HTML. Null CAS/values render empty cells. */
+function renderBatchTableHtml(rows, productName) {
+  const tr = (c) => {
+    const lot = c.lot_number || c.batch_number || "";
+    const ms = c.ms_confirmed === true ? "Confirmed" : c.ms_confirmed === false ? "Not confirmed" : c.mass_spec || "";
+    const pdf = c.file_url ? `<a href="${escapeHtml(c.file_url)}">PDF</a>` : "";
+    return (
+      `<tr><th scope="row">${escapeHtml(lot)}</th>` +
+      `<td>${c.purity_percent != null ? escapeHtml(`${c.purity_percent}%`) : ""}</td>` +
+      `<td>${escapeHtml(c.cas_number || "")}</td>` +
+      `<td>${escapeHtml(fmtIsoDay(c.tested_at))}</td>` +
+      `<td>${escapeHtml(c.lab_name || "")}</td>` +
+      `<td>${escapeHtml(c.hplc || "")}</td>` +
+      `<td>${escapeHtml(ms)}</td>` +
+      `<td>${pdf}</td></tr>`
+    );
+  };
+  return (
+    `<table><caption>Published certificate history for ${escapeHtml(productName)}</caption>` +
+    `<thead><tr><th scope="col">Lot</th><th scope="col">Purity %</th><th scope="col">CAS</th>` +
+    `<th scope="col">Test date</th><th scope="col">Lab</th><th scope="col">HPLC</th>` +
+    `<th scope="col">MS identity</th><th scope="col">Certificate</th></tr></thead>` +
+    `<tbody>${rows.map(tr).join("")}</tbody></table>`
+  );
+}
+
 function injectBody(html, bodyHtml) {
   if (!bodyHtml) return html;
   return html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
@@ -779,6 +865,14 @@ async function main() {
   // Product/list bodies are mirrored from the SAME source as the SQL seed
   // (src/data/tier1Catalog.js) so the static HTML and the DB never drift.
   const homeCategories = getCategories();
+
+  // W2/W4: published COA rows for the trust-surface prerender (null when the
+  // build has no database access — shell-only, honestly logged).
+  const coaRows = await fetchPublishedCoasAtBuild();
+  const coaStats = coaRows ? deriveCoaStats(coaRows) : null;
+  const coaGroups = coaRows ? groupByProduct(coaRows) : new Map();
+  const productsBySlug = getAllProducts();
+
   const staticRoutes = [
     // ── Public + indexable ──
     {
@@ -926,7 +1020,17 @@ async function main() {
       // DB-driven: static shell + nav only. Published COAs render after
       // hydration; no synthetic COA rows are ever prerendered.
       pathname: "/test-results",
-      bodyHtml: renderShellBody(TEST_RESULTS_SHELL),
+      bodyHtml: renderShellBody(TEST_RESULTS_SHELL, [
+        // W2 counters + W4 batch rows: present in crawlable HTML when the
+        // build fetched real published rows; absent otherwise (never faked).
+        ...(coaStats ? [renderCoaStatsBlock(coaStats)] : []),
+        ...[...coaGroups.entries()].map(([pid, rows]) => {
+          const prod = productsBySlug.find((pp) => pp.id === pid);
+          const name = prod?.name || pid;
+          const link = prod ? `<p><a href="/test-results/${escapeHtml(prod.slug)}">Full batch history for ${escapeHtml(name)}</a></p>` : "";
+          return `<h2>${escapeHtml(name)}</h2>` + renderBatchTableHtml(rows, name) + link;
+        }),
+      ]),
       title: "Test Results — Certificate of Analysis Library",
       description:
         "Batch-specific certificates of analysis (HPLC purity + mass-spec identity) for Noir Peptides research reference materials. Verify any lot. For research use only. Not for human or veterinary use.",
@@ -1011,11 +1115,45 @@ async function main() {
     ),
   }));
 
+  // W4: prerendered per-product batch-history permalinks — emitted ONLY for
+  // products that actually have published certificates at build time (a
+  // permalink page with no data would be thin and, with no DB at build,
+  // unknowable). The SPA route covers every slug at runtime regardless.
+  const batchHistoryRoutes = [...coaGroups.entries()]
+    .map(([pid, rows]) => {
+      const prod = productsBySlug.find((pp) => pp.id === pid);
+      if (!prod) return null;
+      return {
+        pathname: `/test-results/${prod.slug}`,
+        title: `${prod.name} — Batch Test History`,
+        description: `Published batch-specific certificates of analysis for ${prod.name}: lot numbers, HPLC purity, mass-spec identity, and test dates. For research use only. Not for human or veterinary use.`,
+        bodyHtml: wrapBody([
+          // Visible trail mirrors the BreadcrumbList JSON-LD below — the
+          // structured data never claims markup the page does not render.
+          `<nav aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/test-results">Test Results</a> / ${escapeHtml(prod.name)}</nav>`,
+          `<h1>${escapeHtml(prod.name)} — Batch Test History</h1>`,
+          `<p>Every published certificate for this material, newest first.</p>`,
+          renderBatchTableHtml(rows, prod.name),
+          `<p><a href="/product/${escapeHtml(prod.slug)}">View the product page</a></p>`,
+        ]),
+        breadcrumb: [
+          { name: "Home", item: `${SITE_URL}/` },
+          { name: "Test Results", item: ensureSiteUrl("/test-results") },
+          { name: prod.name, item: ensureSiteUrl(`/test-results/${prod.slug}`) },
+        ],
+      };
+    })
+    .filter(Boolean);
+  if (batchHistoryRoutes.length) {
+    console.log(`[seo] emitting ${batchHistoryRoutes.length} batch-history permalink route(s)`);
+  }
+
   const routes = [
     ...staticRoutes,
     ...researchRoutes,
     ...shopRoutes,
     ...productRoutes,
+    ...batchHistoryRoutes,
   ];
 
   for (const route of routes) {
