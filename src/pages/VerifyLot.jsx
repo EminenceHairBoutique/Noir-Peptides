@@ -11,6 +11,7 @@ import QrScanner from "../components/QrScanner";
 import { hapticVerified } from "../lib/haptics";
 import SEO from "../components/SEO";
 import CoaCard from "../components/CoaCard";
+import TestPanel from "../components/TestPanel";
 import { lookupByLot } from "../lib/coas";
 import { verifyCode } from "../lib/labelsApi";
 import { getAllProducts } from "../data/tier1Catalog";
@@ -78,6 +79,9 @@ function CodeResult({ code }) {
         <div className="max-w-xl">
           <p className="text-[11px] uppercase tracking-[0.14em] text-se-gold mb-2">Linked certificate of analysis</p>
           <CoaCard coa={{ ...result.coa, lot_number: l?.lot_number, product_id: l?.product_id }} productName={l?.display_name} origin={ORIGIN} showQr={false} />
+          {/* Full analytical panel for this exact lot — the page a scanned
+              vial lands on. Renders nothing when no panel rows exist. */}
+          <TestPanel tests={result.coa.tests} />
         </div>
       )}
 

@@ -79,6 +79,16 @@ const BARE_PREFIXES = ["/login", "/register", "/forgot-password", "/reset-passwo
 const BARE_EXACT = ["/verify"];
 
 // Redirect the legacy plural product path to the canonical singular one.
+// /coa/:productSlug -> /test-results/:productSlug (see the alias routes).
+function CoaAliasRedirect() {
+  const { productSlug } = useParams();
+  return (
+    <div className="min-h-screen" aria-hidden="true">
+      <Navigate to={`/test-results/${productSlug}`} replace />
+    </div>
+  );
+}
+
 function ProductAliasRedirect() {
   const { slug } = useParams();
   // Reserve a viewport while the redirect commits. `<Navigate>` renders no
@@ -156,6 +166,12 @@ export default function App() {
               <Route path="/calculator" element={<Page><Calculator /></Page>} />
               <Route path="/deals" element={<Page><Deals /></Page>} />
               <Route path="/test-results" element={<Page><TestResults /></Page>} />
+              {/* /coa and /coa/:productSlug are aliases for the certificate
+                  library. /test-results stays CANONICAL (it is prerendered,
+                  sitemapped and linked); these redirect so the shorter path
+                  works without creating duplicate content. */}
+              <Route path="/coa" element={<Navigate to="/test-results" replace />} />
+              <Route path="/coa/:productSlug" element={<CoaAliasRedirect />} />
               {/* W4: per-product batch-history permalink */}
               <Route path="/test-results/:productSlug" element={<Page><TestResultsProduct /></Page>} />
               <Route path="/verify-lot" element={<Page><VerifyLot /></Page>} />

@@ -6,6 +6,8 @@
 import { Link } from "react-router-dom";
 import { FileText, ShieldCheck } from "lucide-react";
 import QrCode from "./QrCode";
+import LabVerifyLink from "./LabVerifyLink";
+import { formatPurity } from "../lib/labVerify";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -23,7 +25,9 @@ function fmtDate(d) {
 export default function CoaCard({ coa, productName, origin = "", showQr = true }) {
   if (!coa) return null;
   const lot = coa.lot || coa.lot_number || coa.batch_number || null;
-  const purity = coa.hplc || (coa.purity_percent != null ? `${coa.purity_percent}%` : null);
+  // formatPurity honours purity_operator so ">= 99%" is never shown as "99%".
+  const purity = formatPurity(coa) || coa.hplc || null;
+  const lab = coa.lab || null;
   const verifyUrl = lot ? `${origin}/verify-lot?lot=${encodeURIComponent(lot)}` : null;
 
   return (
@@ -47,8 +51,32 @@ export default function CoaCard({ coa, productName, origin = "", showQr = true }
           </div>
           <div>
             <dt className="text-se-steel text-[11px] uppercase tracking-wide">Testing lab</dt>
-            <dd className="text-se-bone">{coa.lab_name || "—"}</dd>
+            <dd className="text-se-bone">
+              {lab?.name || coa.lab_name || "—"}
+              {/* Naming the lab AND its accreditation is what audit sites
+                  score; rendered only from real record values. */}
+              {lab?.accreditation_body && (
+                <span className="block text-[11px] text-se-steel">
+                  {lab.accreditation_body}
+                  {lab.accreditation_number ? ` · ${lab.accreditation_number}` : ""}
+                </span>
+              )}
+            </dd>
           </div>
+          {/* Net peptide content vs label claim: purity grades the peptide
+              fraction; net content is how many mg are actually present. Both
+              render only when the certificate records them. */}
+          {coa.net_peptide_content_mg != null && (
+            <div>
+              <dt className="text-se-steel text-[11px] uppercase tracking-wide">Net peptide content</dt>
+              <dd className="text-se-bone">
+                {coa.net_peptide_content_mg} mg
+                {coa.label_claim_mg != null && (
+                  <span className="text-se-steel"> of {coa.label_claim_mg} mg label claim</span>
+                )}
+              </dd>
+            </div>
+          )}
           {/* Lot-level CAS (W1): OMITTED entirely when null — never "N/A". */}
           {coa.cas_number && (
             <div>
@@ -77,6 +105,13 @@ export default function CoaCard({ coa, productName, origin = "", showQr = true }
             </dd>
           </div>
         </dl>
+
+        {/* SECOND FACTOR — resolves this lot on the lab's own public record.
+            Renders only when the lab publishes a lookup and this lot has a
+            code; its absence is honest, not hidden. */}
+        <div className="mt-3">
+          <LabVerifyLink coa={coa} lab={lab} />
+        </div>
 
         {coa.file_url ? (
           <a

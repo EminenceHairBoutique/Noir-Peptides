@@ -9,7 +9,12 @@ import { supabase } from "./supabaseClient";
 const COA_COLUMNS =
   "id, product_id, batch_number, lot_number, lab_name, file_url, cas_number, " +
   "purity_percent, hplc, mass_spec, ms_confirmed, endotoxin, tested_at, " +
-  "is_published, created_at";
+  "is_published, created_at, " +
+  // Two-factor verification + net-content columns (migration 0032). The
+  // embedded labs(...) selection is a JOIN, not an extra round trip.
+  "lab_id, lab_lookup_code, purity_operator, net_peptide_content_mg, " +
+  "label_claim_mg, published_on, status, " +
+  "labs ( id, name, accreditation_body, accreditation_number, public_lookup_url_template )";
 
 function normalize(row) {
   if (!row) return null;
@@ -17,6 +22,9 @@ function normalize(row) {
     ...row,
     // Prefer an explicit lot_number; fall back to batch_number.
     lot: row.lot_number || row.batch_number || null,
+    // PostgREST returns the embedded row as `labs`; expose it as `lab` and
+    // keep lab_name as the fallback label when no lab record is linked.
+    lab: row.labs || null,
   };
 }
 
@@ -106,4 +114,24 @@ export function getLatestCoaMap() {
     })();
   }
   return _latestCoaPromise;
+}
+
+/**
+ * Analytical test panel for one certificate (migration 0032 batch_tests).
+ * RLS exposes rows only for published certificates. Returns [] when the
+ * panel has not been entered — callers then render nothing.
+ */
+export async function getBatchTests(coaId) {
+  if (!supabase || !coaId) return [];
+  try {
+    const { data, error } = await supabase
+      .from("batch_tests")
+      .select("id, coa_id, panel_category, test_name, method_reference, result_value, result_unit, passed, sort_order")
+      .eq("coa_id", coaId)
+      .order("sort_order", { ascending: true });
+    if (error || !Array.isArray(data)) return [];
+    return data;
+  } catch {
+    return [];
+  }
 }
