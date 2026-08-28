@@ -8,6 +8,7 @@ import { resolveOrigin, originUnconfigured } from "../lib/siteOrigin.js";
 import { resolveShipping, stripeShippingOption } from "../lib/shipping.js";
 import { failSafely } from "../lib/apiError.js";
 import { checkoutIdempotencyKey } from "../lib/idempotency.js";
+import { stripeLiveDisabled, warnIfStripeLiveDisabled } from "../lib/payments/providers.js";
 
 // Pin the Stripe API version so behavior is stable across SDK upgrades.
 const STRIPE_API_VERSION = "2024-06-20";
@@ -47,6 +48,15 @@ export async function createHandler(req, res) {
       error:
         "Stripe is not configured. Set STRIPE_SECRET_KEY in your .env.local file.",
     });
+  }
+
+  // Stripe live-key interlock: refuse to create a live session unless the
+  // operator has explicitly accepted the ToS risk (see lib/payments/providers).
+  // Fails closed BEFORE auth/pricing so a misconfigured live key can never take
+  // a real payment.
+  if (stripeLiveDisabled()) {
+    warnIfStripeLiveDisabled();
+    return res.status(503).json({ error: "stripe_live_disabled" });
   }
 
   // ── AUTH: identity is derived from the Supabase bearer token, never body ──

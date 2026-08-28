@@ -15,9 +15,18 @@
 // material, hostnames, or store ids. Public + cached briefly: it is read on
 // every checkout and its answer changes only when the owner changes env.
 import { jsonResponse as json } from "./_utils/body.js";
+import { stripeLiveDisabled, warnIfStripeLiveDisabled } from "../lib/payments/providers.js";
 
 function stripeConfigured() {
-  return Boolean(process.env.STRIPE_SECRET_KEY);
+  if (!process.env.STRIPE_SECRET_KEY) return false;
+  // Stripe live-key interlock: a live key without the risk ack omits the card
+  // rail here too, so the checkout UI never offers a processor the create
+  // endpoint would refuse.
+  if (stripeLiveDisabled()) {
+    warnIfStripeLiveDisabled();
+    return false;
+  }
+  return true;
 }
 
 function btcpayConfigured() {
