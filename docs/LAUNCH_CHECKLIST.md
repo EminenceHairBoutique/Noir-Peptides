@@ -8,6 +8,11 @@ real card after flipping to live keys._
 
 - [ ] §1 ledger check in `docs/RUNBOOK.md` reports every migration applied
       (0025 / 0028 / 0029 true).
+- [ ] Migrations **0030–0033** applied and verified — follow
+      `docs/MIGRATIONS_0032_0033.md`, which gives paste-ready SQL and states
+      what each result means. Until 0032/0033 are applied the site still runs
+      (the data layers fall back to the pre-migration column set), but lab
+      verification, Safety Data Sheets and lab supplies stay dormant.
 - [ ] Vercel env has: Supabase trio, Stripe trio + shipping rate id,
       `RESEND_API_KEY`, `ADMIN_EMAILS` + `VITE_ADMIN_EMAILS`,
       `VITE_SITE_URL`. Redeploy after changes — env is baked at build time.

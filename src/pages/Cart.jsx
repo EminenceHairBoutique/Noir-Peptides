@@ -8,6 +8,9 @@ import DisclaimerBanner from "../components/DisclaimerBanner";
 
 const money = (n) =>
   `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+import FreeShipProgress from "../components/FreeShipProgress";
+import CryptoIncentive from "../components/CryptoIncentive";
+import LabSuppliesCrossSell from "../components/LabSuppliesCrossSell";
 
 export default function Cart() {
   const {
@@ -139,6 +142,11 @@ export default function Cart() {
                     </p>
                   </div>
                 ))}
+
+                {/* Task 8: laboratory consumables offered as add-ons. Renders
+                    nothing until products are marked product_type='lab_supply'
+                    (migration 0033 seeds none). */}
+                <LabSuppliesCrossSell cartList={cartList} />
               </div>
 
               <div className="lg:sticky lg:top-28 self-start">
@@ -151,10 +159,17 @@ export default function Cart() {
                     <span className="text-se-bone/60">Subtotal</span>
                     <span>{money(cartTotal)}</span>
                   </div>
+                  {/* Task 5: free-shipping progress, reading the SAME threshold
+                      the server prices against — display cannot drift from charge. */}
+                  <FreeShipProgress subtotal={cartTotal} />
                   <div className="flex justify-between text-[13px] font-accent">
                     <span className="text-se-bone/60">Shipping</span>
                     <span className="text-se-steel">At checkout</span>
                   </div>
+                  {/* Task 4: the crypto saving, surfaced where it can affect
+                      the decision. Renders only when the SERVER reports a live
+                      crypto rail and a real discount percentage. */}
+                  <CryptoIncentive subtotal={cartTotal} />
                   <div className="divider" />
                   <div className="flex justify-between text-[15px] font-accent font-medium">
                     <span>Total</span>

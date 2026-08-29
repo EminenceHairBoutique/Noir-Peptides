@@ -38,6 +38,7 @@ const Deals = lazy(() => import("./pages/Deals"));
 const TestResults = lazy(() => import("./pages/TestResults"));
 const TestResultsProduct = lazy(() => import("./pages/TestResultsProduct"));
 const VerifyLot = lazy(() => import("./pages/VerifyLot"));
+const Documents = lazy(() => import("./pages/Documents"));
 
 // ── Public legal docs ──
 const Terms = lazy(() => import("./pages/Terms"));
@@ -45,6 +46,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const ResearchUsePolicy = lazy(() => import("./pages/ResearchUsePolicy"));
 const FdaDisclaimer = lazy(() => import("./pages/FdaDisclaimer"));
 const ShippingRefunds = lazy(() => import("./pages/ShippingRefunds"));
+const RuoAgreement = lazy(() => import("./pages/RuoAgreement"));
 
 // ── Gated tier (require auth + attestation) ──
 const ResearcherConsole = lazy(() => import("./pages/ResearcherConsole"));
@@ -79,6 +81,16 @@ const BARE_PREFIXES = ["/login", "/register", "/forgot-password", "/reset-passwo
 const BARE_EXACT = ["/verify"];
 
 // Redirect the legacy plural product path to the canonical singular one.
+// /coa/:productSlug -> /test-results/:productSlug (see the alias routes).
+function CoaAliasRedirect() {
+  const { productSlug } = useParams();
+  return (
+    <div className="min-h-screen" aria-hidden="true">
+      <Navigate to={`/test-results/${productSlug}`} replace />
+    </div>
+  );
+}
+
 function ProductAliasRedirect() {
   const { slug } = useParams();
   // Reserve a viewport while the redirect commits. `<Navigate>` renders no
@@ -156,9 +168,21 @@ export default function App() {
               <Route path="/calculator" element={<Page><Calculator /></Page>} />
               <Route path="/deals" element={<Page><Deals /></Page>} />
               <Route path="/test-results" element={<Page><TestResults /></Page>} />
+              {/* /coa and /coa/:productSlug are aliases for the certificate
+                  library. /test-results stays CANONICAL (it is prerendered,
+                  sitemapped and linked); these redirect so the shorter path
+                  works without creating duplicate content.
+                  NOTE: /coa previously rendered the COA *Policy* document. That
+                  page keeps its own route below at /coa-policy, which is where
+                  every internal link (Navbar, Footer) already points — no link
+                  in the app targeted bare /coa. */}
+              <Route path="/coa" element={<Navigate to="/test-results" replace />} />
+              <Route path="/coa/:productSlug" element={<CoaAliasRedirect />} />
               {/* W4: per-product batch-history permalink */}
               <Route path="/test-results/:productSlug" element={<Page><TestResultsProduct /></Page>} />
               <Route path="/verify-lot" element={<Page><VerifyLot /></Page>} />
+              {/* Public document library: SDS + certificates + policies. */}
+              <Route path="/documents" element={<Page><Documents /></Page>} />
               {/* Label QR deep link: short, non-enumerable verification code. */}
               <Route path="/v/:code" element={<Page><VerifyLot /></Page>} />
 
@@ -167,6 +191,7 @@ export default function App() {
               <Route path="/legal/privacy" element={<Page><Privacy /></Page>} />
               <Route path="/legal/research-use-policy" element={<Page><ResearchUsePolicy /></Page>} />
               <Route path="/legal/fda-disclaimer" element={<Page><FdaDisclaimer /></Page>} />
+              <Route path="/legal/ruo-agreement" element={<Page><RuoAgreement /></Page>} />
               <Route path="/legal/shipping" element={<Page><ShippingRefunds /></Page>} />
               <Route path="/legal/returns" element={<Page><ShippingRefunds /></Page>} />
 
@@ -185,7 +210,6 @@ export default function App() {
               <Route path="/products/:slug" element={<ProductAliasRedirect />} />
 
               {/* ── PUBLIC INFORMATIONAL (trust/SEO; no commerce action) ── */}
-              <Route path="/coa" element={<Page><CoaPolicy /></Page>} />
               <Route path="/coa-policy" element={<Page><CoaPolicy /></Page>} />
               <Route path="/quality" element={<Page><Quality /></Page>} />
               <Route path="/about" element={<Page><About /></Page>} />

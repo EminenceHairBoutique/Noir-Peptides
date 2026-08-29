@@ -46,8 +46,18 @@ const green = (s) => `\x1b[32m${s}\x1b[0m`;
 const bold = (s) => `\x1b[1m${s}\x1b[0m`;
 
 function printManualInstructions() {
-  console.log(bold("\nRLS verification could not run — missing env. Set:"));
-  console.log("  VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY");
+  console.log(bold("\nRLS verification could not run — missing env."));
+  console.log("Needs: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY");
+  console.log(bold("\nEasiest (any OS — npm run verify:rls reads .env automatically):"));
+  console.log("  1. Copy .env.example to .env  (it is gitignored)");
+  console.log("  2. Fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY");
+  console.log("     Supabase dashboard → Settings → API → Project URL + anon public key");
+  console.log("  3. npm run verify:rls");
+  console.log(bold("\nOr set them for one shell session:"));
+  console.log("  PowerShell:  $env:VITE_SUPABASE_URL=\"https://<ref>.supabase.co\"");
+  console.log("               $env:VITE_SUPABASE_ANON_KEY=\"<anon-key>\"");
+  console.log("  bash/zsh:    export VITE_SUPABASE_URL=https://<ref>.supabase.co");
+  console.log("               export VITE_SUPABASE_ANON_KEY=<anon-key>");
   console.log(bold("\nOr run the read probes by hand (must each return []):"));
   console.log("  REF=<project-ref>; ANON=<anon-key>");
   console.log("  for t in profiles orders attestation_audit; do");

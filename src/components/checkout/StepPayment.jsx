@@ -10,6 +10,7 @@
 import React, { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
 import { fetchPaymentRails } from "../../lib/paymentRails";
+import FulfillmentStatements from "../FulfillmentStatements";
 
 export default function StepPayment({ onBack, onPay, submitting, error, selectedRail, setSelectedRail }) {
   const [rails, setRails] = useState(null); // null = still loading
@@ -80,6 +81,11 @@ export default function StepPayment({ onBack, onPay, submitting, error, selected
           </p>
         )}
       </fieldset>
+
+      {/* Task 5: packaging and billing-descriptor facts belong here, at the
+          moment the charge is authorised — an unrecognised descriptor is what
+          becomes a chargeback. Renders nothing until the config is set. */}
+      <FulfillmentStatements variant="inline" />
 
       {error && <p className="text-[12px] text-se-red-bright font-accent">{error}</p>}
 

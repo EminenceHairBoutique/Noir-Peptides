@@ -16,7 +16,41 @@ import { deriveStockStatus } from "../../lib/inventory.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
 
 const STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock"];
+const PRODUCT_TYPES = ["peptide", "lab_supply"];
+
+// An SDS URL is admin-entered data that becomes an outbound link on a public
+// page. Accept only an absolute https URL: http is a downgradeable link on a
+// safety document, and javascript:/data: are script vectors.
+function validSdsUrl(value) {
+  let url;
+  try {
+    url = new URL(String(value));
+  } catch {
+    return null;
+  }
+  return url.protocol === "https:" ? url.toString() : null;
+}
 const MAX_NOTIFY_PER_FLIP = 200;
+
+// Columns that exist before migration 0033, and the full set after it. The
+// code deploy and the migration are separate acts and code usually lands first;
+// without this fallback the whole Control Room catalog tab would answer "Could
+// not load catalog" until someone ran the SQL, with nothing saying why.
+const PRODUCT_COLUMNS_BASE =
+  "id, slug, name, category_slug, price, stock_status, featured, is_new";
+const PRODUCT_COLUMNS = `${PRODUCT_COLUMNS_BASE}, sds_file_url, sds_updated_at, product_type`;
+
+async function loadProducts() {
+  const full = await supabaseServer.from("products").select(PRODUCT_COLUMNS).order("name");
+  // 42703 = undefined_column. Any other error is returned as-is so the existing
+  // 500 path still fires for real failures.
+  const missingColumn =
+    full.error &&
+    (full.error.code === "42703" || /does not exist/i.test(String(full.error.message || "")));
+  if (!missingColumn) return full;
+  console.warn("[admin/catalog] products missing 0033 columns — migration pending; SDS fields hidden");
+  return supabaseServer.from("products").select(PRODUCT_COLUMNS_BASE).order("name");
+}
 
 async function auditLog(req, actorId, action, entityId, metadata = {}) {
   try {
@@ -47,6 +81,34 @@ function pickFields(kind, body) {
     else out.stock_status = body.stock_status;
   }
   if (kind === "product") {
+    // ── Safety Data Sheet (migration 0033) ──
+    // Explicit null/"" CLEARS the sheet (the product then renders as having
+    // none, rather than keeping a stale link to a withdrawn document).
+    if ("sds_file_url" in body) {
+      if (body.sds_file_url === null || body.sds_file_url === "") {
+        out.sds_file_url = null;
+      } else {
+        const clean = validSdsUrl(body.sds_file_url);
+        if (!clean) errors.push("sds_file_url must be an absolute https:// URL");
+        else if (clean.length > 2048) errors.push("sds_file_url is too long (max 2048)");
+        else out.sds_file_url = clean;
+      }
+    }
+    if ("sds_updated_at" in body) {
+      if (body.sds_updated_at === null || body.sds_updated_at === "") {
+        out.sds_updated_at = null;
+      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.sds_updated_at))) {
+        errors.push("sds_updated_at must be an ISO day (YYYY-MM-DD)");
+      } else if (Number.isNaN(Date.parse(`${body.sds_updated_at}T00:00:00Z`))) {
+        errors.push("sds_updated_at is not a real date");
+      } else {
+        out.sds_updated_at = String(body.sds_updated_at);
+      }
+    }
+    if (has("product_type")) {
+      if (!PRODUCT_TYPES.includes(body.product_type)) errors.push("invalid product_type");
+      else out.product_type = body.product_type;
+    }
     if (body.featured !== undefined) {
       if (typeof body.featured !== "boolean") errors.push("featured must be boolean");
       else out.featured = body.featured;
@@ -121,10 +183,7 @@ export default async function handler(req, res) {
 
   if (req.method === "GET") {
     const [prods, vars, subs] = await Promise.all([
-      supabaseServer
-        .from("products")
-        .select("id, slug, name, category_slug, price, stock_status, featured, is_new")
-        .order("name"),
+      loadProducts(),
       supabaseServer
         .from("product_variants")
         .select("id, product_id, sku, size_label, vial_size_mg, price, stock_status, sort_order, inventory_count, low_stock_threshold")

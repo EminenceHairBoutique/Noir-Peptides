@@ -88,10 +88,12 @@ const Footer = () => {
             <p className="text-label text-se-gold mb-5">Compliance</p>
             <div className="text-[13px] font-accent">
               <Link to="/test-results" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Test Results &amp; COAs</Link>
+              <Link to="/documents" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Document Library</Link>
               <Link to="/coa-policy" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">COA Policy</Link>
               <Link to="/quality" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Quality &amp; Batch Standards</Link>
               <Link to="/faqs" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">FAQ</Link>
               <Link to="/legal/research-use-policy" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Research-Use Policy</Link>
+              <Link to="/legal/ruo-agreement" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Research-Use Agreement</Link>
               <Link to="/legal/fda-disclaimer" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">FDA Disclaimer</Link>
             </div>
           </div>

@@ -58,11 +58,26 @@ export default async function handler(req, res) {
       try {
         const { data: c } = await supabaseServer
           .from("coas")
-          .select("lab_name, tested_at, hplc, purity_percent, ms_confirmed, file_url")
+          // Two-factor fields + the joined lab record (migration 0032), so the
+          // QR view can show WHO tested it and link to the lab's own record.
+          .select(
+            "id, lab_name, tested_at, hplc, purity_percent, purity_operator, cas_number, " +
+              "ms_confirmed, file_url, lab_lookup_code, net_peptide_content_mg, label_claim_mg, " +
+              "labs ( id, name, accreditation_body, accreditation_number, public_lookup_url_template )"
+          )
           .eq("is_published", true)
           .ilike("lot_number", data.lot_number)
           .maybeSingle();
-        coa = c || null;
+        coa = c ? { ...c, lab: c.labs || null } : null;
+        // Analytical panel for that certificate — rows only, never a default.
+        if (coa?.id) {
+          const { data: tests } = await supabaseServer
+            .from("batch_tests")
+            .select("id, panel_category, test_name, method_reference, result_value, result_unit, passed, sort_order")
+            .eq("coa_id", coa.id)
+            .order("sort_order", { ascending: true });
+          coa.tests = Array.isArray(tests) ? tests : [];
+        }
       } catch { coa = null; }
     }
 

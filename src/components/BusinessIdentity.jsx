@@ -9,14 +9,16 @@ import {
   hasAddress,
   hasGuarantee,
   hasShipCutoff,
+  hasHours,
   phoneHref,
+  shipCutoffStatement,
 } from "../config/business";
 
 /**
  * @param {"footer"|"contact"} variant  styling context
  */
 export default function BusinessIdentity({ variant = "footer" }) {
-  const anything = hasPhone() || hasAddress() || hasGuarantee() || hasShipCutoff();
+  const anything = hasPhone() || hasAddress() || hasGuarantee() || hasShipCutoff() || hasHours();
   if (!anything) return null;
 
   const wrap =
@@ -42,10 +44,21 @@ export default function BusinessIdentity({ variant = "footer" }) {
           ))}
         </address>
       )}
-      {hasShipCutoff() && (
-        <p>
-          Order by {BUSINESS.shipCutoff} {BUSINESS.shipCutoffTz} for same-day handling.
-        </p>
+      {hasShipCutoff() && <p>{shipCutoffStatement()}</p>}
+      {/* Day-by-day hours table (competitor pattern). Rendered only from real
+          configured rows — never a fabricated schedule. */}
+      {hasHours() && (
+        <table className="text-left" data-testid="business-hours">
+          <caption className="sr-only">Business hours</caption>
+          <tbody>
+            {BUSINESS.hours.map((h) => (
+              <tr key={h.day}>
+                <th scope="row" className="pr-4 font-normal text-se-steel">{h.day}</th>
+                <td>{h.closed ? "Closed" : `${h.opens} – ${h.closes}`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
       {hasGuarantee() && <p>{BUSINESS.guaranteeDays}-day satisfaction guarantee.</p>}
     </div>

@@ -8,6 +8,8 @@
 // Claim-safe: analytical facts only. The MS column reports confirmation state
 // verbatim from the certificate row.
 import { FileText } from "lucide-react";
+import LabVerifyLink from "./LabVerifyLink";
+import { formatPurity } from "../lib/labVerify";
 
 function fmtDate(d) {
   if (!d) return "";
@@ -36,6 +38,7 @@ export default function BatchHistoryTable({ rows, captionId, productName }) {
             <th scope="col" className="py-2 pr-4 border-b border-se-concrete">CAS</th>
             <th scope="col" className="py-2 pr-4 border-b border-se-concrete">Test date</th>
             <th scope="col" className="py-2 pr-4 border-b border-se-concrete">Lab</th>
+            <th scope="col" className="py-2 pr-4 border-b border-se-concrete">Verify at lab</th>
             <th scope="col" className="py-2 pr-4 border-b border-se-concrete">HPLC</th>
             <th scope="col" className="py-2 pr-4 border-b border-se-concrete">MS identity</th>
             <th scope="col" className="py-2 border-b border-se-concrete">Certificate</th>
@@ -50,13 +53,24 @@ export default function BatchHistoryTable({ rows, captionId, productName }) {
                   {lot}
                 </th>
                 <td className="py-2.5 pr-4 border-b border-se-concrete/50">
-                  {c.purity_percent != null ? `${c.purity_percent}%` : ""}
+                  {formatPurity(c) || ""}
                 </td>
                 <td className="py-2.5 pr-4 border-b border-se-concrete/50 font-mono">
                   {c.cas_number || ""}
                 </td>
                 <td className="py-2.5 pr-4 border-b border-se-concrete/50">{fmtDate(c.tested_at)}</td>
-                <td className="py-2.5 pr-4 border-b border-se-concrete/50">{c.lab_name || ""}</td>
+                <td className="py-2.5 pr-4 border-b border-se-concrete/50">
+                  {c.lab?.name || c.lab_name || ""}
+                  {c.lab?.accreditation_body && (
+                    <span className="block text-[10px] text-se-steel">
+                      {c.lab.accreditation_body}
+                      {c.lab.accreditation_number ? ` · ${c.lab.accreditation_number}` : ""}
+                    </span>
+                  )}
+                </td>
+                <td className="py-2.5 pr-4 border-b border-se-concrete/50">
+                  <LabVerifyLink coa={c} compact />
+                </td>
                 <td className="py-2.5 pr-4 border-b border-se-concrete/50">{c.hplc || ""}</td>
                 <td className="py-2.5 pr-4 border-b border-se-concrete/50">
                   {c.ms_confirmed === true ? "Confirmed" : c.ms_confirmed === false ? "Not confirmed" : c.mass_spec || ""}

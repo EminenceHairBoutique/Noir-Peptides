@@ -585,3 +585,52 @@ We may update this Privacy Policy at any time. Updated versions are effective wh
 Questions about this Privacy Policy may be sent to:
 
 support@noirpeptides.com`;
+
+// ⚠⚠ PLACEHOLDER — PENDING ATTORNEY REVIEW ⚠⚠
+// Task 6 of the Aug-28 competitive-features brief asked for the PAGE
+// STRUCTURE; the content below is a claim-safe scaffold following the
+// five-clause shape common in this vertical (intended use / not for human or
+// veterinary use / qualified researcher / responsibility / no resale for
+// prohibited use). It is NOT legal advice and MUST be reviewed and adapted by
+// counsel before launch. Do not treat any sentence here as final.
+export const RUO_AGREEMENT_DOC = `# Research-Use Agreement
+
+This agreement governs the purchase and use of materials supplied by Noir
+Peptides. By placing an order you accept the clauses below.
+
+## 1. Intended use
+
+Materials supplied by Noir Peptides are reference materials intended
+exclusively for laboratory research conducted by qualified purchasers. They
+are supplied for in-vitro investigational work and analytical method
+development.
+
+## 2. Not for human or veterinary use
+
+Materials are not drugs, dietary supplements, cosmetics, medical devices, or
+approved pharmaceutical products. They are not for human consumption,
+veterinary use, diagnostic use, therapeutic use, or any in-vivo application,
+and are not intended to diagnose, treat, cure, or prevent any disease.
+
+## 3. Qualified purchaser
+
+By ordering you confirm that you are qualified to acquire and handle
+laboratory research materials, that you are ordering on behalf of a
+laboratory, institution, or research undertaking, and that you meet the
+minimum age required to enter this agreement.
+
+## 4. Responsibility for handling and use
+
+The purchaser is solely responsible for handling, storage, containment, and
+disposal in accordance with their institution's standard operating procedures
+and all applicable laws and regulations. Noir Peptides does not provide
+dosing, administration, reconstitution-ratio, treatment, clinical, or
+human/veterinary-use guidance.
+
+## 5. No resale for prohibited use
+
+Materials may not be resold, redistributed, relabelled, or otherwise
+transferred for human or veterinary use, nor for any purpose prohibited by
+applicable law. Onward transfer to a third party carries these same terms.
+
+Questions about this agreement may be directed to support@noirpeptides.com.`;
