@@ -28,6 +28,7 @@ import {
   CONTACT_COPY,
   DEALS_SHELL,
   TEST_RESULTS_SHELL,
+  HOME_COPY,
 } from "../src/data/pageCopy.js";
 import {
   RESEARCH_USE_POLICY_DOC,
@@ -451,8 +452,7 @@ function renderHomeBody(categories) {
   return [
     "<main>",
     "<h1>Noir Peptides — Research-Grade Peptide Reference Materials</h1>",
-    "<p>A research-grade peptide reference catalog for qualified purchasers. " +
-      "Access requires an account and a completed research-use attestation.</p>",
+    `<p>${escapeHtml(HOME_COPY.intro)} ${escapeHtml(HOME_COPY.posture)}</p>`,
     "<p>Batch-documented peptide reference materials for laboratory research. " +
       "Per-batch certificate of analysis available.</p>",
     `<nav aria-label="Research catalog"><ul>` +

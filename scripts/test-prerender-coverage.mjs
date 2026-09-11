@@ -20,6 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { PRERENDER_EMPTY_ALLOWLIST } from "./generate-static-seo.mjs";
 import { researchArticles, researchDrafts } from "../src/data/research.js";
+import { HOME_COPY } from "../src/data/pageCopy.js";
 
 const DIST = path.join(process.cwd(), "dist");
 
@@ -169,6 +170,22 @@ for (const f of files) {
   if (!/For research use only/i.test(root)) missingRuo.push(route);
 }
 ok(missingRuo.length === 0, `every prerendered body carries the RUO line (missing: ${JSON.stringify(missingRuo)})`);
+
+// ── 6b. Home posture sentence comes from the shared source ───────────────
+// Sept-11 T4: the hero sentence was two independent literals and had drifted.
+// The prerendered "/" must carry HOME_COPY.posture verbatim (the React page
+// imports the same constant), and the retired "Access requires…" wording must
+// be gone — it overstated the wall on a deliberately public catalog.
+{
+  const home = fs.readFileSync(path.join(DIST, "index.html"), "utf8");
+  const root = home.slice(home.indexOf('<div id="root">'), home.indexOf("</body>"));
+  ok(root.includes(HOME_COPY.posture), `prerendered / carries HOME_COPY.posture verbatim`);
+  ok(
+    HOME_COPY.posture.startsWith("Purchasing requires"),
+    'HOME_COPY.posture says "Purchasing requires" (only purchase is gated)'
+  );
+  ok(!/Access requires an account/.test(root), 'retired "Access requires" wording is absent from /');
+}
 
 // ── 7. Unpublished drafts must never reach the build ────────────────────
 // researchDrafts is a separate export precisely so drafts cannot leak; this

@@ -8,6 +8,7 @@ import { motion as Motion } from "framer-motion";
 import SEO from "../components/SEO";
 import { useUser } from "../context/UserContext";
 import { HERO_DISCLAIMER } from "../config/compliance";
+import { HOME_COPY } from "../data/pageCopy";
 
 export default function PublicLanding() {
   const { authStatus, attestationComplete } = useUser();
@@ -61,9 +62,7 @@ export default function PublicLanding() {
             <p className="text-overline mb-6">Precision · Purity · Provenance</p>
 
             <p className="text-[15px] md:text-[16px] text-se-bone/60 font-accent leading-relaxed max-w-lg mx-auto mb-2">
-              A research-grade peptide reference catalog for qualified
-              purchasers. Access requires an account and a completed research-use
-              attestation.
+              {HOME_COPY.intro} {HOME_COPY.posture}
             </p>
             <p className="text-[11px] font-accent uppercase tracking-[0.18em] text-se-steel mb-10">
               {HERO_DISCLAIMER}
