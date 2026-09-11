@@ -7,6 +7,7 @@ import TrackingScripts from "./components/TrackingScripts";
 import AgeGate from "./components/AgeGate";
 const CartDrawer = lazy(() => import("./components/CartDrawer"));
 import useRouteAnalytics from "./hooks/useRouteAnalytics";
+import { FEATURES } from "./config/features";
 
 // Layout
 import Navbar from "./components/Navbar";
@@ -165,7 +166,9 @@ export default function App() {
               {/* ── PUBLIC EDUCATION (indexable, non-commerce) ── */}
               <Route path="/research" element={<Page><Research /></Page>} />
               <Route path="/research/:slug" element={<Page><ResearchArticle /></Page>} />
-              <Route path="/calculator" element={<Page><Calculator /></Page>} />
+              {/* Sept-11 T6: launch-sensitive surfaces default OFF (src/config/features.js).
+                  Off → the real 404 page (noindex), same as a route that does not exist. */}
+              <Route path="/calculator" element={<Page>{FEATURES.calculator ? <Calculator /> : <NotFound />}</Page>} />
               <Route path="/deals" element={<Page><Deals /></Page>} />
               <Route path="/test-results" element={<Page><TestResults /></Page>} />
               {/* /coa and /coa/:productSlug are aliases for the certificate
@@ -219,7 +222,10 @@ export default function App() {
 
               {/* ── GATED (auth + attestation) ── */}
               <Route path="/home" element={<Page><RequireAuth><ResearcherConsole /></RequireAuth></Page>} />
-              <Route path="/assistant" element={<Page><RequireAuth><Assistant /></RequireAuth></Page>} />
+              <Route
+                path="/assistant"
+                element={<Page>{FEATURES.aiPublic ? <RequireAuth><Assistant /></RequireAuth> : <NotFound />}</Page>}
+              />
               <Route path="/cart" element={<Page><RequireAuth><Cart /></RequireAuth></Page>} />
               <Route path="/checkout" element={<Page><RequireAuth><Checkout /></RequireAuth></Page>} />
               <Route path="/success" element={<Page><RequireAuth><Success /></RequireAuth></Page>} />

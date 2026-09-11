@@ -23,6 +23,7 @@ import {
 import SEO from "../components/SEO";
 import { useUser } from "../context/UserContext";
 import { getCategories } from "../lib/catalog";
+import { FEATURES } from "../config/features";
 import { getMyOrders } from "../lib/orders";
 import { researchArticles } from "../data/research.js";
 import { ATTESTATION_VERSION } from "../config/attestation";
@@ -166,7 +167,7 @@ export default function ResearcherConsole() {
           {/* Quick actions */}
           <Section title="Quick actions">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-              {QUICK_ACTIONS.map((a) => (
+              {QUICK_ACTIONS.filter((a) => a.to !== "/calculator" || FEATURES.calculator).map((a) => (
                 <Link
                   key={a.to}
                   to={a.to}
@@ -239,6 +240,9 @@ export default function ResearcherConsole() {
 
             {/* Research library + AI */}
             <div>
+              {/* Sept-11 T6: hidden entirely while public AI is off — a link
+                  to a 404 is worse than no link. */}
+              {FEATURES.aiPublic && (
               <Section
                 title="AI research tools"
                 action={<span className="text-[10px] font-accent uppercase tracking-[0.16em] text-se-gold/70">RUO-safe</span>}
@@ -253,6 +257,7 @@ export default function ResearcherConsole() {
                   </div>
                 </Link>
               </Section>
+              )}
 
               <Section title="From the research library">
                 <div className="glass-panel divide-y divide-white/5">

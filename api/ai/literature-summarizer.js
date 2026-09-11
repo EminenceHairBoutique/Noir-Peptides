@@ -1,9 +1,12 @@
 import { aiHandler } from "./_shared.js";
+import { gateFeature } from "../_utils/features.js";
 
 const INSTRUCTIONS = `Task: summarize scientific literature about a research compound for a qualified researcher.
 Report: key findings, proposed mechanisms (framed as described in the preclinical/in-vitro literature), study models used, and stated limitations. Distinguish in-vitro from in-vivo (animal) preclinical work. Do NOT extrapolate to human use, efficacy, dosing, or therapeutic benefit. Frame everything as "the literature reports/describes," never as established human outcomes.`;
 
 export default function handler(req, res) {
+  // Sept-11 T6: public AI is OFF unless FEATURE_AI_PUBLIC is set → 404 envelope.
+  if (!gateFeature(res, "aiPublic")) return;
   return aiHandler(req, res, {
     feature: "literature_summarizer",
     instructions: INSTRUCTIONS,

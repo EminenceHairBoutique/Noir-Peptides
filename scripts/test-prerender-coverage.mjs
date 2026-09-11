@@ -120,6 +120,29 @@ ok(missingFromSitemap.length === 0, `every indexable route is in sitemap.xml (mi
 const noindexInSitemap = noindexed.filter((r) => locs.includes(r));
 ok(noindexInSitemap.length === 0, `no noindex route appears in sitemap.xml (found: ${JSON.stringify(noindexInSitemap)})`);
 
+// Sept-11 T6: the noindex set is EXPLICIT. /calculator joins it whenever the
+// build had VITE_FEATURE_CALCULATOR off (the default), and in that state it
+// must carry the 404 body rather than the tool. (buildMeta is read in §5.)
+{
+  const metaEarly = JSON.parse(fs.readFileSync(path.join(DIST, BUILD_META_FILE), "utf8"));
+  const calcOn = Boolean(metaEarly?.features?.calculator);
+  const EXPECTED_NOINDEX = ["/404", "/login", "/register", "/verify-lot", ...(calcOn ? [] : ["/calculator"])].sort();
+  ok(
+    JSON.stringify([...noindexed].sort()) === JSON.stringify(EXPECTED_NOINDEX),
+    `noindex set is exactly ${JSON.stringify(EXPECTED_NOINDEX)} (got ${JSON.stringify([...noindexed].sort())})`
+  );
+  const calc = fs.readFileSync(path.join(DIST, "calculator", "index.html"), "utf8");
+  if (calcOn) {
+    ok(calc.includes('<div id="root"></div>'), "/calculator (flag ON) ships the interactive tool: empty root, allowlisted");
+    ok(locs.includes("/calculator"), "/calculator (flag ON) is in the sitemap");
+  } else {
+    ok(calc.includes("<h1>Page Not Found</h1>"), "/calculator (flag OFF) ships the prerendered 404 body");
+    ok(/content="noindex/.test(calc), "/calculator (flag OFF) is noindex");
+    ok(!locs.includes("/calculator"), "/calculator (flag OFF) is removed from the sitemap");
+    ok(!PRERENDER_EMPTY_ALLOWLIST.includes("/calculator"), "/calculator (flag OFF) is not in the empty-root allowlist");
+  }
+}
+
 // Sitemap <loc> must use the same canonical form.
 ok(
   locs.every((p) => p === "/" || !p.endsWith("/")),

@@ -17,6 +17,10 @@ import { execFileSync } from "node:child_process";
 import { deriveCoaStats, groupByProduct, hasAnyCas } from "../src/lib/coaStats.js";
 import { certificateLabel, purityCell } from "../src/lib/coaTable.js";
 import { assertPrerenderData, hasDbEnv } from "./assert-prerender-data.mjs";
+import { clientFeatures } from "../lib/featureFlags.js";
+
+// Sept-11 T6: build-time view of the client flags (same parser as the bundle).
+const BUILD_FEATURES = clientFeatures(process.env);
 import { fileURLToPath } from "node:url";
 import { researchArticles } from "../src/data/research.js";
 import {
@@ -960,7 +964,15 @@ const HOME_FAQ = {
 // Enforced by scripts/test-prerender-coverage.mjs: any OTHER route shipping an
 // empty root fails the gate. Add to this list only with a deliberate reason.
 // ════════════════════════════════════════════════════════════════════════
-export const PRERENDER_EMPTY_ALLOWLIST = ["/login", "/register", "/calculator", "/verify-lot"];
+export const PRERENDER_EMPTY_ALLOWLIST = [
+  "/login",
+  "/register",
+  "/verify-lot",
+  // /calculator is an interactive tool with no static body ONLY while the
+  // flag is on. Off (the default), it is emitted with the 404 body instead
+  // (Sept-11 T6) and therefore is not an empty root.
+  ...(BUILD_FEATURES.calculator ? ["/calculator"] : []),
+];
 
 async function main() {
   await fs.mkdir(DIST_DIR, { recursive: true });
@@ -1149,12 +1161,27 @@ async function main() {
       description:
         "Educational articles on certificates of analysis, HPLC purity, and how peptide reference materials are studied in the laboratory. For research use only.",
     },
-    {
-      pathname: "/calculator",
-      title: "Reconstitution Concentration Calculator",
-      description:
-        "A pure mass-per-volume (mg ÷ mL) laboratory aliquoting reference for research reference material. For research use only.",
-    },
+    BUILD_FEATURES.calculator
+      ? {
+          pathname: "/calculator",
+          title: "Reconstitution Concentration Calculator",
+          description:
+            "A pure mass-per-volume (mg ÷ mL) laboratory aliquoting reference for research reference material. For research use only.",
+        }
+      : {
+          // Sept-11 T6: flag OFF (default) → the route ships the prerendered 404
+          // body, noindex, and is excluded from the sitemap. The React app
+          // renders <NotFound> for it too (src/App.jsx), so static and hydrated
+          // agree. Enable with VITE_FEATURE_CALCULATOR=1 at build time.
+          pathname: "/calculator",
+          title: "Page Not Found",
+          description: "This page does not exist.",
+          noindex: true,
+          bodyHtml: wrapBody([
+            "<h1>Page Not Found</h1>",
+            "<p>This page does not exist. Use the links below to continue.</p>",
+          ]),
+        },
     {
       // DB-driven: static shell + nav only. Live offers render after hydration;
       // no synthetic rows are ever prerendered.
@@ -1420,6 +1447,7 @@ async function main() {
   // nothing secret, nothing fabricated.
   const buildMeta = {
     dbEnvPresent: hasDbEnv(),
+    features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic },
     coaRowCount: Array.isArray(coaRows) ? coaRows.length : null,
     sdsRowCount: Array.isArray(sdsRows) ? sdsRows.length : null,
   };
