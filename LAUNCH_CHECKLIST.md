@@ -89,6 +89,15 @@ assert that.
 
 ## 7b) Security headers (vercel.json)
 
+_Sept-11 T8: the header in `vercel.json` is generated from `scripts/csp.mjs`
+(run `node -e` on `buildCsp` if you ever edit it; the test suite asserts the
+two agree). When NEITHER `VITE_GA_MEASUREMENT_ID` nor `VITE_META_PIXEL_ID` is
+set at build time, the build also injects a tightened `<meta>` CSP into every
+page — no analytics origins, and no `'unsafe-inline'` in `script-src` as long
+as no inline executable script exists in the prerendered HTML (it currently
+does not). Browsers enforce the tighter of the two. Setting an analytics ID
+restores the header-only behaviour automatically._
+
 - Headers are set in `vercel.json` (`X-Content-Type-Options`, `Referrer-Policy`,
   `Permissions-Policy`, HSTS, and a strict CSP). `X-XSS-Protection` and
   `X-Frame-Options` were removed: the former is deprecated, the latter is

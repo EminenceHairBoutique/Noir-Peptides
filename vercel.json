@@ -24,7 +24,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' *.stripe.com js.stripe.com *.google-analytics.com *.googletagmanager.com connect.facebook.net *.facebook.net; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' data: fonts.gstatic.com; img-src 'self' data: blob: *.supabase.co *.google-analytics.com www.facebook.com; frame-src js.stripe.com *.stripe.com; connect-src 'self' *.supabase.co wss://*.supabase.co *.stripe.com *.google-analytics.com *.analytics.google.com *.googletagmanager.com *.facebook.com graph.facebook.com cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests;"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' *.stripe.com js.stripe.com *.google-analytics.com *.googletagmanager.com connect.facebook.net *.facebook.net; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' data: fonts.gstatic.com; img-src 'self' data: blob: *.supabase.co *.google-analytics.com www.facebook.com; frame-src js.stripe.com *.stripe.com; connect-src 'self' *.supabase.co wss://*.supabase.co *.stripe.com *.google-analytics.com *.analytics.google.com *.googletagmanager.com *.facebook.com graph.facebook.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests;"
         }
       ]
     },
@@ -54,7 +54,12 @@
   "redirects": [
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": "noirpeptides.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "noirpeptides.com"
+        }
+      ],
       "destination": "https://www.noirpeptides.com/:path*",
       "permanent": true
     }
