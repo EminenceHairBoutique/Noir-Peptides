@@ -65,6 +65,7 @@ src/output.css
 .mobile-audit/
 .business-test-*.mjs
 .pricing-test-*.mjs
+.coa-table-test-*.mjs
 .lh-run.mjs
 .seo-work/
 .ld2.cjs

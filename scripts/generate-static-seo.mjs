@@ -14,7 +14,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { deriveCoaStats, groupByProduct } from "../src/lib/coaStats.js";
+import { deriveCoaStats, groupByProduct, hasAnyCas } from "../src/lib/coaStats.js";
+import { certificateLabel, purityCell } from "../src/lib/coaTable.js";
 import { fileURLToPath } from "node:url";
 import { researchArticles } from "../src/data/research.js";
 import {
@@ -806,26 +807,37 @@ function renderCoaStatsBlock(stats) {
   );
 }
 
-/** W4 batch table as static, crawlable HTML. Null CAS/values render empty cells. */
-function renderBatchTableHtml(rows, productName) {
+/**
+ * W4 batch table as static, crawlable HTML. Mirrors <BatchHistoryTable>
+ * through the shared src/lib/coaTable helpers (Sept-11 T3): CAS column only
+ * when `showCas`, "Identity panel only" chip for MS-confirmed rows without a
+ * purity figure, certificate link labelled by the asset's real type.
+ */
+function renderBatchTableHtml(rows, productName, { showCas = hasAnyCas(rows) } = {}) {
   const tr = (c) => {
     const lot = c.lot_number || c.batch_number || "";
     const ms = c.ms_confirmed === true ? "Confirmed" : c.ms_confirmed === false ? "Not confirmed" : c.mass_spec || "";
-    const pdf = c.file_url ? `<a href="${escapeHtml(c.file_url)}">PDF</a>` : "";
+    const cert = c.file_url
+      ? `<a href="${escapeHtml(c.file_url)}">${escapeHtml(certificateLabel(c.file_url))}</a>`
+      : "";
+    const p = purityCell(c);
+    const purity =
+      p.kind === "chip" ? `<span class="chip">${escapeHtml(p.text)}</span>` : p.kind === "value" ? escapeHtml(p.text) : "";
     return (
       `<tr><th scope="row">${escapeHtml(lot)}</th>` +
-      `<td>${c.purity_percent != null ? escapeHtml(`${c.purity_percent}%`) : ""}</td>` +
-      `<td>${escapeHtml(c.cas_number || "")}</td>` +
+      `<td>${purity}</td>` +
+      (showCas ? `<td>${escapeHtml(c.cas_number || "")}</td>` : "") +
       `<td>${escapeHtml(fmtIsoDay(c.tested_at))}</td>` +
       `<td>${escapeHtml(c.lab_name || "")}</td>` +
       `<td>${escapeHtml(c.hplc || "")}</td>` +
       `<td>${escapeHtml(ms)}</td>` +
-      `<td>${pdf}</td></tr>`
+      `<td>${cert}</td></tr>`
     );
   };
   return (
     `<table><caption>Published certificate history for ${escapeHtml(productName)}</caption>` +
-    `<thead><tr><th scope="col">Lot</th><th scope="col">Purity %</th><th scope="col">CAS</th>` +
+    `<thead><tr><th scope="col">Lot</th><th scope="col">Purity %</th>` +
+    (showCas ? `<th scope="col">CAS</th>` : "") +
     `<th scope="col">Test date</th><th scope="col">Lab</th><th scope="col">HPLC</th>` +
     `<th scope="col">MS identity</th><th scope="col">Certificate</th></tr></thead>` +
     `<tbody>${rows.map(tr).join("")}</tbody></table>`
@@ -1153,7 +1165,7 @@ async function main() {
           const prod = productsBySlug.find((pp) => pp.id === pid);
           const name = prod?.name || pid;
           const link = prod ? `<p><a href="/test-results/${escapeHtml(prod.slug)}">Full batch history for ${escapeHtml(name)}</a></p>` : "";
-          return `<h2>${escapeHtml(name)}</h2>` + renderBatchTableHtml(rows, name) + link;
+          return `<h2>${escapeHtml(name)}</h2>` + renderBatchTableHtml(rows, name, { showCas: hasAnyCas(coaRows) }) + link;
         }),
       ]),
       title: "Test Results — Certificate of Analysis Library",

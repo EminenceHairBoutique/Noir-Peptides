@@ -8,6 +8,7 @@ import { FileText, ShieldCheck } from "lucide-react";
 import QrCode from "./QrCode";
 import LabVerifyLink from "./LabVerifyLink";
 import { formatPurity } from "../lib/labVerify";
+import { certificateLabel } from "../lib/coaTable";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -121,7 +122,13 @@ export default function CoaCard({ coa, productName, origin = "", showQr = true }
             className="mt-4 inline-flex items-center gap-2 text-sm text-se-gold hover:underline"
           >
             <FileText size={15} />
-            {/^data:|\.pdf($|\?)/i.test(coa.file_url) ? "View COA (PDF)" : "View full certificate"}
+            {/* Labelled by the asset's real type (src/lib/coaTable) — an image
+                is never called "PDF". */}
+            {certificateLabel(coa.file_url) === "PDF"
+              ? "View COA (PDF)"
+              : certificateLabel(coa.file_url) === "Certificate image"
+                ? "View certificate image"
+                : "View full certificate"}
           </a>
         ) : null}
       </div>

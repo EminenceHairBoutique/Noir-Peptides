@@ -28,7 +28,8 @@ export function publishedOnly(rows) {
  *   avgPurity: number|null,     // suppressed (null) below MIN_LOTS_FOR_AVERAGE
  *   purityLots: number,         // lots contributing a numeric purity value
  *   msConfirmedLots: number,    // lots with mass-spec identity confirmed
- *   hplcLots: number            // lots carrying HPLC data
+ *   hplcLots: number,           // lots carrying HPLC data
+ *   casLots: number             // lots carrying a CAS number (drives the CAS column)
  * }}
  */
 export function deriveCoaStats(rows) {
@@ -38,6 +39,7 @@ export function deriveCoaStats(rows) {
   const purities = [];
   let msConfirmed = 0;
   let hplc = 0;
+  let cas = 0;
 
   for (const r of pub) {
     if (r.product_id) products.add(r.product_id);
@@ -46,6 +48,7 @@ export function deriveCoaStats(rows) {
     if (r.purity_percent != null && Number.isFinite(p)) purities.push(p);
     if (r.ms_confirmed === true) msConfirmed += 1;
     if (r.hplc || r.purity_percent != null) hplc += 1;
+    if (r.cas_number != null && String(r.cas_number).trim() !== "") cas += 1;
   }
 
   const avg =
@@ -61,7 +64,18 @@ export function deriveCoaStats(rows) {
     purityLots: purities.length,
     msConfirmedLots: msConfirmed,
     hplcLots: hplc,
+    casLots: cas,
   };
+}
+
+/**
+ * Sept-11 T3b: a certificate table shows its CAS column only when at least one
+ * row on that surface carries a CAS number. Reuses deriveCoaStats rather than
+ * a separate scan, so the column decision and the counters agree by
+ * construction.
+ */
+export function hasAnyCas(rows) {
+  return deriveCoaStats(rows).casLots > 0;
 }
 
 /**
