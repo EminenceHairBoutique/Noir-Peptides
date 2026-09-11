@@ -16,6 +16,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { deriveCoaStats, groupByProduct, hasAnyCas } from "../src/lib/coaStats.js";
 import { certificateLabel, purityCell } from "../src/lib/coaTable.js";
+import { assertPrerenderData, hasDbEnv } from "./assert-prerender-data.mjs";
 import { fileURLToPath } from "node:url";
 import { researchArticles } from "../src/data/research.js";
 import {
@@ -644,23 +645,33 @@ function renderDocumentsBody(sdsRows) {
       "exposure controls, and disposal for each material.</p>",
   ];
 
-  if (Array.isArray(sdsRows) && sdsRows.length > 0) {
+  if (Array.isArray(sdsRows)) {
+    // The database was reached. Emit the SDS list CONTAINER whether or not any
+    // sheet is published yet — the container is the build-time proof that the
+    // list was consulted (Sept-11 T2 asserts on it); an empty list states its
+    // emptiness honestly instead of vanishing.
+    const items = sdsRows
+      .map((r) => {
+        const name = escapeHtml(r.name || r.slug || "");
+        const product = r.slug ? `<a href="/product/${escapeHtml(r.slug)}">${name}</a>` : name;
+        const sheet = r.sds_file_url
+          ? ` — <a href="${escapeHtml(r.sds_file_url)}">Safety Data Sheet (GHS, 16-section)</a>`
+          : "";
+        const revised = r.sds_updated_at ? ` (revised ${escapeHtml(fmtIsoDay(r.sds_updated_at))})` : "";
+        return `<li>${product}${sheet}${revised}</li>`;
+      })
+      .join("");
     blocks.push(
-      "<ul>" +
-        sdsRows
-          .map((r) => {
-            const name = escapeHtml(r.name || r.slug || "");
-            const product = r.slug ? `<a href="/product/${escapeHtml(r.slug)}">${name}</a>` : name;
-            const sheet = r.sds_file_url
-              ? ` — <a href="${escapeHtml(r.sds_file_url)}">Safety Data Sheet (GHS, 16-section)</a>`
-              : "";
-            const revised = r.sds_updated_at ? ` (revised ${escapeHtml(fmtIsoDay(r.sds_updated_at))})` : "";
-            return `<li>${product}${sheet}${revised}</li>`;
-          })
-          .join("") +
-        "</ul>"
+      `<section id="sds-list" data-sds-count="${sdsRows.length}">` +
+        (sdsRows.length
+          ? `<ul>${items}</ul>`
+          : '<p>No Safety Data Sheets are published yet. Request the sheet for a ' +
+            'specific material at <a href="/contact">contact</a>.</p>') +
+        `</section>`
     );
   } else {
+    // No database access at build (CI, local without env): shell only, and
+    // the copy says the list loads live rather than implying an empty catalogue.
     blocks.push("<p>Published Safety Data Sheets are listed here. Request the sheet for a " +
       'specific material at <a href="/contact">contact</a>.</p>');
   }
@@ -1401,7 +1412,37 @@ async function main() {
   console.log(`[seo] wrote ${routes.length} route HTML files`);
   console.log(`[seo] wrote sitemap.xml (${sitemapRoutes.length} urls)`);
   console.log(`[seo] wrote robots.txt`);
+
+  // ── Build metadata (Sept-11) ─────────────────────────────────────────────
+  // Facts about THIS build that the test suite needs in order to judge the
+  // output correctly: whether the database was reachable (real rows are not
+  // "fabricated"), and how many rows were fetched. Booleans and counts only —
+  // nothing secret, nothing fabricated.
+  const buildMeta = {
+    dbEnvPresent: hasDbEnv(),
+    coaRowCount: Array.isArray(coaRows) ? coaRows.length : null,
+    sdsRowCount: Array.isArray(sdsRows) ? sdsRows.length : null,
+  };
+  await fs.writeFile(path.join(DIST_DIR, BUILD_META_FILE), JSON.stringify(buildMeta, null, 2) + "\n", "utf8");
+
+  // ── Data-presence assertion (Sept-11 T2) ─────────────────────────────────
+  // With credentials present, the trust pages must carry real data. A shell
+  // here is a silent fetch failure and MUST fail the build; without
+  // credentials the shell is the documented, honest fallback.
+  const pages = {};
+  for (const route of ["/test-results", "/documents"]) {
+    pages[route] = await fs.readFile(path.join(DIST_DIR, route.slice(1), "index.html"), "utf8");
+  }
+  const verdict = assertPrerenderData({ pages });
+  if (verdict.skipped) {
+    console.warn("[seo] no Supabase env at build — data-presence assertion skipped (shell output is expected)");
+  } else {
+    console.log(`[seo] data-presence assertion passed for ${verdict.checked.join(", ")}`);
+  }
 }
+
+/** Where the build writes its metadata (read by the test suite). */
+export const BUILD_META_FILE = "prerender-meta.json";
 
 // Run only when invoked directly (`node scripts/generate-static-seo.mjs`).
 // Tests import PRERENDER_EMPTY_ALLOWLIST from this module; without this guard

@@ -103,9 +103,21 @@ assert(
 );
 
 const seo = read("../scripts/generate-static-seo.mjs");
+// Sept-11 T2 reshaped this: the CONTAINER is emitted whenever the build reached
+// the table (so the data-presence assertion can prove it was consulted), and
+// the LIST inside it only from rows actually read — zero rows renders the
+// honest empty state, never a fabricated sheet.
 assert(
-  /Array\.isArray\(sdsRows\) && sdsRows\.length > 0/.test(seo),
-  "the prerender lists sheets only from rows the build actually read"
+  /if \(Array\.isArray\(sdsRows\)\) \{/.test(seo),
+  "the SDS container is emitted only when the build actually read the table"
+);
+assert(
+  /sdsRows\.length\s*\?\s*`<ul>\$\{items\}<\/ul>`/.test(seo),
+  "the list itself comes only from rows the build read; zero rows → honest empty state"
+);
+assert(
+  /id="sds-list" data-sds-count="\$\{sdsRows\.length\}"/.test(seo),
+  "the container carries the real row count, never a literal"
 );
 assert(
   /\/documents prerenders the shell only/.test(seo),

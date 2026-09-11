@@ -18,7 +18,8 @@
 */
 import fs from "node:fs";
 import path from "node:path";
-import { PRERENDER_EMPTY_ALLOWLIST } from "./generate-static-seo.mjs";
+import { PRERENDER_EMPTY_ALLOWLIST, BUILD_META_FILE } from "./generate-static-seo.mjs";
+import { assertPrerenderData } from "./assert-prerender-data.mjs";
 import { researchArticles, researchDrafts } from "../src/data/research.js";
 import { HOME_COPY } from "../src/data/pageCopy.js";
 
@@ -150,14 +151,45 @@ if (lastmods.length) {
 }
 
 // ── 5. No fabricated data in the DB-driven shells ───────────────────────
-for (const route of ["/deals", "/test-results"]) {
-  const f = path.join(DIST, route.slice(1), "index.html");
-  if (!fs.existsSync(f)) continue;
-  const html = fs.readFileSync(f, "utf8");
-  const root = html.slice(html.indexOf('<div id="root">'), html.indexOf("</body>"));
-  // Synthetic rows would show as prices, percentages, or lot-like codes.
-  const suspicious = /\$\d|\d+%\s|LOT[- ]?\d|COA[- ]?\d/i.test(root);
-  ok(!suspicious, `${route} shell contains no row-like data (no prices/lots/percentages)`);
+// The build records whether it had database access (Sept-11 T2). Without it,
+// /deals and /test-results are static shells and must contain NO row-like
+// data. With it, /test-results carries REAL fetched rows — those are not
+// fabricated, and the check that applies instead is the data-presence
+// assertion (which the build already enforced; re-run here as a test).
+const metaPath = path.join(DIST, BUILD_META_FILE);
+const buildMeta = fs.existsSync(metaPath) ? JSON.parse(fs.readFileSync(metaPath, "utf8")) : null;
+ok(buildMeta && typeof buildMeta.dbEnvPresent === "boolean", `build wrote ${BUILD_META_FILE} with dbEnvPresent`);
+if (buildMeta?.dbEnvPresent) {
+  console.log(`  ⓘ build had database access (${buildMeta.coaRowCount} COA rows, ${buildMeta.sdsRowCount} SDS rows) — real rows are expected`);
+  let assertion = null;
+  try {
+    assertPrerenderData({
+      pages: Object.fromEntries(
+        ["/test-results", "/documents"].map((r) => [r, fs.readFileSync(path.join(DIST, r.slice(1), "index.html"), "utf8")])
+      ),
+      env: { VITE_SUPABASE_URL: "x", VITE_SUPABASE_ANON_KEY: "x" },
+    });
+  } catch (e) {
+    assertion = e.message;
+  }
+  ok(assertion === null, `data-presence assertion holds on the built trust pages${assertion ? ` (${assertion.split("\n")[0]})` : ""}`);
+  // /deals is still a shell either way (offers render live).
+  const dealsHtml = fs.readFileSync(path.join(DIST, "deals", "index.html"), "utf8");
+  const dealsRoot = dealsHtml.slice(dealsHtml.indexOf('<div id="root">'), dealsHtml.indexOf("</body>"));
+  ok(!/\$\d|\d+%\s|LOT[- ]?\d|COA[- ]?\d/i.test(dealsRoot), "/deals shell contains no row-like data");
+} else {
+  for (const route of ["/deals", "/test-results"]) {
+    const f = path.join(DIST, route.slice(1), "index.html");
+    if (!fs.existsSync(f)) continue;
+    const html = fs.readFileSync(f, "utf8");
+    const root = html.slice(html.indexOf('<div id="root">'), html.indexOf("</body>"));
+    // Synthetic rows would show as prices, percentages, or lot-like codes.
+    const suspicious = /\$\d|\d+%\s|LOT[- ]?\d|COA[- ]?\d/i.test(root);
+    ok(!suspicious, `${route} shell contains no row-like data (no prices/lots/percentages)`);
+  }
+  // And the shell must not pretend the SDS list was consulted.
+  const docs = fs.readFileSync(path.join(DIST, "documents", "index.html"), "utf8");
+  ok(!docs.includes('id="sds-list"'), "/documents shell (no DB at build) emits no SDS list container");
 }
 
 // ── 6. Compliance: RUO line on every prerendered informational page ──────
