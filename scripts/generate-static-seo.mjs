@@ -27,6 +27,10 @@ import {
   getAllProducts,
   getCategories,
   getProductsInCategory,
+  getVisibleCategories,
+  getVisibleProducts,
+  getVisibleProductsInCategory,
+  hiddenCategorySlugs as staticHiddenCategorySlugs,
 } from "../src/data/tier1Catalog.js";
 import { FAQS, FAQ_HEADING, FAQ_INTRO } from "../src/data/faqs.js";
 import {
@@ -995,7 +999,10 @@ async function main() {
   //     checkout, success/cancel, admin, auth callbacks.
   // Product/list bodies are mirrored from the SAME source as the SQL seed
   // (src/data/tier1Catalog.js) so the static HTML and the DB never drift.
-  const homeCategories = getCategories();
+  // Sept-11 T7: storefront surfaces use the VISIBLE views; a soft-launch-
+  // hidden category never reaches the home rail, /shop, the sitemap or a PDP.
+  const homeCategories = getVisibleCategories();
+  const hiddenSlugs = staticHiddenCategorySlugs();
 
   // W2/W4: published COA rows for the trust-surface prerender (null when the
   // build has no database access — shell-only, honestly logged).
@@ -1232,8 +1239,8 @@ async function main() {
   // a current attestation, enforced server-side). Data is mirrored from the
   // same source as the SQL seed (src/data/tier1Catalog.js) so HTML and DB never
   // drift.
-  const catalogProducts = getAllProducts();
-  const catalogCategories = getCategories();
+  const catalogProducts = getVisibleProducts();
+  const catalogCategories = getVisibleCategories();
 
   const shopRoutes = [
     {
@@ -1254,7 +1261,7 @@ async function main() {
       bodyHtml: renderListBody(
         cat.name,
         cat.description,
-        getProductsInCategory(cat.slug),
+        getVisibleProductsInCategory(cat.slug),
         [
           { name: "Home", href: "/" },
           { name: "Shop", href: "/shop" },
@@ -1286,7 +1293,7 @@ async function main() {
     ],
     bodyHtml: renderProductBody(
       p,
-      getProductsInCategory(p.category_slug).filter((r) => r.slug !== p.slug).slice(0, 6)
+      getVisibleProductsInCategory(p.category_slug).filter((r) => r.slug !== p.slug).slice(0, 6)
     ),
   }));
 
@@ -1323,12 +1330,44 @@ async function main() {
     console.log(`[seo] emitting ${batchHistoryRoutes.length} batch-history permalink route(s)`);
   }
 
+  // Sept-11 T7: soft-launch-hidden categories. Their /shop/<slug> and every
+  // /product/<slug> in them are emitted with the 404 body + noindex, so a
+  // direct URL returns the not-found page as a static file rather than the
+  // SPA rewrite's home shell. Excluded from the sitemap by noindex.
+  const notFoundBody = wrapBody([
+    "<h1>Page Not Found</h1>",
+    "<p>This page does not exist. Use the links below to continue.</p>",
+  ]);
+  const hiddenRoutes = [];
+  for (const cat of getCategories().filter((c) => hiddenSlugs.has(c.slug))) {
+    hiddenRoutes.push({
+      pathname: `/shop/${cat.slug}`,
+      title: "Page Not Found",
+      description: "This page does not exist.",
+      noindex: true,
+      bodyHtml: notFoundBody,
+    });
+    for (const p of getProductsInCategory(cat.slug)) {
+      hiddenRoutes.push({
+        pathname: `/product/${p.slug}`,
+        title: "Page Not Found",
+        description: "This page does not exist.",
+        noindex: true,
+        bodyHtml: notFoundBody,
+      });
+    }
+  }
+  if (hiddenRoutes.length) {
+    console.log(`[seo] ${hiddenSlugs.size} soft-launch-hidden categor${hiddenSlugs.size === 1 ? "y" : "ies"} — ${hiddenRoutes.length} route(s) emitted as noindex 404 bodies`);
+  }
+
   const routes = [
     ...staticRoutes,
     ...researchRoutes,
     ...shopRoutes,
     ...productRoutes,
     ...batchHistoryRoutes,
+    ...hiddenRoutes,
   ];
 
   for (const route of routes) {
@@ -1448,6 +1487,7 @@ async function main() {
   const buildMeta = {
     dbEnvPresent: hasDbEnv(),
     features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic },
+    hiddenCategories: [...hiddenSlugs].sort(),
     coaRowCount: Array.isArray(coaRows) ? coaRows.length : null,
     sdsRowCount: Array.isArray(sdsRows) ? sdsRows.length : null,
   };

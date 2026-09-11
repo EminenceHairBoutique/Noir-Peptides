@@ -18,12 +18,17 @@ import { supabase } from "./supabaseClient";
 import { selectDegrading } from "./pgSelect";
 import {
   getAllProducts as staticAllProducts,
-  getCategories as staticCategories,
+  getVisibleProducts as staticVisibleProducts,
+  getVisibleCategories as staticVisibleCategories,
+  hiddenCategorySlugs as staticHiddenSlugs,
 } from "../data/tier1Catalog";
+import { isHiddenCategory, hiddenCategorySlugs, visibleProducts } from "./catalogVisibility";
 
 // ── Static fallback adapters (shape-matched to the DB rows) ──────────────
 function staticProducts({ category } = {}) {
-  const list = staticAllProducts().map((p) => ({
+  // Storefront fallback: visible categories only (Sept-11 T7). Seed/admin
+  // paths that need the full set import getAllProducts directly.
+  const list = staticVisibleProducts().map((p) => ({
     id: p.id,
     slug: p.slug,
     name: p.name,
@@ -112,7 +117,7 @@ export async function getProducts({ category } = {}) {
       PRODUCT_COLUMNS_BASE
     );
     if (error || !Array.isArray(data) || data.length === 0) return staticProducts({ category });
-    return data.map(normalizeProduct);
+    return visibleProducts(data.map(normalizeProduct), await getHiddenCategorySlugs());
   } catch {
     return staticProducts({ category });
   }
@@ -135,14 +140,20 @@ export async function getProduct(slugOrId) {
       PRODUCT_COLUMNS,
       PRODUCT_COLUMNS_BASE
     );
-    if (bySlug.data) return normalizeProduct(bySlug.data);
-
-    const byId = await selectDegrading(
-      (cols) => supabase.from("products").select(cols).eq("id", slugOrId).maybeSingle(),
-      PRODUCT_COLUMNS,
-      PRODUCT_COLUMNS_BASE
-    );
-    return byId.data ? normalizeProduct(byId.data) : staticProduct(slugOrId);
+    const found = bySlug.data
+      ? bySlug.data
+      : (
+          await selectDegrading(
+            (cols) => supabase.from("products").select(cols).eq("id", slugOrId).maybeSingle(),
+            PRODUCT_COLUMNS,
+            PRODUCT_COLUMNS_BASE
+          )
+        ).data;
+    if (!found) return staticProduct(slugOrId);
+    // A product in a hidden category is not there — the PDP renders its
+    // not-found state (Sept-11 T7), matching the prerendered 404 body.
+    const hidden = await getHiddenCategorySlugs();
+    return hidden.has(found.category_slug) ? null : normalizeProduct(found);
   } catch {
     return staticProduct(slugOrId);
   }
@@ -173,7 +184,7 @@ export async function getFeaturedProducts(limit = 8) {
       PRODUCT_COLUMNS_BASE
     );
     if (error || !Array.isArray(data) || data.length === 0) return staticFeatured(limit);
-    return data.map(normalizeProduct);
+    return visibleProducts(data.map(normalizeProduct), await getHiddenCategorySlugs());
   } catch {
     return staticFeatured(limit);
   }
@@ -293,7 +304,10 @@ export async function getLabSupplies() {
     if (error || !Array.isArray(data)) return [];
     // Guard the degraded path: without product_type the filter cannot have
     // applied, so drop anything that does not actually declare itself.
-    return data.filter((r) => r?.product_type === "lab_supply").map(normalizeProduct);
+    return visibleProducts(
+      data.filter((r) => r?.product_type === "lab_supply").map(normalizeProduct),
+      await getHiddenCategorySlugs()
+    );
   } catch {
     return [];
   }
@@ -362,25 +376,61 @@ export async function getReviews(productId) {
  * @returns {Promise<Array>}
  */
 function staticCategoryRows() {
-  return staticCategories().map((c) => ({
+  return staticVisibleCategories().map((c) => ({
     slug: c.slug,
     name: c.name,
     description: c.desc ?? c.description ?? null,
     sort_order: c.sort ?? c.sort_order ?? 0,
+    soft_launch_hidden: false,
   }));
 }
 
+// Columns before / after migration 0034 (deploy-order safety, as with 0032/
+// 0033): a build that lands ahead of the migration still reads live rows.
+const CATEGORY_COLUMNS_BASE = "slug, name, description, sort_order";
+const CATEGORY_COLUMNS = `${CATEGORY_COLUMNS_BASE}, soft_launch_hidden`;
+
+/** Every category row (hidden included) — the one DB read, shared below. */
+async function fetchCategoryRows() {
+  const { data, error } = await selectDegrading(
+    (cols) =>
+      supabase
+        .from("product_categories")
+        .select(cols)
+        .lt("sort_order", 900)
+        .order("sort_order", { ascending: true }),
+    CATEGORY_COLUMNS,
+    CATEGORY_COLUMNS_BASE
+  );
+  if (error || !Array.isArray(data) || data.length === 0) return null;
+  return data;
+}
+
+/**
+ * Storefront categories: hidden ones excluded (Sept-11 T7). Pre-0034 rows
+ * have no flag column and are therefore all visible — the honest reading.
+ */
 export async function getCategories() {
   if (!supabase) return staticCategoryRows();
   try {
-    const { data, error } = await supabase
-      .from("product_categories")
-      .select("slug, name, description, sort_order")
-      .lt("sort_order", 900)
-      .order("sort_order", { ascending: true });
-    if (error || !Array.isArray(data) || data.length === 0) return staticCategoryRows();
-    return data;
+    const rows = await fetchCategoryRows();
+    if (!rows) return staticCategoryRows();
+    return rows.filter((c) => !isHiddenCategory(c));
   } catch {
     return staticCategoryRows();
   }
+}
+
+// One hidden-set lookup per session: product reads consult it so a hidden
+// category's products never surface through /shop, featured rails, or a
+// direct PDP URL. Falls back to the static mirror when the DB is unreachable.
+let _hiddenSlugsPromise = null;
+export function getHiddenCategorySlugs() {
+  if (!supabase) return Promise.resolve(staticHiddenSlugs());
+  if (!_hiddenSlugsPromise) {
+    _hiddenSlugsPromise = fetchCategoryRows()
+      .then((rows) => (rows ? hiddenCategorySlugs(rows) : staticHiddenSlugs()))
+      .catch(() => staticHiddenSlugs());
+  }
+  return _hiddenSlugsPromise;
 }

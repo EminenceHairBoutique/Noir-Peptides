@@ -22,6 +22,7 @@ import { PRERENDER_EMPTY_ALLOWLIST, BUILD_META_FILE } from "./generate-static-se
 import { assertPrerenderData } from "./assert-prerender-data.mjs";
 import { researchArticles, researchDrafts } from "../src/data/research.js";
 import { HOME_COPY } from "../src/data/pageCopy.js";
+import { getCategories as staticCategories, getProductsInCategory as staticProductsInCategory } from "../src/data/tier1Catalog.js";
 
 const DIST = path.join(process.cwd(), "dist");
 
@@ -126,7 +127,13 @@ ok(noindexInSitemap.length === 0, `no noindex route appears in sitemap.xml (foun
 {
   const metaEarly = JSON.parse(fs.readFileSync(path.join(DIST, BUILD_META_FILE), "utf8"));
   const calcOn = Boolean(metaEarly?.features?.calculator);
-  const EXPECTED_NOINDEX = ["/404", "/login", "/register", "/verify-lot", ...(calcOn ? [] : ["/calculator"])].sort();
+  // Sept-11 T7: soft-launch-hidden categories add their /shop/<slug> and every
+  // /product/<slug> in them (emitted as noindex 404 bodies) to the set.
+  const hiddenNoindex = (metaEarly?.hiddenCategories || []).flatMap((slug) => [
+    `/shop/${slug}`,
+    ...staticProductsInCategory(slug).map((p) => `/product/${p.slug}`),
+  ]);
+  const EXPECTED_NOINDEX = ["/404", "/login", "/register", "/verify-lot", ...(calcOn ? [] : ["/calculator"]), ...hiddenNoindex].sort();
   ok(
     JSON.stringify([...noindexed].sort()) === JSON.stringify(EXPECTED_NOINDEX),
     `noindex set is exactly ${JSON.stringify(EXPECTED_NOINDEX)} (got ${JSON.stringify([...noindexed].sort())})`
@@ -240,6 +247,44 @@ ok(missingRuo.length === 0, `every prerendered body carries the RUO line (missin
     'HOME_COPY.posture says "Purchasing requires" (only purchase is gated)'
   );
   ok(!/Access requires an account/.test(root), 'retired "Access requires" wording is absent from /');
+}
+
+// ── 6c. Soft-launch-hidden categories (Sept-11 T7) ──────────────────────
+// The build records which categories the static mirror marks hidden. Each
+// hidden category's /shop/<slug>, and every /product/<slug> in it, must be
+// emitted as the 404 body with noindex and be absent from the sitemap; every
+// visible category must be present and indexable. With nothing hidden (the
+// shipped default) this proves the storefront is byte-for-byte complete.
+{
+  const hidden = new Set(buildMeta?.hiddenCategories || []);
+  const staticHidden = new Set(staticCategories().filter((c) => c.softLaunchHidden).map((c) => c.slug));
+  ok(
+    JSON.stringify([...hidden].sort()) === JSON.stringify([...staticHidden].sort()),
+    `build meta hiddenCategories matches the static mirror (${JSON.stringify([...hidden])})`
+  );
+  for (const cat of staticCategories()) {
+    const catFile = path.join(DIST, "shop", cat.slug, "index.html");
+    const catHtml = fs.existsSync(catFile) ? fs.readFileSync(catFile, "utf8") : "";
+    if (hidden.has(cat.slug)) {
+      ok(catHtml.includes("<h1>Page Not Found</h1>") && /content="noindex/.test(catHtml), `hidden category /shop/${cat.slug} ships the 404 body, noindex`);
+      ok(!locs.includes(`/shop/${cat.slug}`), `hidden category /shop/${cat.slug} is out of the sitemap`);
+      for (const p of staticProductsInCategory(cat.slug)) {
+        const f = path.join(DIST, "product", p.slug, "index.html");
+        const h = fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "";
+        ok(h.includes("<h1>Page Not Found</h1>") && /content="noindex/.test(h), `hidden product /product/${p.slug} ships the 404 body, noindex`);
+        ok(!locs.includes(`/product/${p.slug}`), `hidden product /product/${p.slug} is out of the sitemap`);
+        ok(!distBlobShop().includes(`/product/${p.slug}"`), `hidden product /product/${p.slug} is not linked from /shop`);
+      }
+    } else {
+      // Names are HTML-escaped in the emitted <h1> ("Tissue &amp; Repair Research").
+      const escName = cat.name.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      ok(catHtml.includes(`<h1>${escName}`) && !/content="noindex/.test(catHtml), `visible category /shop/${cat.slug} renders its real page, indexable`);
+      ok(locs.includes(`/shop/${cat.slug}`), `visible category /shop/${cat.slug} is in the sitemap`);
+    }
+  }
+  function distBlobShop() {
+    return fs.readFileSync(path.join(DIST, "shop", "index.html"), "utf8");
+  }
 }
 
 // ── 7. Unpublished drafts must never reach the build ────────────────────

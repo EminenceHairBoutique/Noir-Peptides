@@ -40,6 +40,21 @@ const PRODUCT_COLUMNS_BASE =
   "id, slug, name, category_slug, price, stock_status, featured, is_new";
 const PRODUCT_COLUMNS = `${PRODUCT_COLUMNS_BASE}, sds_file_url, sds_updated_at, product_type`;
 
+// Sept-11 T7: the soft-launch flag (migration 0034), with the same
+// pre-migration fallback so the tab keeps working before the SQL is run.
+const CATEGORY_COLUMNS_BASE = "slug, name, sort_order";
+const CATEGORY_COLUMNS = `${CATEGORY_COLUMNS_BASE}, soft_launch_hidden`;
+
+async function loadCategories() {
+  const full = await supabaseServer.from("product_categories").select(CATEGORY_COLUMNS).order("sort_order");
+  const missingColumn =
+    full.error &&
+    (full.error.code === "42703" || /does not exist/i.test(String(full.error.message || "")));
+  if (!missingColumn) return full;
+  console.warn("[admin/catalog] product_categories missing 0034 column — migration pending; soft-launch toggle hidden");
+  return supabaseServer.from("product_categories").select(CATEGORY_COLUMNS_BASE).order("sort_order");
+}
+
 async function loadProducts() {
   const full = await supabaseServer.from("products").select(PRODUCT_COLUMNS).order("name");
   // 42703 = undefined_column. Any other error is returned as-is so the existing
@@ -118,6 +133,14 @@ function pickFields(kind, body) {
       else out.is_new = body.is_new;
     }
   }
+  if (kind === "category") {
+    // Sept-11 T7: the ONLY editable category field here. Boolean, whitelisted.
+    if (body.soft_launch_hidden !== undefined) {
+      if (typeof body.soft_launch_hidden !== "boolean") errors.push("soft_launch_hidden must be boolean");
+      else out.soft_launch_hidden = body.soft_launch_hidden;
+    }
+    return { fields: out, errors };
+  }
   if (kind === "variant") {
     // inventory_count: a number enables TRACKED mode (stock_status derived);
     // explicit null/"" returns the variant to manual, untracked stock.
@@ -182,7 +205,7 @@ export default async function handler(req, res) {
   if (!admin) return; // 401/403 already sent
 
   if (req.method === "GET") {
-    const [prods, vars, subs] = await Promise.all([
+    const [prods, vars, subs, cats] = await Promise.all([
       loadProducts(),
       supabaseServer
         .from("product_variants")
@@ -192,27 +215,31 @@ export default async function handler(req, res) {
         .from("back_in_stock_subscriptions")
         .select("product_id, variant_id")
         .eq("notified", false),
+      loadCategories(),
     ]);
     if (prods.error || vars.error) return json(res, 500, { error: "Could not load catalog" });
     return json(res, 200, {
       products: prods.data || [],
       variants: vars.data || [],
       waitlist: subs.data || [], // pending restock requests (for badge counts)
+      categories: cats?.data || [], // soft-launch visibility (Sept-11 T7)
     });
   }
 
   if (req.method === "PATCH") {
     const body = await readJsonBody(req);
-    const kind = body?.kind === "variant" ? "variant" : body?.kind === "product" ? "product" : null;
+    const kind =
+      body?.kind === "variant" ? "variant" : body?.kind === "product" ? "product" : body?.kind === "category" ? "category" : null;
     const id = typeof body?.id === "string" ? body.id.slice(0, 64) : null;
-    if (!kind || !id) return json(res, 400, { error: "kind ('product'|'variant') and id are required" });
+    if (!kind || !id) return json(res, 400, { error: "kind ('product'|'variant'|'category') and id are required" });
 
     const { fields, errors } = pickFields(kind, body);
     if (errors.length) return json(res, 400, { error: "Invalid request", details: errors });
     if (!Object.keys(fields).length) return json(res, 400, { error: "No editable fields supplied" });
 
-    const table = kind === "variant" ? "product_variants" : "products";
-    const { data: existing } = await supabaseServer.from(table).select("*").eq("id", id).maybeSingle();
+    const table = kind === "variant" ? "product_variants" : kind === "category" ? "product_categories" : "products";
+    const keyCol = kind === "category" ? "slug" : "id"; // categories are keyed by slug
+    const { data: existing } = await supabaseServer.from(table).select("*").eq(keyCol, id).maybeSingle();
     if (!existing) return json(res, 404, { error: "Not found" });
 
     // TRACKED mode: stock_status is derived from the count, never hand-set —
@@ -231,7 +258,7 @@ export default async function handler(req, res) {
     const { data: updated, error } = await supabaseServer
       .from(table)
       .update(kind === "product" ? { ...fields, updated_at: new Date().toISOString() } : fields)
-      .eq("id", id)
+      .eq(keyCol, id)
       .select("*")
       .maybeSingle();
     if (error || !updated) return json(res, 500, { error: "Update failed" });
