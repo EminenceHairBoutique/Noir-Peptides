@@ -57,6 +57,26 @@ below are operator/legal/business actions the code cannot perform.
       `node scripts/embed-backfill.mjs` to populate embeddings. Without it,
       search degrades to keyword.
 
+## 5b) Owner decisions — launch feature flags (Sept-11; all default OFF)
+
+Two surfaces are dark until you decide to open them. Nothing in code,
+`.env.example`, or these docs turns them on; the build and the test suite
+assert that.
+
+- [ ] **Reconstitution calculator** (`/calculator`). Off by default: the route
+      serves the 404 page (noindex, out of the sitemap) and the Researcher
+      Console hides its tile. Decide with counsel whether a mass ÷ volume aid
+      belongs on an RUO storefront at launch. To enable:
+      `VITE_FEATURE_CALCULATOR=1` in Vercel env, then redeploy (it is a
+      build-time flag).
+- [ ] **Public AI tools** (`/assistant` + the research-assistant,
+      literature-summarizer, concierge and semantic-search endpoints). Off by
+      default: the page is the 404 page and each endpoint answers 404 with the
+      standard error envelope. The admin-only COA analyzer and compliance scan
+      are unaffected. To enable, set BOTH `VITE_FEATURE_AI_PUBLIC=1` (client
+      route) and `FEATURE_AI_PUBLIC=1` (server endpoints), then redeploy.
+      `ANTHROPIC_API_KEY` is still required for the endpoints to answer.
+
 ## 6) Analytics (prepared, not activated)
 
 - [ ] Set `VITE_GA_MEASUREMENT_ID` / `VITE_META_PIXEL_ID` to switch on GA4 / Meta
@@ -68,6 +88,15 @@ below are operator/legal/business actions the code cannot perform.
       `profiles.role` to `'admin'` (the canonical admin source of truth).
 
 ## 7b) Security headers (vercel.json)
+
+_Sept-11 T8: the header in `vercel.json` is generated from `scripts/csp.mjs`
+(run `node -e` on `buildCsp` if you ever edit it; the test suite asserts the
+two agree). When NEITHER `VITE_GA_MEASUREMENT_ID` nor `VITE_META_PIXEL_ID` is
+set at build time, the build also injects a tightened `<meta>` CSP into every
+page — no analytics origins, and no `'unsafe-inline'` in `script-src` as long
+as no inline executable script exists in the prerendered HTML (it currently
+does not). Browsers enforce the tighter of the two. Setting an analytics ID
+restores the header-only behaviour automatically._
 
 - Headers are set in `vercel.json` (`X-Content-Type-Options`, `Referrer-Policy`,
   `Permissions-Policy`, HSTS, and a strict CSP). `X-XSS-Protection` and

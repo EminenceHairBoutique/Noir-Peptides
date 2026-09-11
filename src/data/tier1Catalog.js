@@ -35,6 +35,13 @@ export const RUO_SUFFIX =
 
 // Neutral, claim-safe category + product descriptors (molecule class / origin
 // only). `desc` is the category description; `blurb` is the product one-liner.
+//
+// `softLaunchHidden` (optional, Sept-11 T7) mirrors product_categories.
+// soft_launch_hidden (migration 0034). When true the category and its products
+// are left out of the storefront, sitemap and prerender by the *Visible*
+// getters below — the DB and this static fallback can never disagree because
+// both read the same flag name. NO category sets it here; that is an owner
+// decision made in the Control Room, mirrored here at the same time.
 export const categories = [
   {
     slug: "tissue-repair-research",
@@ -213,6 +220,8 @@ export function getAllProducts() {
 }
 
 // Categories with a resolved product count, for category index pages.
+// INCLUDES hidden categories: the seed generators and db:verify count against
+// the full set (a hidden category still exists in the database).
 export function getCategories() {
   return categories.map((c) => ({
     slug: c.slug,
@@ -220,9 +229,30 @@ export function getCategories() {
     description: c.desc,
     sort: c.sort,
     count: c.products.length,
+    softLaunchHidden: c.softLaunchHidden === true,
   }));
 }
 
 export function getProductsInCategory(slug) {
   return getAllProducts().filter((p) => p.category_slug === slug);
+}
+
+// ── Storefront-facing (visible-only) views — Sept-11 T7 ──────────────────
+// Used by the static fallback in src/lib/catalog.js and by the prerenderer.
+// With no category hidden these are identical to the full getters above.
+export function hiddenCategorySlugs() {
+  return new Set(categories.filter((c) => c.softLaunchHidden === true).map((c) => c.slug));
+}
+
+export function getVisibleCategories() {
+  return getCategories().filter((c) => !c.softLaunchHidden);
+}
+
+export function getVisibleProducts() {
+  const hidden = hiddenCategorySlugs();
+  return getAllProducts().filter((p) => !hidden.has(p.category_slug));
+}
+
+export function getVisibleProductsInCategory(slug) {
+  return hiddenCategorySlugs().has(slug) ? [] : getProductsInCategory(slug);
 }

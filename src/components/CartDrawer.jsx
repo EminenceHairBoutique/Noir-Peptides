@@ -5,6 +5,7 @@ import { X, Minus, Plus, Lock } from "lucide-react";
 import { motion as Motion } from "framer-motion";
 import { useCart } from "../context/CartContext";
 import { DISCLAIMER_COMPACT } from "../config/compliance";
+import FreeShipNudge from "./FreeShipNudge";
 
 const money = (n) =>
   `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -141,6 +142,9 @@ export default function CartDrawer() {
               <span>Subtotal</span>
               <span>{money(total)}</span>
             </div>
+
+            {/* Sept-11 T5: one-line nudge from the shared threshold helper. */}
+            <FreeShipNudge subtotal={total} />
 
             <p className="text-[10px] text-se-steel font-accent">
               Shipping calculated at checkout.

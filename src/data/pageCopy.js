@@ -16,6 +16,19 @@
 //    null-by-default; they are deliberately NOT represented in this file and
 //    are never prerendered.
 
+// ── / (home hero) ─────────────────────────────────────────────────────────
+// The hero posture sentence was duplicated as two literals (PublicLanding.jsx
+// and the prerenderer) and had already drifted once in wording. One source now.
+//
+// "Purchasing requires…" not "Access requires…": the catalog, certificates and
+// education pages are public and crawlable by design (migration 0013); only
+// PURCHASE sits behind the account + attestation wall. The old sentence
+// overstated the wall and contradicted the indexable storefront.
+export const HOME_COPY = {
+  intro: "A research-grade peptide reference catalog for qualified purchasers.",
+  posture: "Purchasing requires an account and a completed research-use attestation.",
+};
+
 // ── /about ────────────────────────────────────────────────────────────────
 export const ABOUT_COPY = {
   overline: "About",

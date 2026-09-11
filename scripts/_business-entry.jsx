@@ -3,5 +3,13 @@
 export { default as BusinessIdentity } from "../src/components/BusinessIdentity.jsx";
 export { default as FulfillmentStatements } from "../src/components/FulfillmentStatements.jsx";
 export { default as FreeShipProgress } from "../src/components/FreeShipProgress.jsx";
+export { default as FreeShipNudge } from "../src/components/FreeShipNudge.jsx";
 export { BUSINESS } from "../src/config/business.js";
-export { FREE_SHIP_THRESHOLD } from "../src/config/checkout.js";
+export {
+  FREE_SHIP_THRESHOLD,
+  FREE_SHIP_THRESHOLD_CENTS,
+  freeShipProgressCents,
+  freeShipNudgeText,
+  formatCents,
+  toCents,
+} from "../src/config/checkout.js";

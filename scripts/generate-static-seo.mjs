@@ -14,13 +14,23 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { deriveCoaStats, groupByProduct } from "../src/lib/coaStats.js";
+import { deriveCoaStats, groupByProduct, hasAnyCas } from "../src/lib/coaStats.js";
+import { certificateLabel, purityCell } from "../src/lib/coaTable.js";
+import { assertPrerenderData, hasDbEnv } from "./assert-prerender-data.mjs";
+import { clientFeatures } from "../lib/featureFlags.js";
+
+// Sept-11 T6: build-time view of the client flags (same parser as the bundle).
+const BUILD_FEATURES = clientFeatures(process.env);
 import { fileURLToPath } from "node:url";
 import { researchArticles } from "../src/data/research.js";
 import {
   getAllProducts,
   getCategories,
   getProductsInCategory,
+  getVisibleCategories,
+  getVisibleProducts,
+  getVisibleProductsInCategory,
+  hiddenCategorySlugs as staticHiddenCategorySlugs,
 } from "../src/data/tier1Catalog.js";
 import { FAQS, FAQ_HEADING, FAQ_INTRO } from "../src/data/faqs.js";
 import {
@@ -28,6 +38,7 @@ import {
   CONTACT_COPY,
   DEALS_SHELL,
   TEST_RESULTS_SHELL,
+  HOME_COPY,
 } from "../src/data/pageCopy.js";
 import {
   RESEARCH_USE_POLICY_DOC,
@@ -451,8 +462,7 @@ function renderHomeBody(categories) {
   return [
     "<main>",
     "<h1>Noir Peptides — Research-Grade Peptide Reference Materials</h1>",
-    "<p>A research-grade peptide reference catalog for qualified purchasers. " +
-      "Access requires an account and a completed research-use attestation.</p>",
+    `<p>${escapeHtml(HOME_COPY.intro)} ${escapeHtml(HOME_COPY.posture)}</p>`,
     "<p>Batch-documented peptide reference materials for laboratory research. " +
       "Per-batch certificate of analysis available.</p>",
     `<nav aria-label="Research catalog"><ul>` +
@@ -643,23 +653,33 @@ function renderDocumentsBody(sdsRows) {
       "exposure controls, and disposal for each material.</p>",
   ];
 
-  if (Array.isArray(sdsRows) && sdsRows.length > 0) {
+  if (Array.isArray(sdsRows)) {
+    // The database was reached. Emit the SDS list CONTAINER whether or not any
+    // sheet is published yet — the container is the build-time proof that the
+    // list was consulted (Sept-11 T2 asserts on it); an empty list states its
+    // emptiness honestly instead of vanishing.
+    const items = sdsRows
+      .map((r) => {
+        const name = escapeHtml(r.name || r.slug || "");
+        const product = r.slug ? `<a href="/product/${escapeHtml(r.slug)}">${name}</a>` : name;
+        const sheet = r.sds_file_url
+          ? ` — <a href="${escapeHtml(r.sds_file_url)}">Safety Data Sheet (GHS, 16-section)</a>`
+          : "";
+        const revised = r.sds_updated_at ? ` (revised ${escapeHtml(fmtIsoDay(r.sds_updated_at))})` : "";
+        return `<li>${product}${sheet}${revised}</li>`;
+      })
+      .join("");
     blocks.push(
-      "<ul>" +
-        sdsRows
-          .map((r) => {
-            const name = escapeHtml(r.name || r.slug || "");
-            const product = r.slug ? `<a href="/product/${escapeHtml(r.slug)}">${name}</a>` : name;
-            const sheet = r.sds_file_url
-              ? ` — <a href="${escapeHtml(r.sds_file_url)}">Safety Data Sheet (GHS, 16-section)</a>`
-              : "";
-            const revised = r.sds_updated_at ? ` (revised ${escapeHtml(fmtIsoDay(r.sds_updated_at))})` : "";
-            return `<li>${product}${sheet}${revised}</li>`;
-          })
-          .join("") +
-        "</ul>"
+      `<section id="sds-list" data-sds-count="${sdsRows.length}">` +
+        (sdsRows.length
+          ? `<ul>${items}</ul>`
+          : '<p>No Safety Data Sheets are published yet. Request the sheet for a ' +
+            'specific material at <a href="/contact">contact</a>.</p>') +
+        `</section>`
     );
   } else {
+    // No database access at build (CI, local without env): shell only, and
+    // the copy says the list loads live rather than implying an empty catalogue.
     blocks.push("<p>Published Safety Data Sheets are listed here. Request the sheet for a " +
       'specific material at <a href="/contact">contact</a>.</p>');
   }
@@ -806,26 +826,37 @@ function renderCoaStatsBlock(stats) {
   );
 }
 
-/** W4 batch table as static, crawlable HTML. Null CAS/values render empty cells. */
-function renderBatchTableHtml(rows, productName) {
+/**
+ * W4 batch table as static, crawlable HTML. Mirrors <BatchHistoryTable>
+ * through the shared src/lib/coaTable helpers (Sept-11 T3): CAS column only
+ * when `showCas`, "Identity panel only" chip for MS-confirmed rows without a
+ * purity figure, certificate link labelled by the asset's real type.
+ */
+function renderBatchTableHtml(rows, productName, { showCas = hasAnyCas(rows) } = {}) {
   const tr = (c) => {
     const lot = c.lot_number || c.batch_number || "";
     const ms = c.ms_confirmed === true ? "Confirmed" : c.ms_confirmed === false ? "Not confirmed" : c.mass_spec || "";
-    const pdf = c.file_url ? `<a href="${escapeHtml(c.file_url)}">PDF</a>` : "";
+    const cert = c.file_url
+      ? `<a href="${escapeHtml(c.file_url)}">${escapeHtml(certificateLabel(c.file_url))}</a>`
+      : "";
+    const p = purityCell(c);
+    const purity =
+      p.kind === "chip" ? `<span class="chip">${escapeHtml(p.text)}</span>` : p.kind === "value" ? escapeHtml(p.text) : "";
     return (
       `<tr><th scope="row">${escapeHtml(lot)}</th>` +
-      `<td>${c.purity_percent != null ? escapeHtml(`${c.purity_percent}%`) : ""}</td>` +
-      `<td>${escapeHtml(c.cas_number || "")}</td>` +
+      `<td>${purity}</td>` +
+      (showCas ? `<td>${escapeHtml(c.cas_number || "")}</td>` : "") +
       `<td>${escapeHtml(fmtIsoDay(c.tested_at))}</td>` +
       `<td>${escapeHtml(c.lab_name || "")}</td>` +
       `<td>${escapeHtml(c.hplc || "")}</td>` +
       `<td>${escapeHtml(ms)}</td>` +
-      `<td>${pdf}</td></tr>`
+      `<td>${cert}</td></tr>`
     );
   };
   return (
     `<table><caption>Published certificate history for ${escapeHtml(productName)}</caption>` +
-    `<thead><tr><th scope="col">Lot</th><th scope="col">Purity %</th><th scope="col">CAS</th>` +
+    `<thead><tr><th scope="col">Lot</th><th scope="col">Purity %</th>` +
+    (showCas ? `<th scope="col">CAS</th>` : "") +
     `<th scope="col">Test date</th><th scope="col">Lab</th><th scope="col">HPLC</th>` +
     `<th scope="col">MS identity</th><th scope="col">Certificate</th></tr></thead>` +
     `<tbody>${rows.map(tr).join("")}</tbody></table>`
@@ -937,7 +968,15 @@ const HOME_FAQ = {
 // Enforced by scripts/test-prerender-coverage.mjs: any OTHER route shipping an
 // empty root fails the gate. Add to this list only with a deliberate reason.
 // ════════════════════════════════════════════════════════════════════════
-export const PRERENDER_EMPTY_ALLOWLIST = ["/login", "/register", "/calculator", "/verify-lot"];
+export const PRERENDER_EMPTY_ALLOWLIST = [
+  "/login",
+  "/register",
+  "/verify-lot",
+  // /calculator is an interactive tool with no static body ONLY while the
+  // flag is on. Off (the default), it is emitted with the 404 body instead
+  // (Sept-11 T6) and therefore is not an empty root.
+  ...(BUILD_FEATURES.calculator ? ["/calculator"] : []),
+];
 
 async function main() {
   await fs.mkdir(DIST_DIR, { recursive: true });
@@ -960,7 +999,10 @@ async function main() {
   //     checkout, success/cancel, admin, auth callbacks.
   // Product/list bodies are mirrored from the SAME source as the SQL seed
   // (src/data/tier1Catalog.js) so the static HTML and the DB never drift.
-  const homeCategories = getCategories();
+  // Sept-11 T7: storefront surfaces use the VISIBLE views; a soft-launch-
+  // hidden category never reaches the home rail, /shop, the sitemap or a PDP.
+  const homeCategories = getVisibleCategories();
+  const hiddenSlugs = staticHiddenCategorySlugs();
 
   // W2/W4: published COA rows for the trust-surface prerender (null when the
   // build has no database access — shell-only, honestly logged).
@@ -1126,12 +1168,27 @@ async function main() {
       description:
         "Educational articles on certificates of analysis, HPLC purity, and how peptide reference materials are studied in the laboratory. For research use only.",
     },
-    {
-      pathname: "/calculator",
-      title: "Reconstitution Concentration Calculator",
-      description:
-        "A pure mass-per-volume (mg ÷ mL) laboratory aliquoting reference for research reference material. For research use only.",
-    },
+    BUILD_FEATURES.calculator
+      ? {
+          pathname: "/calculator",
+          title: "Reconstitution Concentration Calculator",
+          description:
+            "A pure mass-per-volume (mg ÷ mL) laboratory aliquoting reference for research reference material. For research use only.",
+        }
+      : {
+          // Sept-11 T6: flag OFF (default) → the route ships the prerendered 404
+          // body, noindex, and is excluded from the sitemap. The React app
+          // renders <NotFound> for it too (src/App.jsx), so static and hydrated
+          // agree. Enable with VITE_FEATURE_CALCULATOR=1 at build time.
+          pathname: "/calculator",
+          title: "Page Not Found",
+          description: "This page does not exist.",
+          noindex: true,
+          bodyHtml: wrapBody([
+            "<h1>Page Not Found</h1>",
+            "<p>This page does not exist. Use the links below to continue.</p>",
+          ]),
+        },
     {
       // DB-driven: static shell + nav only. Live offers render after hydration;
       // no synthetic rows are ever prerendered.
@@ -1153,7 +1210,7 @@ async function main() {
           const prod = productsBySlug.find((pp) => pp.id === pid);
           const name = prod?.name || pid;
           const link = prod ? `<p><a href="/test-results/${escapeHtml(prod.slug)}">Full batch history for ${escapeHtml(name)}</a></p>` : "";
-          return `<h2>${escapeHtml(name)}</h2>` + renderBatchTableHtml(rows, name) + link;
+          return `<h2>${escapeHtml(name)}</h2>` + renderBatchTableHtml(rows, name, { showCas: hasAnyCas(coaRows) }) + link;
         }),
       ]),
       title: "Test Results — Certificate of Analysis Library",
@@ -1182,8 +1239,8 @@ async function main() {
   // a current attestation, enforced server-side). Data is mirrored from the
   // same source as the SQL seed (src/data/tier1Catalog.js) so HTML and DB never
   // drift.
-  const catalogProducts = getAllProducts();
-  const catalogCategories = getCategories();
+  const catalogProducts = getVisibleProducts();
+  const catalogCategories = getVisibleCategories();
 
   const shopRoutes = [
     {
@@ -1204,7 +1261,7 @@ async function main() {
       bodyHtml: renderListBody(
         cat.name,
         cat.description,
-        getProductsInCategory(cat.slug),
+        getVisibleProductsInCategory(cat.slug),
         [
           { name: "Home", href: "/" },
           { name: "Shop", href: "/shop" },
@@ -1236,7 +1293,7 @@ async function main() {
     ],
     bodyHtml: renderProductBody(
       p,
-      getProductsInCategory(p.category_slug).filter((r) => r.slug !== p.slug).slice(0, 6)
+      getVisibleProductsInCategory(p.category_slug).filter((r) => r.slug !== p.slug).slice(0, 6)
     ),
   }));
 
@@ -1273,12 +1330,44 @@ async function main() {
     console.log(`[seo] emitting ${batchHistoryRoutes.length} batch-history permalink route(s)`);
   }
 
+  // Sept-11 T7: soft-launch-hidden categories. Their /shop/<slug> and every
+  // /product/<slug> in them are emitted with the 404 body + noindex, so a
+  // direct URL returns the not-found page as a static file rather than the
+  // SPA rewrite's home shell. Excluded from the sitemap by noindex.
+  const notFoundBody = wrapBody([
+    "<h1>Page Not Found</h1>",
+    "<p>This page does not exist. Use the links below to continue.</p>",
+  ]);
+  const hiddenRoutes = [];
+  for (const cat of getCategories().filter((c) => hiddenSlugs.has(c.slug))) {
+    hiddenRoutes.push({
+      pathname: `/shop/${cat.slug}`,
+      title: "Page Not Found",
+      description: "This page does not exist.",
+      noindex: true,
+      bodyHtml: notFoundBody,
+    });
+    for (const p of getProductsInCategory(cat.slug)) {
+      hiddenRoutes.push({
+        pathname: `/product/${p.slug}`,
+        title: "Page Not Found",
+        description: "This page does not exist.",
+        noindex: true,
+        bodyHtml: notFoundBody,
+      });
+    }
+  }
+  if (hiddenRoutes.length) {
+    console.log(`[seo] ${hiddenSlugs.size} soft-launch-hidden categor${hiddenSlugs.size === 1 ? "y" : "ies"} — ${hiddenRoutes.length} route(s) emitted as noindex 404 bodies`);
+  }
+
   const routes = [
     ...staticRoutes,
     ...researchRoutes,
     ...shopRoutes,
     ...productRoutes,
     ...batchHistoryRoutes,
+    ...hiddenRoutes,
   ];
 
   for (const route of routes) {
@@ -1389,7 +1478,39 @@ async function main() {
   console.log(`[seo] wrote ${routes.length} route HTML files`);
   console.log(`[seo] wrote sitemap.xml (${sitemapRoutes.length} urls)`);
   console.log(`[seo] wrote robots.txt`);
+
+  // ── Build metadata (Sept-11) ─────────────────────────────────────────────
+  // Facts about THIS build that the test suite needs in order to judge the
+  // output correctly: whether the database was reachable (real rows are not
+  // "fabricated"), and how many rows were fetched. Booleans and counts only —
+  // nothing secret, nothing fabricated.
+  const buildMeta = {
+    dbEnvPresent: hasDbEnv(),
+    features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic },
+    hiddenCategories: [...hiddenSlugs].sort(),
+    coaRowCount: Array.isArray(coaRows) ? coaRows.length : null,
+    sdsRowCount: Array.isArray(sdsRows) ? sdsRows.length : null,
+  };
+  await fs.writeFile(path.join(DIST_DIR, BUILD_META_FILE), JSON.stringify(buildMeta, null, 2) + "\n", "utf8");
+
+  // ── Data-presence assertion (Sept-11 T2) ─────────────────────────────────
+  // With credentials present, the trust pages must carry real data. A shell
+  // here is a silent fetch failure and MUST fail the build; without
+  // credentials the shell is the documented, honest fallback.
+  const pages = {};
+  for (const route of ["/test-results", "/documents"]) {
+    pages[route] = await fs.readFile(path.join(DIST_DIR, route.slice(1), "index.html"), "utf8");
+  }
+  const verdict = assertPrerenderData({ pages });
+  if (verdict.skipped) {
+    console.warn("[seo] no Supabase env at build — data-presence assertion skipped (shell output is expected)");
+  } else {
+    console.log(`[seo] data-presence assertion passed for ${verdict.checked.join(", ")}`);
+  }
 }
+
+/** Where the build writes its metadata (read by the test suite). */
+export const BUILD_META_FILE = "prerender-meta.json";
 
 // Run only when invoked directly (`node scripts/generate-static-seo.mjs`).
 // Tests import PRERENDER_EMPTY_ALLOWLIST from this module; without this guard

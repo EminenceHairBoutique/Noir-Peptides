@@ -1,11 +1,48 @@
 # Noir Peptides — Launch Readiness
 
-_Last updated: 2026-08-28_
+_Last updated: 2026-09-11_
 
 This tracks the Launch Remediation work (6 tasks) and what remains before going
 live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
+
+## ✅ Done (Sept-11 launch-hardening pass — branch `claude/launch-hardening-sep11`)
+
+Eight tasks, each gated by build + suite green. Full detail with
+VERIFIED/SUSPECTED markers in `LAUNCH_HARDENING_SEP11_REPORT.md`.
+
+- **Dependencies:** `npm audit fix` (no `--force`) cleared all 15 advisories;
+  lockfile-only change; 0 remain.
+- **Build fails on a silent data fetch failure.** With Supabase credentials at
+  build time, `/test-results` must carry counters + ≥1 certificate row and
+  `/documents` the SDS list container, or `npm run build` exits 1 naming the
+  route. Without credentials the honest shell is unchanged. **Consequence:** a
+  deployment with credentials but zero published COAs cannot build — by
+  design, no bypass.
+- **COA tables say what the data is:** certificate links labelled by asset
+  type (an image is never "PDF"); CAS column only when a row has a CAS;
+  "Identity panel only" chip for MS-confirmed rows without purity. One
+  shared helper for the table, the card and the prerender.
+- **Home posture sentence** from one shared source: "Purchasing requires an
+  account and a completed research-use attestation."
+- **Free-shipping nudge** in the cart drawer, integer-cents maths, same
+  wording on the cart page.
+- **Feature flags, default OFF:** `/calculator` and the public AI surface
+  (`/assistant` + four endpoints → 404 envelope). Owner decisions documented
+  in `LAUNCH_CHECKLIST.md` §5b.
+- **Category soft-launch flag** (migration `0034`, validated on fresh PG16,
+  hides nothing): Control Room toggle; hidden paths ship a real noindex 404
+  body; static mirror keeps the fallback in agreement.
+- **CSP tightened at build time** when no analytics ID is set: no analytics
+  origins, no `'unsafe-inline'` in `script-src` (no inline executable
+  scripts exist), `cdn.jsdelivr.net` removed; `vercel.json` now derived from
+  the same builder.
+
+**Owner actions added:** apply migration `0034` (`docs/MIGRATIONS_0034.md`);
+decide the two feature flags (`LAUNCH_CHECKLIST.md` §5b); watch the first
+Vercel build after merge — it is the first run of the data-presence assertion
+against the real database.
 
 ## ✅ Done (Aug-28 SEO crawlability pass — branch `claude/seo-crawlability-aug28`)
 

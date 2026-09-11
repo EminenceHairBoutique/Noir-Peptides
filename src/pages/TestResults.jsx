@@ -17,7 +17,7 @@ import BatchHistoryTable from "../components/BatchHistoryTable";
 import QrVerifyExplainer from "../components/QrVerifyExplainer";
 import { getAllCoas } from "../lib/coas";
 import { getAllProducts, getCategories } from "../data/tier1Catalog";
-import { deriveCoaStats, filterCoas, groupByProduct } from "../lib/coaStats";
+import { deriveCoaStats, filterCoas, groupByProduct, hasAnyCas } from "../lib/coaStats";
 
 function fmtDate(d) {
   if (!d) return "";
@@ -87,6 +87,8 @@ export default function TestResults() {
   );
 
   const grouped = useMemo(() => groupByProduct(visible), [visible]);
+  // T3b: one CAS-column decision for the whole page, from the visible rows.
+  const showCas = useMemo(() => hasAnyCas(visible), [visible]);
 
   function onLotSubmit(e) {
     e.preventDefault();
@@ -304,7 +306,7 @@ export default function TestResults() {
                       )}
                     </div>
                     <div id={regionId} hidden={!isOpen} className="px-5 pb-5">
-                      <BatchHistoryTable rows={rows} captionId={`${regionId}-caption`} productName={meta?.name || pid} />
+                      <BatchHistoryTable rows={rows} captionId={`${regionId}-caption`} productName={meta?.name || pid} showCas={showCas} />
                     </div>
                   </section>
                 );

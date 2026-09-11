@@ -18,8 +18,11 @@
 */
 import fs from "node:fs";
 import path from "node:path";
-import { PRERENDER_EMPTY_ALLOWLIST } from "./generate-static-seo.mjs";
+import { PRERENDER_EMPTY_ALLOWLIST, BUILD_META_FILE } from "./generate-static-seo.mjs";
+import { assertPrerenderData } from "./assert-prerender-data.mjs";
 import { researchArticles, researchDrafts } from "../src/data/research.js";
+import { HOME_COPY } from "../src/data/pageCopy.js";
+import { getCategories as staticCategories, getProductsInCategory as staticProductsInCategory } from "../src/data/tier1Catalog.js";
 
 const DIST = path.join(process.cwd(), "dist");
 
@@ -118,6 +121,35 @@ ok(missingFromSitemap.length === 0, `every indexable route is in sitemap.xml (mi
 const noindexInSitemap = noindexed.filter((r) => locs.includes(r));
 ok(noindexInSitemap.length === 0, `no noindex route appears in sitemap.xml (found: ${JSON.stringify(noindexInSitemap)})`);
 
+// Sept-11 T6: the noindex set is EXPLICIT. /calculator joins it whenever the
+// build had VITE_FEATURE_CALCULATOR off (the default), and in that state it
+// must carry the 404 body rather than the tool. (buildMeta is read in §5.)
+{
+  const metaEarly = JSON.parse(fs.readFileSync(path.join(DIST, BUILD_META_FILE), "utf8"));
+  const calcOn = Boolean(metaEarly?.features?.calculator);
+  // Sept-11 T7: soft-launch-hidden categories add their /shop/<slug> and every
+  // /product/<slug> in them (emitted as noindex 404 bodies) to the set.
+  const hiddenNoindex = (metaEarly?.hiddenCategories || []).flatMap((slug) => [
+    `/shop/${slug}`,
+    ...staticProductsInCategory(slug).map((p) => `/product/${p.slug}`),
+  ]);
+  const EXPECTED_NOINDEX = ["/404", "/login", "/register", "/verify-lot", ...(calcOn ? [] : ["/calculator"]), ...hiddenNoindex].sort();
+  ok(
+    JSON.stringify([...noindexed].sort()) === JSON.stringify(EXPECTED_NOINDEX),
+    `noindex set is exactly ${JSON.stringify(EXPECTED_NOINDEX)} (got ${JSON.stringify([...noindexed].sort())})`
+  );
+  const calc = fs.readFileSync(path.join(DIST, "calculator", "index.html"), "utf8");
+  if (calcOn) {
+    ok(calc.includes('<div id="root"></div>'), "/calculator (flag ON) ships the interactive tool: empty root, allowlisted");
+    ok(locs.includes("/calculator"), "/calculator (flag ON) is in the sitemap");
+  } else {
+    ok(calc.includes("<h1>Page Not Found</h1>"), "/calculator (flag OFF) ships the prerendered 404 body");
+    ok(/content="noindex/.test(calc), "/calculator (flag OFF) is noindex");
+    ok(!locs.includes("/calculator"), "/calculator (flag OFF) is removed from the sitemap");
+    ok(!PRERENDER_EMPTY_ALLOWLIST.includes("/calculator"), "/calculator (flag OFF) is not in the empty-root allowlist");
+  }
+}
+
 // Sitemap <loc> must use the same canonical form.
 ok(
   locs.every((p) => p === "/" || !p.endsWith("/")),
@@ -149,14 +181,45 @@ if (lastmods.length) {
 }
 
 // ── 5. No fabricated data in the DB-driven shells ───────────────────────
-for (const route of ["/deals", "/test-results"]) {
-  const f = path.join(DIST, route.slice(1), "index.html");
-  if (!fs.existsSync(f)) continue;
-  const html = fs.readFileSync(f, "utf8");
-  const root = html.slice(html.indexOf('<div id="root">'), html.indexOf("</body>"));
-  // Synthetic rows would show as prices, percentages, or lot-like codes.
-  const suspicious = /\$\d|\d+%\s|LOT[- ]?\d|COA[- ]?\d/i.test(root);
-  ok(!suspicious, `${route} shell contains no row-like data (no prices/lots/percentages)`);
+// The build records whether it had database access (Sept-11 T2). Without it,
+// /deals and /test-results are static shells and must contain NO row-like
+// data. With it, /test-results carries REAL fetched rows — those are not
+// fabricated, and the check that applies instead is the data-presence
+// assertion (which the build already enforced; re-run here as a test).
+const metaPath = path.join(DIST, BUILD_META_FILE);
+const buildMeta = fs.existsSync(metaPath) ? JSON.parse(fs.readFileSync(metaPath, "utf8")) : null;
+ok(buildMeta && typeof buildMeta.dbEnvPresent === "boolean", `build wrote ${BUILD_META_FILE} with dbEnvPresent`);
+if (buildMeta?.dbEnvPresent) {
+  console.log(`  ⓘ build had database access (${buildMeta.coaRowCount} COA rows, ${buildMeta.sdsRowCount} SDS rows) — real rows are expected`);
+  let assertion = null;
+  try {
+    assertPrerenderData({
+      pages: Object.fromEntries(
+        ["/test-results", "/documents"].map((r) => [r, fs.readFileSync(path.join(DIST, r.slice(1), "index.html"), "utf8")])
+      ),
+      env: { VITE_SUPABASE_URL: "x", VITE_SUPABASE_ANON_KEY: "x" },
+    });
+  } catch (e) {
+    assertion = e.message;
+  }
+  ok(assertion === null, `data-presence assertion holds on the built trust pages${assertion ? ` (${assertion.split("\n")[0]})` : ""}`);
+  // /deals is still a shell either way (offers render live).
+  const dealsHtml = fs.readFileSync(path.join(DIST, "deals", "index.html"), "utf8");
+  const dealsRoot = dealsHtml.slice(dealsHtml.indexOf('<div id="root">'), dealsHtml.indexOf("</body>"));
+  ok(!/\$\d|\d+%\s|LOT[- ]?\d|COA[- ]?\d/i.test(dealsRoot), "/deals shell contains no row-like data");
+} else {
+  for (const route of ["/deals", "/test-results"]) {
+    const f = path.join(DIST, route.slice(1), "index.html");
+    if (!fs.existsSync(f)) continue;
+    const html = fs.readFileSync(f, "utf8");
+    const root = html.slice(html.indexOf('<div id="root">'), html.indexOf("</body>"));
+    // Synthetic rows would show as prices, percentages, or lot-like codes.
+    const suspicious = /\$\d|\d+%\s|LOT[- ]?\d|COA[- ]?\d/i.test(root);
+    ok(!suspicious, `${route} shell contains no row-like data (no prices/lots/percentages)`);
+  }
+  // And the shell must not pretend the SDS list was consulted.
+  const docs = fs.readFileSync(path.join(DIST, "documents", "index.html"), "utf8");
+  ok(!docs.includes('id="sds-list"'), "/documents shell (no DB at build) emits no SDS list container");
 }
 
 // ── 6. Compliance: RUO line on every prerendered informational page ──────
@@ -169,6 +232,60 @@ for (const f of files) {
   if (!/For research use only/i.test(root)) missingRuo.push(route);
 }
 ok(missingRuo.length === 0, `every prerendered body carries the RUO line (missing: ${JSON.stringify(missingRuo)})`);
+
+// ── 6b. Home posture sentence comes from the shared source ───────────────
+// Sept-11 T4: the hero sentence was two independent literals and had drifted.
+// The prerendered "/" must carry HOME_COPY.posture verbatim (the React page
+// imports the same constant), and the retired "Access requires…" wording must
+// be gone — it overstated the wall on a deliberately public catalog.
+{
+  const home = fs.readFileSync(path.join(DIST, "index.html"), "utf8");
+  const root = home.slice(home.indexOf('<div id="root">'), home.indexOf("</body>"));
+  ok(root.includes(HOME_COPY.posture), `prerendered / carries HOME_COPY.posture verbatim`);
+  ok(
+    HOME_COPY.posture.startsWith("Purchasing requires"),
+    'HOME_COPY.posture says "Purchasing requires" (only purchase is gated)'
+  );
+  ok(!/Access requires an account/.test(root), 'retired "Access requires" wording is absent from /');
+}
+
+// ── 6c. Soft-launch-hidden categories (Sept-11 T7) ──────────────────────
+// The build records which categories the static mirror marks hidden. Each
+// hidden category's /shop/<slug>, and every /product/<slug> in it, must be
+// emitted as the 404 body with noindex and be absent from the sitemap; every
+// visible category must be present and indexable. With nothing hidden (the
+// shipped default) this proves the storefront is byte-for-byte complete.
+{
+  const hidden = new Set(buildMeta?.hiddenCategories || []);
+  const staticHidden = new Set(staticCategories().filter((c) => c.softLaunchHidden).map((c) => c.slug));
+  ok(
+    JSON.stringify([...hidden].sort()) === JSON.stringify([...staticHidden].sort()),
+    `build meta hiddenCategories matches the static mirror (${JSON.stringify([...hidden])})`
+  );
+  for (const cat of staticCategories()) {
+    const catFile = path.join(DIST, "shop", cat.slug, "index.html");
+    const catHtml = fs.existsSync(catFile) ? fs.readFileSync(catFile, "utf8") : "";
+    if (hidden.has(cat.slug)) {
+      ok(catHtml.includes("<h1>Page Not Found</h1>") && /content="noindex/.test(catHtml), `hidden category /shop/${cat.slug} ships the 404 body, noindex`);
+      ok(!locs.includes(`/shop/${cat.slug}`), `hidden category /shop/${cat.slug} is out of the sitemap`);
+      for (const p of staticProductsInCategory(cat.slug)) {
+        const f = path.join(DIST, "product", p.slug, "index.html");
+        const h = fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "";
+        ok(h.includes("<h1>Page Not Found</h1>") && /content="noindex/.test(h), `hidden product /product/${p.slug} ships the 404 body, noindex`);
+        ok(!locs.includes(`/product/${p.slug}`), `hidden product /product/${p.slug} is out of the sitemap`);
+        ok(!distBlobShop().includes(`/product/${p.slug}"`), `hidden product /product/${p.slug} is not linked from /shop`);
+      }
+    } else {
+      // Names are HTML-escaped in the emitted <h1> ("Tissue &amp; Repair Research").
+      const escName = cat.name.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      ok(catHtml.includes(`<h1>${escName}`) && !/content="noindex/.test(catHtml), `visible category /shop/${cat.slug} renders its real page, indexable`);
+      ok(locs.includes(`/shop/${cat.slug}`), `visible category /shop/${cat.slug} is in the sitemap`);
+    }
+  }
+  function distBlobShop() {
+    return fs.readFileSync(path.join(DIST, "shop", "index.html"), "utf8");
+  }
+}
 
 // ── 7. Unpublished drafts must never reach the build ────────────────────
 // researchDrafts is a separate export precisely so drafts cannot leak; this

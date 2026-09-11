@@ -236,8 +236,12 @@ export default function ProductDetail() {
   }
 
   if (!product) {
+    // Also the state for a product in a soft-launch-hidden category (Sept-11
+    // T7): getProduct() returns null for it. noindex here keeps the hydrated
+    // head consistent with the prerendered 404 body.
     return (
       <div className="min-h-screen bg-se-black flex flex-col items-center justify-center gap-6 px-6">
+        <SEO title="Material Not Found" description="This page does not exist." noindex={true} />
         <h1 className="font-display text-3xl text-se-bone tracking-wider">
           MATERIAL NOT FOUND
         </h1>

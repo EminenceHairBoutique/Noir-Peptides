@@ -1061,7 +1061,46 @@ function SdsRow({ row, onSaved, onError }) {
   );
 }
 
+/* ── Category soft-launch visibility (migration 0034, Sept-11 T7) ──────────
+   One checkbox per category. Hidden = the category and its products leave
+   /shop, the category page, related rails, the sitemap and the prerender, and
+   direct product URLs render the 404 page — nothing is deleted or
+   un-published. Rendered only when the API returned the column (migration
+   applied); mirror the same value in src/data/tier1Catalog.js so the static
+   fallback agrees. */
+function CategoryRow({ row, onSaved, onError }) {
+  const [busy, setBusy] = useState(false);
+  const hidden = row.soft_launch_hidden === true;
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      const r = await adminSend("/api/admin/catalog", "PATCH", {
+        kind: "category",
+        id: row.slug,
+        soft_launch_hidden: !hidden,
+      });
+      onSaved("category", r.category, null);
+    } catch (e) { onError(e.message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-2 px-4">
+      <p className="min-w-0 flex-1 text-[13px] text-se-bone truncate">
+        {row.name} <span className="text-se-steel font-mono text-[11px]">· {row.slug}</span>
+      </p>
+      <label className="flex items-center gap-1.5 text-[11px] text-se-bone/60" title="Soft-launch: hide this category and its products from the storefront, sitemap and prerender">
+        <input type="checkbox" checked={hidden} disabled={busy} onChange={toggle} /> hidden at launch
+      </label>
+      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${
+        hidden ? "border-amber-500/30 bg-amber-500/10 text-amber-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>
+        {hidden ? "hidden" : "visible"}
+      </span>
+    </div>
+  );
+}
+
 function CatalogManager() {
+  const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [variants, setVariants] = useState([]);
   const [waitlist, setWaitlist] = useState([]);
@@ -1077,6 +1116,7 @@ function CatalogManager() {
         setProducts(d.products || []);
         setVariants(d.variants || []);
         setWaitlist(d.waitlist || []);
+        setCategories(d.categories || []);
         setErr(null);
       })
       .catch((e) => setErr(e.message))
@@ -1095,6 +1135,7 @@ function CatalogManager() {
 
   const onSaved = (kind, updated, restock) => {
     if (kind === "product") setProducts((ps) => ps.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+    else if (kind === "category") setCategories((cs) => cs.map((c) => (c.slug === updated.slug ? { ...c, ...updated } : c)));
     else setVariants((vs) => vs.map((v) => (v.id === updated.id ? { ...v, ...updated } : v)));
     if (restock) {
       setNotice(
@@ -1127,6 +1168,16 @@ function CatalogManager() {
       {err && <p className="text-red-300 text-sm">{err}</p>}
       {notice && (
         <p className="text-[12.5px] text-emerald-300">{notice}</p>
+      )}
+      {categories.some((c) => "soft_launch_hidden" in c) && (
+        <div className="glass-panel divide-y divide-white/5">
+          <p className="px-4 pt-3 pb-1 text-[11px] uppercase tracking-wide text-se-steel">
+            Categories — soft-launch visibility
+          </p>
+          {categories.map((c) => (
+            <CategoryRow key={c.slug} row={c} onSaved={onSaved} onError={setErr} />
+          ))}
+        </div>
       )}
       <div className="glass-panel divide-y divide-white/5">
         {products.map((p) => {

@@ -13,6 +13,7 @@ import { supabaseServer } from "../../lib/supabaseServer.js";
 import { requireUser } from "../_utils/auth.js";
 import { checkRateLimit } from "../_utils/rateLimit.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
+import { gateFeature } from "../_utils/features.js";
 
 const VOYAGE_MODEL = process.env.VOYAGE_MODEL || "voyage-3";
 
@@ -77,6 +78,8 @@ async function keywordSearch(query, limit) {
 }
 
 export default async function handler(req, res) {
+  // Sept-11 T6: public AI is OFF unless FEATURE_AI_PUBLIC is set → 404 envelope.
+  if (!gateFeature(res, "aiPublic")) return;
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
 
   const allowed = await checkRateLimit(req, res, {
