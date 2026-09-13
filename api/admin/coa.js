@@ -8,9 +8,19 @@ import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
 import { isValidCas, normalizeCas } from "../../lib/cas.js";
 import { failSafely } from "../../lib/apiError.js";
 
-const COLUMNS =
+// Columns before migration 0032, and the full set after it. The GET falls
+// back to the base list on an undefined-column error so the Control Room COA
+// tab keeps working before the migration is applied (same pattern as
+// api/admin/catalog.js for 0033/0034).
+const COLUMNS_BASE =
   "id, product_id, batch_number, lot_number, lab_name, file_url, purity_percent, cas_number, " +
   "hplc, mass_spec, ms_confirmed, endotoxin, tested_at, is_published, created_at";
+// + 0032: lab linkage (the two-factor verification key) and the purity qualifier.
+const COLUMNS = `${COLUMNS_BASE}, lab_id, lab_lookup_code, purity_operator`;
+
+// Purity qualifier as stored; unicode forms are normalised on the way in.
+const PURITY_OPERATORS = new Set([">=", "<=", "="]);
+const OPERATOR_ALIASES = { "≥": ">=", "≤": "<=", "==": "=" };
 
 // Whitelist the columns an admin may write (never trust arbitrary keys).
 function pickCoaFields(body = {}) {
@@ -29,6 +39,30 @@ function pickCoaFields(body = {}) {
     }
     out.cas_number = cas;
   }
+  // ── Lab linkage (0032). This is the field the escalation list has been
+  // waiting on since Aug 28: with a lab row + this code, the certificate
+  // renders a "verify at lab" link to the LAB'S OWN record. Explicit null /
+  // "" CLEARS; absent leaves untouched.
+  if (body.lab_id !== undefined) {
+    if (body.lab_id === null || body.lab_id === "") out.lab_id = null;
+    else {
+      const n = Number(body.lab_id);
+      if (!Number.isInteger(n) || n < 1) return { __error: "lab_id must be a positive integer (an existing lab) or null" };
+      out.lab_id = n;
+    }
+  }
+  if (body.lab_lookup_code !== undefined) {
+    const v = body.lab_lookup_code === null ? "" : String(body.lab_lookup_code).trim();
+    if (v.length > 64) return { __error: "lab_lookup_code is too long (max 64)" };
+    if (/[<>"'\s]/.test(v)) return { __error: "lab_lookup_code may not contain whitespace or quotes/angle brackets" };
+    out.lab_lookup_code = v || null;
+  }
+  if (body.purity_operator !== undefined) {
+    const raw = body.purity_operator === null ? "" : String(body.purity_operator).trim();
+    const op = OPERATOR_ALIASES[raw] || raw;
+    if (op && !PURITY_OPERATORS.has(op)) return { __error: "purity_operator must be one of >=, <=, = (or blank)" };
+    out.purity_operator = op || null;
+  }
   if (body.tested_at) out.tested_at = String(body.tested_at).slice(0, 10);
   if (body.purity_percent != null && body.purity_percent !== "") out.purity_percent = Number(body.purity_percent);
   if (typeof body.ms_confirmed === "boolean") out.ms_confirmed = body.ms_confirmed;
@@ -43,13 +77,16 @@ export default async function handler(req, res) {
   if (!admin) return;
 
   if (req.method === "GET") {
-    const { data, error } = await supabaseServer
-      .from("coas")
-      .select(COLUMNS)
-      .order("created_at", { ascending: false })
-      .limit(500);
-    if (error) return json(res, 500, { error: "Could not load COAs" });
-    return json(res, 200, { coas: data || [] });
+    const load = (cols) => supabaseServer.from("coas").select(cols).order("created_at", { ascending: false }).limit(500);
+    let { data, error } = await load(COLUMNS);
+    let labFieldsSupported = true;
+    if (error && (error.code === "42703" || /does not exist/i.test(String(error.message || "")))) {
+      console.warn("[admin/coa] coas missing 0032 columns — migration pending; lab fields hidden");
+      labFieldsSupported = false;
+      ({ data, error } = await load(COLUMNS_BASE));
+    }
+    if (error) return failSafely(res, { status: 500, code: "coa_load_failed", message: "Could not load COAs.", error, context: "admin/coa:list" });
+    return json(res, 200, { coas: data || [], labFieldsSupported });
   }
 
   if (req.method === "POST") {

@@ -1,0 +1,5 @@
+// Bundle entry for scripts/test-admin-labs.mjs (supabaseServer + auth stubbed
+// by an esbuild resolve plugin). Not shipped.
+export { default as coaHandler } from "../api/admin/coa.js";
+export { default as labsHandler, labTemplateError, pickLabFields } from "../api/admin/labs.js";
+export { FIXTURES, FAULTS, LOG } from "../lib/supabaseServer.js";

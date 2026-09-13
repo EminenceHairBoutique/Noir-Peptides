@@ -81,5 +81,5 @@ purity %). Idempotent (replaces `lab_name='Janoshik Analytical'` rows).
 Validated on fresh Postgres 16 (13 rows, FK-intact, idempotent across re-runs).
 
 **Not seeded (no catalog listing):** Tirzepatide (×2) and Retatrutide (×4)
-certificates — compliance-gated, absent from the catalog — and bacteriostatic
-water (not a listed product). Their images are retained in the upload only.
+certificates — compliance-gated, absent from the catalog — and one non-catalog
+item. Their images are retained in the upload only.

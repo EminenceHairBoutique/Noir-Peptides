@@ -1,11 +1,43 @@
 # Noir Peptides — Launch Readiness
 
-_Last updated: 2026-09-11_
+_Last updated: 2026-09-13_
 
 This tracks the Launch Remediation work (6 tasks) and what remains before going
 live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
+
+## ✅ Done (Sept-13 optimization cycle 1 — branch `claude/opt-cycle-1-20260913`)
+
+Engine loop established: `PLAYBOOK.md` (heuristics, generator yields,
+hypotheses) and `OPTIMIZATION_LOG.md` (plan-before-execution, scorecards,
+escalations). Six verified items:
+
+- **Copy gate.** The compliance scanner now runs over the whole public copy
+  corpus (catalog, research incl. drafts, FAQs, page copy, every AI system
+  prompt, email templates) as a unit-test gate with an explicit allowlist of
+  accepted *negative* statements. Injection-consumable naming removed from
+  code comments/docs; the literature summarizer no longer asks for "proposed
+  mechanisms".
+- **Sanitized envelopes everywhere.** Four raw error passthroughs closed —
+  including the **public** `/api/contact` — and a gate that no `api/**`
+  response carries `err.message` and every `api/admin/*` calls `requireAdmin`.
+- **Lab linkage without SQL.** Control Room can add a testing laboratory
+  (validated https + `{code}` lookup template) and link each certificate to a
+  lab + lookup code + purity qualifier. This is the data the "verify at lab"
+  link has been waiting on since Aug 28. Hidden until migration `0032` is
+  applied.
+- **Data-integrity gates.** Regenerating `0009` from `tier1Catalog` must be
+  byte-identical; all 19 certificate files must exist and be labelled by their
+  real type.
+- **PDP first-paint budget.** No product page may preload the 3D / PDF / QR
+  chunks (44/44 clean).
+
+**What didn't move (owner):** `verify:rls` on prod still unconfirmed since
+`0030` — this leads every report until cleared. Repo still public. Domain not
+attached. Migrations `0031`–`0034` not yet applied. 0 of 19 certificates
+lab-linked (now possible from the Control Room). Legacy `src/data/products.js`
++ CI "Product data audit" step await a delete decision.
 
 ## ✅ Done (Sept-11 launch-hardening pass — branch `claude/launch-hardening-sep11`)
 
