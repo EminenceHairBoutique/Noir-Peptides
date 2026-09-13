@@ -495,6 +495,14 @@ wins and the conflict is logged here so the prompt can be revised.
   named path for cycle 11; Hy-009 resolved. Ops dry run yielded 4 (three
   Control Room screens + mobile in CI); the tap-target gate yielded 13
   fixes on its first run. Scorecards 4.4/4.11, 4.5, 4.10, 4.11 sharpened.
+- **2026-09-13 (cycle 11, CI follow-up)** — H-011 bit a third time: the
+  local mobile suite ran through `serve-dist` while CI runs it through
+  `vite preview`; under the faster transport the page hydrates after the
+  tests' first measurement, which exposed a real production bug (service
+  worker registration waited for a `load` event that had already fired)
+  and 11 tap-target/scroll findings. Rule sharpened: before pushing, run
+  every suite the way its CI job runs it (`npm run test:mobile` with no
+  `E2E_BASE_URL`, `npm run a11y` with `A11Y_ALL_ROUTES=1`).
 - **2026-09-13 (cycle 11)** — added H-015 (design the fix from the set of
   shapes the existing gates admit; evidence: the external-`src` loader is
   the only loader the CSP gate lets through, and it won by 1.4–1.7 s).

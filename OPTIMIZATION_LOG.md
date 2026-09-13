@@ -2161,6 +2161,27 @@ fixed, and the local key-route sweep widened so it cannot miss them again.
 `/` is bimodal on the local lane (1.37–1.5 s or ≈1.85 s across runs; always
 under budget) — noted, not chased.
 
+**CI, second finding (E2E job, mobile step, run 34787382668):** 12 mobile
+failures that the local mobile runs had not shown — because the local runs
+went through `serve-dist` while CI's `test:mobile` uses `vite preview`
+(H-011, again). Under preview the page hydrates *after* the tests' first
+measurements: (1) the service worker never registered — `main.jsx` waited
+for the window `load` event, which had already fired by the time the
+paint-first loader ran the module (a real production regression of B1:
+no offline shell on a fast load) → register immediately when
+`document.readyState === "complete"`; (2) the tap-target gate on the
+certificate surfaces (card COA chip 131×28, "View certificate image"
+167×20, "Verify this lot" 71×17, the PDP batch-history links, the inline
+"enter or scan a lot number" link) → 44 px controls / 24 px line box; the
+"COA on request" placeholder now has the chip's height and the shop grid
+seeds its certificate map synchronously so the price row never wraps
+after first paint; (3) the bottom-nav "footer above the bar" spec scrolled
+the un-hydrated shell → it waits for the hydrated footer. Mobile suite
+under `vite preview`: 56/56. Lever B (`content-visibility`) was reverted
+along the way — an instant scroll to the end landed short of the real
+page height; the hoisted certificate map (one state update instead of 44)
+replaced it: `/shop` TBT 100 ms locally (5 runs), LCP/CLS unchanged.
+
 **Vercel:** every pushed code head deploys ("Deployment has completed" on
 the cycle 9, 10 and 11 heads); the failed deployments the owner saw were
 the orphan `evidence` branch (a push per Evidence run, no site). Fixed

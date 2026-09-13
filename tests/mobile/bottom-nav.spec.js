@@ -72,6 +72,11 @@ test.describe("bottom navigation", () => {
 
   test("footer is fully reachable above the bar", async ({ page }) => {
     await page.goto("/shop", { waitUntil: "domcontentloaded" });
+    // Opt cycle 11: the paint-first loader mounts React after the first frame,
+    // so at domcontentloaded the page is still the prerendered shell (no
+    // <footer>); scrolling then measures the shell and hydration grows the
+    // page underneath. Wait for the hydrated footer before scrolling.
+    await page.locator("footer").waitFor({ timeout: 15000 });
     // Fonts are self-hosted with font-display: swap (opt cycle 2); a swap that
     // lands AFTER the scroll grows the page and reads as the footer sitting
     // below the bar. Measure only once every face has loaded.

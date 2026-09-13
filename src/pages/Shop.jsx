@@ -15,6 +15,7 @@ import { getProducts, getCategories, getAllVariants } from "../lib/catalog";
 import { getAllCoas } from "../lib/coas";
 import { getApprovedProductLabels } from "../lib/labelsApi";
 import ProductCard from "../components/ProductCard";
+import { getLatestCoaMap, getSeedLatestCoaMap } from "../lib/coas";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import SEO from "../components/SEO";
 import BottomSheet from "../components/ui/BottomSheet";
@@ -46,6 +47,18 @@ const COMPARE_ROWS = [
 ];
 
 export default function Shop() {
+  // Opt cycle 11 (4.7 TBT): one certificate map for the whole grid, resolved
+  // once here and passed down — 44 cards each awaiting the same promise meant
+  // 44 separate state updates and re-renders on the main thread.
+  // Seeded synchronously so the certificate chips are in the first render —
+  // a chip that arrives later wraps the price row and grows the page after a
+  // scroll to the end (the bottom-nav "footer above the bar" gate).
+  const [latestCoaMap, setLatestCoaMap] = useState(() => getSeedLatestCoaMap());
+  useEffect(() => {
+    let alive = true;
+    getLatestCoaMap().then((map) => { if (alive) setLatestCoaMap(map); });
+    return () => { alive = false; };
+  }, []);
   const { category: categorySlug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
@@ -400,9 +413,7 @@ export default function Shop() {
                       // 44 simultaneous tweens put /shop over the 200 ms TBT budget in CI.
                       initial={i < ANIMATED_CARDS ? { opacity: 0, y: 15 } : false} animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, delay: Math.min(i * 0.04, 0.4), ease: [0.2, 0, 0, 1] }}
-                      // Lever B: cards below the fold skip layout/paint until scrolled near
-                      // (content-visibility); the intrinsic size keeps the scrollbar honest.
-                      className={i < ANIMATED_CARDS ? "relative" : "relative [content-visibility:auto] [contain-intrinsic-size:auto_380px]"}
+                      className="relative"
                     >
                       {compareMode && (
                         <button
@@ -416,7 +427,7 @@ export default function Shop() {
                           {selected ? <Check size={12} /> : null} {selected ? "Selected" : "Compare"}
                         </button>
                       )}
-                      <ProductCard product={product} label={labelByProduct[product.id] || null} />
+                      <ProductCard product={product} label={labelByProduct[product.id] || null} latestCoa={latestCoaMap ? latestCoaMap[product.id] || null : undefined} />
                     </Motion.div>
                   );
                 })}

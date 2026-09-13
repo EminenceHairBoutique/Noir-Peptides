@@ -149,6 +149,11 @@ function latestFromRows(rows) {
 const seedLatest = () =>
   latestFromRows([...seedAll()].sort((a, b) => String(b.tested_at || "").localeCompare(String(a.tested_at || ""))));
 
+/** Synchronous first paint for card grids: the mirrored published rows (see getSeedCoas). */
+export function getSeedLatestCoaMap() {
+  return seedLatest();
+}
+
 export function getLatestCoaMap() {
   if (!_latestCoaPromise) {
     _latestCoaPromise = (async () => {
