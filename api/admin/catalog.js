@@ -16,6 +16,7 @@ import { deriveStockStatus } from "../../lib/inventory.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
 import { checkLabelText } from "../../lib/labelCopyRules.js";
 import { CODE_NAME_MAX } from "../../src/lib/displayName.js";
+import { isValidCas, normalizeCas } from "../../lib/cas.js";
 
 const STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock"];
 const PRODUCT_TYPES = ["peptide", "lab_supply"];
@@ -156,6 +157,36 @@ function pickFields(kind, body) {
         else if (/[<>{}]/.test(clean)) errors.push("code_name may not contain markup");
         else if (checkLabelText(clean).length) errors.push("code_name rejected — use language is not allowed in public copy");
         else out.code_name = clean;
+      }
+    }
+    // ── Dry technical specs (opt cycle 11, 4.4): sequence, molecular weight,
+    // CAS. Format-validated technical strings (still scanned for use
+    // language); explicit null/"" clears. The owner enters only what a
+    // certificate or supplier document states — nothing is derived here.
+    if ("peptide_sequence" in body) {
+      if (body.peptide_sequence === null || body.peptide_sequence === "") out.peptide_sequence = null;
+      else {
+        const v = String(body.peptide_sequence).trim().replace(/\s+/g, " ");
+        if (v.length > 200) errors.push("peptide_sequence is too long (max 200)");
+        else if (!/^[A-Za-z0-9()[\]\-–·+,. βγα]+$/.test(v)) errors.push("peptide_sequence may contain residue letters, digits, hyphens, parentheses and Greek letters only");
+        else if (checkLabelText(v).length) errors.push("peptide_sequence rejected — use language is not allowed in public copy");
+        else out.peptide_sequence = v;
+      }
+    }
+    if ("molecular_weight" in body) {
+      if (body.molecular_weight === null || body.molecular_weight === "") out.molecular_weight = null;
+      else {
+        const v = String(body.molecular_weight).trim().replace(/\s+/g, " ");
+        if (!/^\d{2,6}(\.\d{1,3})? g\/mol$/.test(v)) errors.push("molecular_weight must read like 1419.53 g/mol");
+        else out.molecular_weight = v;
+      }
+    }
+    if ("cas_number" in body) {
+      if (body.cas_number === null || body.cas_number === "") out.cas_number = null;
+      else {
+        const cas = normalizeCas(body.cas_number);
+        if (!isValidCas(cas)) errors.push("cas_number must be a valid CAS Registry Number (NNNNNNN-NN-N with a correct check digit)");
+        else out.cas_number = cas;
       }
     }
   }

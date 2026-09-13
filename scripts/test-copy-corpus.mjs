@@ -43,6 +43,9 @@ for (const c of t1.categories) {
   }
 }
 corpus.push(["tier1:RUO_SUFFIX", t1.RUO_SUFFIX]);
+// Opt cycle 11: the dry specs render on the product page and in the compare table.
+const specs = await import("../src/data/productSpecs.js");
+for (const [id, sp] of Object.entries(specs.PRODUCT_SPECS)) corpus.push([`spec:${id}`, [sp.sequence, sp.molecularWeight, sp.cas, sp.source].filter(Boolean).join(" · ")]);
 for (const a of researchArticles) {
   corpus.push([`article:${a.slug}:title`, a.title]);
   corpus.push([`article:${a.slug}:summary`, a.summary]);

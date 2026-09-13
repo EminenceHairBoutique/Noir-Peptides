@@ -80,7 +80,7 @@ No High-severity (human-use / therapeutic-claim) copy was found.
 - **AI strings** (`api/ai/guardrail.js`): the system guardrail and refusal
   redirect are claim-safe and now covered by `npm run test:guardrail`.
 - **Catalog descriptors** (`src/data/tier1Catalog.js` → `0009` seed): neutral,
-  molecule-class/origin only; CAS/sequence/MW left to the per-batch COA.
+  molecule-class/origin only; CAS/sequence/MW shown only when transcribed from a verified source (`src/data/productSpecs.js`, opt cycle 11) or entered in the Control Room; the per-batch COA remains the lab record.
 
 ---
 

@@ -14,12 +14,15 @@
 //
 // COMPLIANCE: claim-safe / RUO only. Descriptors are molecule-class / origin
 // only — no human-use, dosing, route-of-administration, or therapeutic
-// language. CAS / sequence / MW are intentionally absent here (verified
-// per-COA on the live record; never fabricated at build time).
+// language. CAS / sequence / MW live in src/data/productSpecs.js — only
+// TRANSCRIBED values with a named source (opt cycle 11); a product without an
+// entry simply has no spec on record. Never fabricated at build time.
 // ════════════════════════════════════════════════════════════════════════
 
 // Bundle ladder: qty {1,2,3,5,10} at {0,5,10,15,22}% off the 1-vial price,
 // whole-dollar rounded (e.g. BPC-157 10 mg -> 64/61/58/54/50).
+import { PRODUCT_SPECS } from "./productSpecs.js";
+
 export const TIER_LADDER = [
   { q: 1, mult: 1.0, pct: 0 },
   { q: 2, mult: 0.95, pct: 5 },
@@ -207,6 +210,8 @@ export function getAllProducts() {
         name: p.name,
         // Optional storefront code name (mirror of products.code_name); set on nothing.
         codeName: p.codeName ?? null,
+        // Verified dry specs (src/data/productSpecs.js) or null — never derived.
+        specs: PRODUCT_SPECS[p.id] || null,
         blurb: p.blurb,
         description: `${p.blurb} ${RUO_SUFFIX}`,
         category_slug: c.slug,
