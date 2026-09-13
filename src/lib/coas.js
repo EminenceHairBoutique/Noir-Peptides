@@ -5,6 +5,7 @@
 // the verifiable, batch-specific COA is the core trust signal (Task 3).
 
 import { supabase } from "./supabaseClient";
+import { COA_SEED } from "../data/coaSeed.js";
 import { selectDegrading } from "./pgSelect";
 
 // Columns that exist before migration 0032 — the degradation target, so a
@@ -36,8 +37,15 @@ function normalize(row) {
 }
 
 /** All published COAs, newest test first. Returns [] on error / none. */
+// Opt cycle 11: without a client (or when the database cannot be reached) the
+// mirrored seed — the same published certificates the database holds — is
+// shown rather than nothing. An EMPTY answer from a reachable database stays
+// empty: the database is the record.
+const seedAll = () => COA_SEED.filter((r) => r.is_published);
+const seedFor = (productId) => seedAll().filter((r) => r.product_id === productId);
+
 export async function getAllCoas() {
-  if (!supabase) return [];
+  if (!supabase) return seedAll();
   try {
     const { data, error } = await selectDegrading(
       (cols) =>
@@ -49,16 +57,17 @@ export async function getAllCoas() {
       COA_COLUMNS,
       COA_COLUMNS_BASE
     );
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) return seedAll();
     return data.map(normalize);
   } catch {
-    return [];
+    return seedAll();
   }
 }
 
 /** Published COAs for one product, newest first. */
 export async function getCoasForProduct(productId) {
-  if (!supabase || !productId) return [];
+  if (!productId) return [];
+  if (!supabase) return seedFor(productId);
   try {
     const { data, error } = await selectDegrading(
       (cols) =>
@@ -70,10 +79,10 @@ export async function getCoasForProduct(productId) {
       COA_COLUMNS,
       COA_COLUMNS_BASE
     );
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) return seedFor(productId);
     return data.map(normalize);
   } catch {
-    return [];
+    return seedFor(productId);
   }
 }
 

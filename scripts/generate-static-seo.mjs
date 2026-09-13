@@ -33,6 +33,7 @@ import {
   hiddenCategorySlugs as staticHiddenCategorySlugs,
 } from "../src/data/tier1Catalog.js";
 import { HERO_DISCLAIMER, DISCLAIMER_FULL } from "../src/config/compliance.js";
+import { COA_SEED } from "../src/data/coaSeed.js";
 import { displayNameOf } from "../src/lib/displayName.js";
 
 // Opt cycle 9 (C7): products.code_name, fetched at build when the database is
@@ -177,6 +178,7 @@ function sourceFileForRoute(pathname) {
   if (pathname === "/about" || pathname === "/contact") return "src/data/pageCopy.js";
   if (pathname === "/deals") return "src/pages/Deals.jsx";
   if (pathname === "/test-results") return "src/pages/TestResults.jsx";
+  if (pathname.startsWith("/test-results/")) return "src/data/coaSeed.js";
   if (pathname === "/verify-lot") return "src/pages/VerifyLot.jsx";
   if (pathname === "/calculator") return "src/pages/Calculator.jsx";
   return null;
@@ -517,7 +519,7 @@ function fmtUsd(n) {
   return `$${s.endsWith(".00") ? s.slice(0, -3) : s}`;
 }
 
-function renderProductBody(p, related = []) {
+function renderProductBody(p, related = [], hasBatchHistory = false) {
   const from = Math.min(...p.variants.map((v) => Number(v.price)));
   const sizes = p.variants
     .map((v) => `<li>${escapeHtml(v.size_label)} — ${fmtUsd(v.price)}</li>`)
@@ -530,6 +532,7 @@ function renderProductBody(p, related = []) {
     `<p>From ${fmtUsd(from)}</p>`,
     `<p>${escapeHtml(p.description)}</p>`,
     `<h2>Available sizes</h2><ul>${sizes}</ul>`,
+    ...(hasBatchHistory ? [`<p><a href="/test-results/${escapeHtml(p.slug)}">Full batch history for ${escapeHtml(dn(p))}</a></p>`] : []),
     // Task 5 — internal linking for crawl depth. Real, already-public catalog
     // data (same category, excluding self); no invented relationships.
     related.length
@@ -1171,7 +1174,18 @@ async function main() {
 
   // W2/W4: published COA rows for the trust-surface prerender (null when the
   // build has no database access — shell-only, honestly logged).
-  const coaRows = await fetchPublishedCoasAtBuild();
+  let coaRows = await fetchPublishedCoasAtBuild();
+  // Opt cycle 11: a build WITHOUT database env prerenders the trust pages and
+  // the batch-history permalinks from the mirrored 0019 seed — the same
+  // published certificates the database holds. With env present a failed
+  // fetch stays a failure (the data-presence assertion below catches it);
+  // the seed never masks a live outage.
+  let coaSource = coaRows ? "db" : null;
+  if (!coaRows && !hasDbEnv()) {
+    coaRows = COA_SEED.filter((r) => r.is_published);
+    coaSource = "seed";
+    console.log(`[seo] no database env — trust pages prerender from the mirrored seed (${coaRows.length} published certificates)`);
+  }
   const sdsRows = await fetchSdsProductsAtBuild();
   codeNames = await fetchCodeNamesAtBuild();
   const coaStats = coaRows ? deriveCoaStats(coaRows) : null;
@@ -1475,7 +1489,8 @@ async function main() {
     ],
     bodyHtml: renderProductBody(
       p,
-      withDisplayNames(getVisibleProductsInCategory(p.category_slug)).filter((r) => r.slug !== p.slug).slice(0, 6)
+      withDisplayNames(getVisibleProductsInCategory(p.category_slug)).filter((r) => r.slug !== p.slug).slice(0, 6),
+      coaGroups.has(p.id)
     ),
   }));
 
@@ -1694,6 +1709,7 @@ async function main() {
     features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic },
     hiddenCategories: [...hiddenSlugs].sort(),
     coaRowCount: Array.isArray(coaRows) ? coaRows.length : null,
+    coaSource,
     sdsRowCount: Array.isArray(sdsRows) ? sdsRows.length : null,
     codeNameCount: codeNames.size,
   };
