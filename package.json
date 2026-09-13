@@ -8,7 +8,7 @@
     "dev:vite": "vite",
     "dev:api": "node dev-server.js",
     "build": "node scripts/generate-og-image.mjs && vite build && node scripts/generate-static-seo.mjs && node scripts/generate-sw-precache.mjs && node scripts/emit-csp.mjs",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "preview": "vite preview",
     "test:guardrail": "node scripts/test-guardrail.mjs",
     "test:compliance": "node scripts/test-compliance-scan.mjs",

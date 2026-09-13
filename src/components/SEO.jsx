@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
 const SITE_NAME = "Noir Peptides";
@@ -167,7 +167,17 @@ export default function SEO({
 }) {
   const location = useLocation();
 
+  // Opt cycle 9 (4.13): the effect keys on SERIALIZED images / jsonLd so a
+  // caller passing inline literals (a new object every render) neither
+  // re-runs it every render nor is silently ignored; the latest objects are
+  // read through a ref inside the effect.
+  const imagesKey = JSON.stringify(images || []);
+  const jsonLdKey = JSON.stringify(jsonLd ?? null);
+  const latest = useRef({ images, jsonLd });
+  latest.current = { images, jsonLd };
+
   useEffect(() => {
+    const { images, jsonLd } = latest.current;
     const siteUrl = getSiteUrl();
     const pathname = location?.pathname || "/";
 
@@ -231,7 +241,7 @@ export default function SEO({
       });
 
     setJsonLd(schema);
-  }, [title, description, image, JSON.stringify(images || []), type, noindex, location.pathname]);
+  }, [title, description, image, imagesKey, jsonLdKey, type, noindex, location.pathname]);
 
   return null;
 }
