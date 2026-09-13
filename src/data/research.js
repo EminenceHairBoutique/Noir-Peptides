@@ -43,7 +43,7 @@ export const researchArticles = [
       },
       {
         heading: "Preclinical literature",
-        body: "Beyond in-vitro work, the published preclinical literature includes animal studies. When summarizing such literature it is important to distinguish in-vitro from in-vivo (animal) work and to treat findings as what the literature reports, not as established human effects.",
+        body: "Beyond in-vitro work, the published preclinical literature includes animal studies. When summarizing such literature it is important to distinguish in-vitro from in-vivo (animal) work and to regard findings as what the literature reports, not as established human effects.",
       },
       {
         heading: "Reference materials and reproducibility",
