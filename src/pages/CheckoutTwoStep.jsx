@@ -103,8 +103,12 @@ export default function CheckoutTwoStep() {
   const subtotal = Number(total) || 0;
   const step1Valid = useMemo(() => isStep1Valid(form), [form]);
 
+  // A ref, not state: two clicks in the same task both see submitting=false.
+  const continueInFlight = useRef(false);
   const onContinue = async () => {
     if (!step1Valid) { setShowErrors(true); return; }
+    if (continueInFlight.current) return;
+    continueInFlight.current = true;
     setError(null);
     setSubmitting(true);
     try {
@@ -136,6 +140,7 @@ export default function CheckoutTwoStep() {
     } catch (e) {
       setError(e.message);
     } finally {
+      continueInFlight.current = false;
       setSubmitting(false);
     }
   };
@@ -202,7 +207,7 @@ export default function CheckoutTwoStep() {
         <ProgressBar step={step} />
             <DisclaimerBanner className="mb-6" />
             {step === 1 ? (
-              <StepPersonal state={form} setState={setForm} subtotalDollars={subtotal}
+              <StepPersonal submitting={submitting} state={form} setState={setForm} subtotalDollars={subtotal}
                 showErrors={showErrors} onContinue={onContinue} user={user} />
             ) : (
               <StepPayment onBack={() => { setStep(1); window.scrollTo({ top: 0 }); }} onPay={onPay}

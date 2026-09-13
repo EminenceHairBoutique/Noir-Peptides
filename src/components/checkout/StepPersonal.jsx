@@ -14,7 +14,7 @@ const money = (cents) => `$${(cents / 100).toFixed(2)}`;
 const field =
   "w-full px-4 py-3 bg-se-charcoal border text-se-bone text-[14px] font-accent placeholder:text-se-steel/70 focus:outline-none focus:border-se-gold transition";
 
-export default function StepPersonal({ state, setState, subtotalDollars, showErrors, onContinue, user }) {
+export default function StepPersonal({ state, setState, subtotalDollars, showErrors, onContinue, user, submitting = false }) {
   const errors = useMemo(() => (showErrors ? validateStep1(state) : {}), [showErrors, state]);
   const ship = freeShipProgress(subtotalDollars);
   const patch = (path, v) => setState((s) => ({ ...s, [path]: v }));
@@ -182,8 +182,12 @@ export default function StepPersonal({ state, setState, subtotalDollars, showErr
         {errors.attestations && <p id="at-err" className="text-[11px] text-se-red-bright font-accent">{errors.attestations}</p>}
       </section>
 
-      <button type="button" onClick={onContinue} className="btn-primary w-full">
-        Continue to Payment
+      {/* Opt cycle 10 (4.5): one compliance record per attempt — the button
+          is disabled while the record is being written, and the handler
+          itself ignores a second call (a double-click lands before React
+          re-renders). */}
+      <button type="button" onClick={onContinue} className="btn-primary w-full" disabled={submitting} aria-busy={submitting || undefined}>
+        {submitting ? "Saving your certification…" : "Continue to Payment"}
       </button>
     </div>
   );
