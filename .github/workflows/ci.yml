@@ -48,9 +48,6 @@ jobs:
       - name: Unit + audit suites
         run: npm run test:unit
 
-      - name: Product data audit
-        run: npm run audit:products
-
       - name: Dependency vulnerabilities (production deps)
         # Advisory: reports high/critical without blocking the merge on a
         # transitive advisory that has no patch yet.

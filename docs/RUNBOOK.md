@@ -142,6 +142,37 @@ labels (`test-label-copy`), and at the door for admin-entered text — label
 configs, discount descriptions, lab names — and buyer reviews. A 400 from
 those endpoints names the field and the reason; that is the gate working.
 
+### Evidence, live probe, DB gates (opt cycle 9 — "the engine's eyes")
+
+Three workflows produce dated, machine-readable evidence; the optimization
+engine scores from them (never a `?` when a dated artifact exists).
+
+- **Evidence** (`.github/workflows/evidence.yml`, every PR + `main`): E2E
+  build served Vercel-style → screenshots of every sitemap route + cart +
+  checkout at 320/390/768/1280 → axe on every route → Lighthouse, median of
+  3, hard budgets (LCP ≤ 2.5 s, CLS ≤ 0.1, TBT ≤ 200 ms) on `/`, `/shop`, a
+  PDP, `/test-results` → link-depth + hygiene crawls → `evidence/summary.json`.
+  The full `evidence/` tree is a 30-day artifact; the summary is pushed to
+  the orphan **`evidence`** branch (`ci/<sha>.json`, `ci/latest.json`).
+- **Live probe** (`.github/workflows/live-probe.yml`, every 6 h + Actions →
+  Run workflow): plain HTTP checks, axe and Lighthouse against production,
+  `evidence/live-probe.json` → `evidence` branch (`live/latest.json`). While
+  anything is red it keeps ONE issue open, **"Live probe failing"**, and
+  closes it when green. Set two repository **variables** (Settings → Secrets
+  and variables → Actions → Variables): `PROD_URL` (default the Vercel
+  deployment) and `CANONICAL_HOST` (`www.noirpeptides.com` once the domain
+  is attached — the canonical/sitemap/robots checks compare against it).
+- **DB gates** (`.github/workflows/db-gates.yml`, every PR + `main`): a fresh
+  Supabase stack (Postgres + PostgREST + GoTrue + Kong via the Supabase CLI)
+  with the full migration chain (`0027_PROPOSED` excluded), then
+  `npm run verify:rls`, `npm run db:verify` and `node scripts/db-shape-diff.mjs`
+  exactly as you would run them against production. Green here means the
+  scripts are proven; only running them with production keys (§1, D1/D2)
+  turns that into production evidence.
+- **Reading it from a sandbox:** `node scripts/evidence-latest.mjs` fetches
+  the `evidence` branch and prints the newest CI summary and live record
+  with their age. The branch is machine-written — never edit it by hand.
+
 ## 4. Hard-learned invariants (do not relearn these)
 
 - **Schema drift is the house failure mode.** Symptoms like "Could not load

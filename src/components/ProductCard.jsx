@@ -72,7 +72,7 @@ const ProductCard = ({ product, label = null }) => {
         {img ? (
           <img
             src={img}
-            alt={product.name}
+            alt={product.displayName || product.name}
             className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${
               isOut ? "opacity-40 grayscale" : "group-hover:scale-[1.04]"
             }`}
@@ -123,10 +123,10 @@ const ProductCard = ({ product, label = null }) => {
             mid-word in the 2-col grid; min-height keeps card rows even when
             one title is 1 line and its neighbor is 2. Full name in title. */}
         <h3
-          title={product.name}
+          title={product.displayName || product.name}
           className="text-[14px] text-se-bone font-display tracking-[0.02em] mb-1 line-clamp-2 min-h-[2.5em] leading-tight"
         >
-          {product.name}
+          {product.displayName || product.name}
         </h3>
 
         <p className="text-[11px] text-se-steel font-accent mb-3 line-clamp-1">

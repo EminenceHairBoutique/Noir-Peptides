@@ -78,3 +78,11 @@ src/output.css
 .spanav.cjs
 .trust-check.cjs
 .cardcheck.cjs
+
+# Evidence (opt cycle 9): compact summaries are pushed by CI to the `evidence`
+# branch; screenshots and Lighthouse reports stay CI artifacts.
+evidence/
+.lighthouseci/
+
+# Supabase CLI scratch (opt cycle 9: the CLI project lives outside the repo; npx leaves this behind)
+supabase/.temp/

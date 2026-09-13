@@ -10,9 +10,17 @@
 import { chromium } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
 import fs from "node:fs";
+import { sitemapRoutes } from "./_sitemap-routes.mjs";
+import { seedCart, fillCheckoutStep1, continueToPayment } from "../tests/e2e/fixtures/checkout.js";
 const [base = "http://localhost:4180", out = ".a11y-report.json"] = process.argv.slice(2);
 const exe = process.env.PLAYWRIGHT_CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const ROUTES = ["/", "/shop", "/product/bpc-157", "/test-results", "/documents", "/legal/ruo-agreement", "/verify-lot", "/login", "/faqs"];
+const KEY_ROUTES = ["/", "/shop", "/product/bpc-157", "/test-results", "/documents", "/legal/ruo-agreement", "/verify-lot", "/login", "/faqs"];
+// Opt cycle 9 (addendum B1): A11Y_ALL_ROUTES=1 sweeps EVERY route in the
+// sitemap (plus the key routes that are deliberately not in it, e.g. /login).
+// A11Y_ROUTES="/contact,/about" sweeps only those (for iterating on one page).
+const ROUTES = process.env.A11Y_ROUTES ? process.env.A11Y_ROUTES.split(",").map((r) => r.trim()).filter(Boolean)
+  : process.env.A11Y_ALL_ROUTES ? [...new Set([...sitemapRoutes(), ...KEY_ROUTES])] : KEY_ROUTES;
+console.log(`sweeping ${ROUTES.length} route(s) at 390/1280 against ${base}`);
 const browser = await chromium.launch({ executablePath: fs.existsSync(exe) ? exe : undefined });
 const report = [];
 for (const width of [390, 1280]) {
@@ -40,9 +48,7 @@ try {
     const context = await browser.newContext({ viewport: { width, height: 900 } });
     const page = await context.newPage();
     await installAuth(page);
-    await page.goto(base + "/product/bpc-157", { waitUntil: "networkidle" });
-    const add = page.getByRole("button", { name: /add to cart/i }).first();
-    if (await add.isVisible().catch(() => false)) { await add.click(); await page.keyboard.press("Escape"); }
+    await seedCart(page, base);
     await page.goto(base + "/cart", { waitUntil: "networkidle" });
     if (!/\/cart$/.test(page.url())) { console.log(`authed pass skipped at ${width}px (dist is not the E2E build; landed on ${new URL(page.url()).pathname})`); await context.close(); break; }
     const sweep = async (label) => {
@@ -59,14 +65,8 @@ try {
     await page.goto(base + "/checkout", { waitUntil: "networkidle" });
     await page.locator("#ct-first").waitFor({ timeout: 15000 });
     await sweep("/checkout step 1 (authed)");
-    await page.fill("#ct-first", "Ada"); await page.fill("#ct-last", "Lovelace"); await page.fill("#ct-email", "researcher@e2e.test");
-    await page.fill("#ship-line1", "12 Lab Row"); await page.fill("#ship-city", "Austin"); await page.selectOption("#ship-state", "TX"); await page.fill("#ship-zip", "78701");
-    await page.selectOption("#ri-entity", { index: 1 }); await page.selectOption("#ri-protocol", { index: 1 });
-    await page.locator('input[name="shipmethod"]').first().check();
-    const boxes = page.locator('section[aria-labelledby="at-h"] input[type="checkbox"]');
-    for (let i = 0; i < await boxes.count(); i++) await boxes.nth(i).check();
-    await page.getByRole("button", { name: /continue to payment/i }).click();
-    await page.getByText(/BTCPay/i).first().waitFor({ timeout: 15000 });
+    await fillCheckoutStep1(page);
+    await continueToPayment(page);
     await sweep("/checkout step 2 (authed)");
     await context.close();
   }

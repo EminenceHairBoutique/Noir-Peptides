@@ -21,6 +21,7 @@
 import { readdirSync, statSync, readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { scanCopy } from "../src/lib/complianceScan.js";
+import { renderedText, ACCEPTED, NEGATION } from "./_copy-scan.mjs";
 
 const DIST = path.join(process.cwd(), "dist");
 const DUMP = process.argv.includes("--dump");
@@ -35,32 +36,6 @@ if (!existsSync(path.join(DIST, "index.html"))) {
   process.exit(1);
 }
 
-// ── Extraction ────────────────────────────────────────────────────────────
-const decode = (s) => s
-  .replace(/&amp;/g, "&").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"')
-  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n));
-
-/** Everything a person or a crawler reads on the page, as one string. */
-export function renderedText(html) {
-  const parts = [];
-  // JSON-LD: every string value.
-  for (const m of html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)) {
-    try {
-      const walk = (v) => { if (typeof v === "string") parts.push(v); else if (v && typeof v === "object") Object.values(v).forEach(walk); };
-      walk(JSON.parse(m[1]));
-    } catch { parts.push(m[1]); }
-  }
-  // Meta descriptions / titles.
-  for (const m of html.matchAll(/<meta[^>]+(?:name|property)="(?:description|og:description|twitter:description|og:title|twitter:title)"[^>]*content="([^"]*)"/gi)) parts.push(m[1]);
-  for (const m of html.matchAll(/<title>([\s\S]*?)<\/title>/gi)) parts.push(m[1]);
-  // Attribute text a screen reader or a tooltip exposes.
-  for (const m of html.matchAll(/\s(?:alt|aria-label|title|placeholder)="([^"]*)"/gi)) if (m[1]) parts.push(m[1]);
-  // Visible text.
-  const body = html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ");
-  parts.push(body);
-  return decode(parts.join(" \n ")).replace(/[ \t]+/g, " ");
-}
-
 const walk = (d, out = []) => {
   for (const e of readdirSync(d)) {
     const p = path.join(d, e);
@@ -70,27 +45,6 @@ const walk = (d, out = []) => {
   return out;
 };
 const pages = walk(DIST).map((p) => ["/" + path.relative(DIST, path.dirname(p)).split(path.sep).filter(Boolean).join("/"), readFileSync(p, "utf8")]);
-
-// ── Accepted findings — negations only ────────────────────────────────────
-// route → sorted "category:term" list (lower-cased, duplicates kept so a
-// COUNT change is also a change). Regenerate with --dump after a deliberate
-// copy change and review the diff; never add a positive claim here.
-const ACCEPTED = {
-  "/": ["human-use:for human use","therapeutic-benefit:cure","therapeutic-benefit:treat"],
-  "/about": ["dosing:dosing","therapeutic-benefit:therapeutic","therapeutic-benefit:treatment"],
-  "/coa-policy": ["administration:injectable","administration:injection","disease-claim:prevent disease","human-use:for human use","therapeutic-benefit:cure","therapeutic-benefit:therapeutic","therapeutic-benefit:treat"],
-  "/contact": ["administration:injection","dosing:dosing","therapeutic-benefit:treatment"],
-  "/faqs": ["administration:cycle","administration:cycle","administration:injection","administration:injection","administration:stacking","administration:stacking","dosing:dosing","dosing:dosing","dosing:dosing","dosing:dosing","human-use:for human consumption","human-use:for human consumption","human-use:for human consumption","human-use:for human consumption","human-use:for human use","human-use:for human use","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic"],
-  "/legal/fda-disclaimer": ["disease-claim:prevent any disease","disease-claim:prevent any disease","disease-claim:prevent any disease","disease-claim:prevent any disease","disease-claim:prevent any disease","therapeutic-benefit:cure","therapeutic-benefit:cure","therapeutic-benefit:cure","therapeutic-benefit:cure","therapeutic-benefit:cure","therapeutic-benefit:treat","therapeutic-benefit:treat","therapeutic-benefit:treat","therapeutic-benefit:treat","therapeutic-benefit:treat"],
-  "/legal/research-use-policy": ["administration:cycling","administration:injection","dosing:dosing","therapeutic-benefit:cures","therapeutic-benefit:therapeutic","therapeutic-benefit:treats"],
-  "/legal/returns": ["human-use:for human consumption","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic"],
-  "/legal/ruo-agreement": ["disease-claim:prevent any disease","dosing:dosing","human-use:for human consumption","therapeutic-benefit:cure","therapeutic-benefit:therapeutic","therapeutic-benefit:treat","therapeutic-benefit:treatment"],
-  "/legal/shipping": ["human-use:for human consumption","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic"],
-  "/quality": ["therapeutic-benefit:therapeutic"],
-  "/legal/terms": ["administration:cycle","administration:injectable","administration:injection","administration:injection","administration:stacking","disease-claim:prevent disease","disease-claim:prevent disease","dosing:dosing","dosing:dosing","therapeutic-benefit:cure","therapeutic-benefit:cure","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic","therapeutic-benefit:treat","therapeutic-benefit:treat","therapeutic-benefit:treatment","therapeutic-benefit:treatment"],
-};
-
-const NEGATION = /\b(not|never|no|nor|without|do not|does not|don't|doesn't|isn't|aren't|refuse|outside|prohibit|exclud|forbid|decline|disclaim|unable|cannot)/i;
 
 console.log(`Rendered copy — ${pages.length} prerendered pages scanned:`);
 const dump = {};

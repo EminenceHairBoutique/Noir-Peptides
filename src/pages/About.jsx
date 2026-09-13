@@ -81,9 +81,9 @@ export default function About() {
                     className="glass-panel p-8"
                   >
                     <Icon className="w-7 h-7 text-se-gold mb-5" strokeWidth={1.5} />
-                    <h3 className="font-display text-[20px] tracking-[0.02em] mb-3">
+                    <h2 className="font-display text-[20px] tracking-[0.02em] mb-3">
                       {p.title}
-                    </h3>
+                    </h2>
                     <p className="text-[14px] text-se-bone/50 leading-relaxed font-accent">
                       {p.body}
                     </p>

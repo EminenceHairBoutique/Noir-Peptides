@@ -1,0 +1,94 @@
+# DB gates (opt cycle 9 — addendum B3; scorecards 4.2 / 4.3).
+# The Migration-hygiene job in ci.yml proves the SQL applies in order on a
+# bare Postgres. This job proves what the owner would otherwise have to run
+# by hand against production: on a fresh Supabase stack (Postgres + PostgREST
+# + GoTrue + Kong, via the Supabase CLI) with the full migration chain
+# applied — the catalog seeded by 0009, the label configs by 0020 —
+#   npm run verify:rls      (anon / authenticated probes, the escalation PATCH)
+#   npm run db:verify       (row counts vs the static catalog, the ledger)
+#   node scripts/db-shape-diff.mjs   (row-level static ↔ DB diff)
+# run UNCHANGED. 0027_…_PROPOSED.sql is excluded, as in ci.yml. Nothing in
+# supabase/ is added to the repo: the CLI project lives in a scratch dir.
+name: DB gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  db-gates:
+    name: verify:rls · db:verify · shape diff on a fresh Supabase stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      - name: Scratch Supabase project with the migration chain (PROPOSED excluded)
+        run: |
+          set -e
+          mkdir -p /tmp/sb && cd /tmp/sb
+          supabase init --yes --force >/dev/null
+          rm -rf supabase/migrations
+          cp -r "$GITHUB_WORKSPACE/supabase/migrations" supabase/migrations
+          rm -f supabase/migrations/*PROPOSED*
+          # Expose the CLI's migration ledger through PostgREST so db:verify's
+          # ledger check runs for real here (production is hand-applied).
+          sed -i 's/^schemas = \[\(.*\)\]/schemas = [\1, "supabase_migrations"]/' supabase/config.toml
+          grep -n '^schemas' supabase/config.toml
+          ls supabase/migrations | wc -l
+
+      - name: Start Postgres + PostgREST + GoTrue + Kong and apply the migrations
+        working-directory: /tmp/sb
+        run: |
+          set -e
+          supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+          supabase status -o env > /tmp/sb/status.env
+          # `supabase status -o env` quotes its values; strip the quotes or the
+          # URL reaches fetch() as "http://…" (first run failed exactly there).
+          sed -nE 's/^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)="?([^"]*)"?$/SB_\1=\2/p' /tmp/sb/status.env >> "$GITHUB_ENV"
+          grep -c '^SB_' "$GITHUB_ENV"
+
+      - name: npm run verify:rls (unchanged script, fresh stack)
+        env:
+          VITE_SUPABASE_URL: ${{ env.SB_API_URL }}
+          SUPABASE_URL: ${{ env.SB_API_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ env.SB_ANON_KEY }}
+          SUPABASE_ANON_KEY: ${{ env.SB_ANON_KEY }}
+        run: npm run verify:rls
+
+      - name: npm run db:verify (unchanged script, seeded catalog + ledger)
+        env:
+          SUPABASE_URL: ${{ env.SB_API_URL }}
+          VITE_SUPABASE_URL: ${{ env.SB_API_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SB_SERVICE_ROLE_KEY }}
+        run: npm run db:verify
+
+      - name: Static ↔ DB shape diff
+        env:
+          SUPABASE_URL: ${{ env.SB_API_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SB_SERVICE_ROLE_KEY }}
+        run: node scripts/db-shape-diff.mjs
+
+      - name: Database logs on failure
+        if: failure()
+        working-directory: /tmp/sb
+        run: |
+          docker ps --format '{{.Names}} {{.Status}}' || true
+          for c in $(docker ps -a --format '{{.Names}}' | grep -E '^supabase_(db|rest|auth|kong)_' ); do echo "=== $c"; docker logs --tail 80 "$c" 2>&1 | tail -80; done

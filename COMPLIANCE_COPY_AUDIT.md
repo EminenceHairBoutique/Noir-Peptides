@@ -86,9 +86,8 @@ No High-severity (human-use / therapeutic-claim) copy was found.
 
 ## Note on the legacy static catalog
 
-`src/data/products.js` is a **stale** 13-product file with category slugs that no
-longer match the live catalog. It is not the source of truth (the live data is
-`tier1Catalog.js` + the `0009` seed) and is slated for removal/replacement in
-the Task 6 schema reconciliation. Its copy is claim-safe, but a couple of
+`src/data/products.js` was a **stale** 13-product file with category slugs that no
+longer matched the live catalog. It was not the source of truth (the live data is
+`tier1Catalog.js` + the `0009` seed) and was deleted in opt cycle 9. Its copy is claim-safe, but a couple of
 subtitles ("Tissue-model research peptide", etc.) should be retired with the
 file rather than maintained.

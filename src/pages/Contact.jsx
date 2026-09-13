@@ -118,25 +118,25 @@ export default function Contact() {
                 <form onSubmit={handleSubmit} className="glass-panel p-6 space-y-5">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className={labelCls}>First Name</label>
-                      <input type="text" value={form.firstName} onChange={update("firstName")} required className={inputCls} />
+                      <label htmlFor="ct-first-name" className={labelCls}>First Name</label>
+                      <input type="text" value={form.firstName} id="ct-first-name" onChange={update("firstName")} required className={inputCls} />
                     </div>
                     <div>
-                      <label className={labelCls}>Last Name</label>
-                      <input type="text" value={form.lastName} onChange={update("lastName")} required className={inputCls} />
+                      <label htmlFor="ct-last-name" className={labelCls}>Last Name</label>
+                      <input type="text" value={form.lastName} id="ct-last-name" onChange={update("lastName")} required className={inputCls} />
                     </div>
                   </div>
                   <div>
-                    <label className={labelCls}>Email</label>
-                    <input type="email" value={form.email} onChange={update("email")} required className={inputCls} />
+                    <label htmlFor="ct-email-addr" className={labelCls}>Email</label>
+                    <input type="email" value={form.email} id="ct-email-addr" onChange={update("email")} required className={inputCls} />
                   </div>
                   <div>
-                    <label className={labelCls}>Order / Batch Number (optional)</label>
-                    <input type="text" value={form.orderNumber} onChange={update("orderNumber")} className={inputCls} />
+                    <label htmlFor="ct-order-number" className={labelCls}>Order / Batch Number (optional)</label>
+                    <input type="text" value={form.orderNumber} id="ct-order-number" onChange={update("orderNumber")} className={inputCls} />
                   </div>
                   <div>
-                    <label className={labelCls}>Reason</label>
-                    <select value={form.reason} onChange={update("reason")} required className={inputCls}>
+                    <label htmlFor="ct-reason" className={labelCls}>Reason</label>
+                    <select value={form.reason} id="ct-reason" onChange={update("reason")} required className={inputCls}>
                       <option value="">Select a reason</option>
                       <option value="order">Order question</option>
                       <option value="coa">COA / batch documentation request</option>
@@ -146,8 +146,8 @@ export default function Contact() {
                     </select>
                   </div>
                   <div>
-                    <label className={labelCls}>Message</label>
-                    <textarea value={form.message} onChange={update("message")} required rows={5} className={`${inputCls} resize-none`} />
+                    <label htmlFor="ct-message" className={labelCls}>Message</label>
+                    <textarea value={form.message} id="ct-message" onChange={update("message")} required rows={5} className={`${inputCls} resize-none`} />
                   </div>
                   <input type="text" value={form.website} onChange={update("website")} className="hidden" tabIndex={-1} autoComplete="off" />
                   <button type="submit" disabled={status === "loading"} className="btn-primary w-full">

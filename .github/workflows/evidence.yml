@@ -1,0 +1,90 @@
+# Evidence (opt cycle 9 — addendum B1, scorecards 4.7 / 4.8 / 4.9 / 4.10).
+# The engine's eyes, where Chromium and egress live. On every PR and on
+# main: build the E2E dist, serve it Vercel-style (the vercel.json rewrites
+# and headers — never `vite preview`), then
+#   1. screenshot every sitemap route + the gated cart/checkout at
+#      320 / 390 / 768 / 1280,
+#   2. run axe-core on every route (0 serious / critical, landmarks, keyboard),
+#   3. Lighthouse, median of 3 runs, hard budgets on /, /shop, a PDP and
+#      /test-results (LCP ≤ 2.5 s, CLS ≤ 0.1, TBT ≤ 200 ms),
+#   4. the link-depth and rendered-hygiene crawls,
+# and fold everything into evidence/summary.json. The full evidence/ tree is
+# an artifact; the compact summary is pushed to the orphan `evidence` branch
+# (owner decision, cycle 9) so the sandboxed engine can read it next cycle.
+name: Evidence
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    name: Screens · axe · Lighthouse · crawls
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build:e2e
+
+      - name: Serve the dist Vercel-style on :4180
+        run: |
+          node scripts/serve-dist.mjs 4180 > serve-dist.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:4180/ >/dev/null && break || sleep 1; done
+          curl -sfI http://localhost:4180/ | head -1
+
+      - name: Screenshot matrix (sitemap + cart + checkout × 320/390/768/1280)
+        env:
+          PLAYWRIGHT_CHROMIUM_PATH: ""
+        run: node scripts/evidence-screens.mjs http://localhost:4180 evidence
+
+      - name: axe on every public route (+ the gated pages)
+        if: always()
+        env:
+          PLAYWRIGHT_CHROMIUM_PATH: ""
+          A11Y_ALL_ROUTES: "1"
+        run: node scripts/a11y-sweep.mjs http://localhost:4180 evidence/axe.json
+
+      # Collect → upload (filesystem) → assert as separate steps: `autorun`
+      # skips the upload when an assertion fails, and the report is the point.
+      - name: Lighthouse — collect (3 runs × 4 routes, mobile emulation)
+        if: always()
+        run: npx --yes @lhci/cli@0.14.0 collect --config=lighthouserc.json
+      - name: Lighthouse — write reports to evidence/lighthouse
+        if: always()
+        run: npx --yes @lhci/cli@0.14.0 upload --config=lighthouserc.json
+      - name: Lighthouse — assert budgets on the median
+        if: always()
+        run: npx --yes @lhci/cli@0.14.0 assert --config=lighthouserc.json
+
+      - name: Fold into evidence/summary.json (+ link-depth and hygiene crawls)
+        if: always()
+        run: node scripts/evidence-summary.mjs evidence
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence-${{ github.sha }}
+          path: evidence/
+          retention-days: 30
+
+      - name: Publish the summary to the `evidence` branch
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.head.repo.full_name == github.repository)
+        run: node scripts/evidence-publish.mjs ci evidence/summary.json

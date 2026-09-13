@@ -32,6 +32,18 @@ import {
   getVisibleProductsInCategory,
   hiddenCategorySlugs as staticHiddenCategorySlugs,
 } from "../src/data/tier1Catalog.js";
+import { displayNameOf } from "../src/lib/displayName.js";
+
+// Opt cycle 9 (C7): products.code_name, fetched at build when the database is
+// reachable, overlays the static catalog on the SHOP surfaces (list pages,
+// product pages, their JSON-LD). Certificate pages keep the substance name.
+let codeNames = new Map();
+const dn = (p) => p.displayName || p.name;
+const withDisplayNames = (list) =>
+  list.map((p) => {
+    const code = codeNames.get(p.id) ?? null;
+    return { ...p, code_name: code, displayName: displayNameOf({ name: p.name, code_name: code }) };
+  });
 import { FAQS, FAQ_HEADING, FAQ_INTRO } from "../src/data/faqs.js";
 import {
   ABOUT_COPY,
@@ -400,7 +412,7 @@ function renderProductJsonLd(p) {
   const offers = p.variants.map((v) => ({
     "@type": "Offer",
     sku: v.sku,
-    name: `${p.name} ${v.size_label}`,
+    name: `${dn(p)} ${v.size_label}`,
     price: Number(v.price).toFixed(2),
     priceCurrency: "USD",
     availability,
@@ -411,7 +423,7 @@ function renderProductJsonLd(p) {
   const product = {
     "@type": "Product",
     "@id": `${url}#product`,
-    name: `${p.name} — Research Reference Material`,
+    name: `${dn(p)} — Research Reference Material`,
     description: p.description,
     category: p.category_name,
     sku: p.variants[0]?.sku,
@@ -439,7 +451,7 @@ function renderProductJsonLd(p) {
   };
   return renderJsonLd({
     url,
-    title: `${p.name} — Research Reference Material`,
+    title: `${dn(p)} — Research Reference Material`,
     description: p.description,
     images: [DEFAULT_OG_IMAGE],
     product,
@@ -469,7 +481,7 @@ function renderProductBody(p, related = []) {
     "<main>",
     `<nav aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/shop">Shop</a> / ` +
       `<a href="/shop/${escapeHtml(p.category_slug)}">${escapeHtml(p.category_name)}</a></nav>`,
-    `<h1>${escapeHtml(p.name)} — Research Reference Material</h1>`,
+    `<h1>${escapeHtml(dn(p))} — Research Reference Material</h1>`,
     `<p>From ${fmtUsd(from)}</p>`,
     `<p>${escapeHtml(p.description)}</p>`,
     `<h2>Available sizes</h2><ul>${sizes}</ul>`,
@@ -479,7 +491,7 @@ function renderProductBody(p, related = []) {
       ? `<h2>More in ${escapeHtml(p.category_name)}</h2><ul>${related
           .map(
             (r) =>
-              `<li><a href="/product/${escapeHtml(r.slug)}">${escapeHtml(r.name)}</a> — from ${fmtUsd(
+              `<li><a href="/product/${escapeHtml(r.slug)}">${escapeHtml(dn(r))}</a> — from ${fmtUsd(
                 r.fromPrice
               )}</li>`
           )
@@ -500,7 +512,7 @@ function renderListBody(heading, intro, prods, trail) {
   const items = prods
     .map(
       (p) =>
-        `<li><a href="/product/${escapeHtml(p.slug)}">${escapeHtml(p.name)}</a> — from ${fmtUsd(
+        `<li><a href="/product/${escapeHtml(p.slug)}">${escapeHtml(dn(p))}</a> — from ${fmtUsd(
           p.fromPrice
         )}</li>`
     )
@@ -876,6 +888,26 @@ async function fetchSdsProductsAtBuild() {
   }
 }
 
+// Opt cycle 9 (C7): the products that carry a storefront code name. A 400 is
+// "migration 0036 not applied yet" and means no code names, not an error.
+async function fetchCodeNamesAtBuild() {
+  const url = String(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+  const key = process.env.VITE_SUPABASE_ANON_KEY || "";
+  if (!url || !key) return new Map();
+  try {
+    const res = await fetch(`${url}/rest/v1/products?select=id,code_name&code_name=not.is.null`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+    if (!res.ok) { console.warn(`[seo] code_name fetch ${res.status} — no code names applied (migration 0036 pending?)`); return new Map(); }
+    const rows = await res.json();
+    const map = new Map();
+    for (const r of Array.isArray(rows) ? rows : []) { const code = displayNameOf({ name: "", code_name: r.code_name }); if (r.id && code) map.set(r.id, code); }
+    console.log(`[seo] ${map.size} product(s) carry a storefront code name`);
+    return map;
+  } catch (e) {
+    console.warn(`[seo] code_name fetch failed (${e.message}) — no code names applied`);
+    return new Map();
+  }
+}
+
 function fmtIsoDay(d) {
   return d ? String(d).slice(0, 10) : "";
 }
@@ -1087,6 +1119,7 @@ async function main() {
   // build has no database access — shell-only, honestly logged).
   const coaRows = await fetchPublishedCoasAtBuild();
   const sdsRows = await fetchSdsProductsAtBuild();
+  codeNames = await fetchCodeNamesAtBuild();
   const coaStats = coaRows ? deriveCoaStats(coaRows) : null;
   const coaGroups = coaRows ? groupByProduct(coaRows) : new Map();
   const productsBySlug = getAllProducts();
@@ -1333,7 +1366,7 @@ async function main() {
   // a current attestation, enforced server-side). Data is mirrored from the
   // same source as the SQL seed (src/data/tier1Catalog.js) so HTML and DB never
   // drift.
-  const catalogProducts = getVisibleProducts();
+  const catalogProducts = withDisplayNames(getVisibleProducts());
   const catalogCategories = getVisibleCategories();
 
   const shopRoutes = [
@@ -1355,7 +1388,7 @@ async function main() {
       bodyHtml: renderListBody(
         cat.name,
         cat.description,
-        getVisibleProductsInCategory(cat.slug),
+        withDisplayNames(getVisibleProductsInCategory(cat.slug)),
         [
           { name: "Home", href: "/" },
           { name: "Shop", href: "/shop" },
@@ -1373,7 +1406,7 @@ async function main() {
 
   const productRoutes = catalogProducts.map((p) => ({
     pathname: `/product/${p.slug}`,
-    title: `${p.name} — Research Reference Material`,
+    title: `${dn(p)} — Research Reference Material`,
     description: `${p.blurb} For research use only. Not for human or veterinary use.`,
     ogType: "product",
     images: [DEFAULT_OG_IMAGE],
@@ -1387,7 +1420,7 @@ async function main() {
     ],
     bodyHtml: renderProductBody(
       p,
-      getVisibleProductsInCategory(p.category_slug).filter((r) => r.slug !== p.slug).slice(0, 6)
+      withDisplayNames(getVisibleProductsInCategory(p.category_slug)).filter((r) => r.slug !== p.slug).slice(0, 6)
     ),
   }));
 
@@ -1604,6 +1637,7 @@ async function main() {
     hiddenCategories: [...hiddenSlugs].sort(),
     coaRowCount: Array.isArray(coaRows) ? coaRows.length : null,
     sdsRowCount: Array.isArray(sdsRows) ? sdsRows.length : null,
+    codeNameCount: codeNames.size,
   };
   await fs.writeFile(path.join(DIST_DIR, BUILD_META_FILE), JSON.stringify(buildMeta, null, 2) + "\n", "utf8");
 

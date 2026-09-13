@@ -98,19 +98,31 @@ wins and the conflict is logged here so the prompt can be revised.
   answered a different question than the change. — yield: 0 shipped (two
   items cut early, correctly)
 
+- **H-014** [added cycle 9, from the owner's addendum] A card reaches **9**
+  when every check that can be verified locally or in CI is VERIFIED green.
+  A card reaches **10** only with production-verified evidence (live probe,
+  prod `verify:rls`, prod `db:verify`, a real payment smoke). Never award a
+  10 on local evidence; never mark `?` when a dated evidence artifact exists
+  (read it and show the date). — evidence (cycle 9): eight cycles of 9s with
+  no path to 10 until B1/B2/B3 exist; the addendum labelled this rule
+  "H-008" — that label was taken (see Prompt conflicts). — yield: the
+  ten-tracker in every report from cycle 9 on
+  — RECON step 0 (B4): `node scripts/evidence-latest.mjs` before anything
+  else; a dated artifact is scored with its date, stale (> 7 d) as SUSPECTED
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
-| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 4 | 2 | cycle 6 (checkout draft survives a reload — found walking the gated flow the fixture opened) |
-| Regulator walk | 8 | 7 | cycle 7 — cycle 8: the four research articles read by hand, clean; no dates emitted (none invented) — 0 yield |
+| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 5 | 2 | cycle 9: 308 screenshots taken (evidence matrix); review deferred to cycle 11 — 0 yield |
+| Regulator walk | 9 | 8 | cycle 9 (the code_name field is public text — copy door at the API, proven with the real handler) |
 | Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 4 | 2 | cycle 4 (cart next-tier nudge — first hit since the rewrite) |
-| Data honesty sweep | 5 | 5 | cycle 8 (rendered-hygiene gate: no leaked `undefined` / `NaN` / `[object Object]` / placeholder text on any page — found clean, now enforced) |
-| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 6 | 4 | cycle 7 (hostile-client flood → rate-limit coverage gate; found nothing missing, now enforced) |
-| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 8 | 7 | cycle 8 (first run of the rewrite: per-route bytes & requests budget gate in the E2E job) |
-| Ops dry run | 7 | 5 | cycle 8 (post-deploy smoke chain on every production deployment) |
-| Inversion | 5 | 4 | cycle 8 ("what drops us from Google?" → every unknown path was a soft 404; real 404s + the never-emitted /quality page found on the way) |
-| Accessibility sweep (axe) — added cycle 2 | 6 | 6 | cycle 8 (horizontal-overflow guard on the gated pages inside the authenticated pass) |
+| Data honesty sweep | 6 | 7 | cycle 9 (SCHEMA.md migration table stale since 0016 — completed; 4.7 corrected 8 → 7 by the first properly simulated measurement) |
+| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 7 | 5 | cycle 9 (static↔DB shape diff proven with an injected price drift + ghost product) |
+| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 9 | 7 | cycle 9 (measurement lane: LHCI median-of-3 finds LCP 3.1–3.4 s on all four gated routes — 1 finding, 0 shipped) |
+| Ops dry run | 8 | 9 | cycle 9 (evidence, live-probe and db-gates workflows + the sandbox reader) |
+| Inversion | 6 | 5 | cycle 9 ("what still imports a file nothing renders?" → legacy products.js deleted with proof) |
+| Accessibility sweep (axe) — added cycle 2 | 7 | 7 | cycle 9 (axe on EVERY route: /contact unlabeled controls + /about heading order — the 9-route sweep had never reached them) |
 
 ## Retired
 
@@ -199,6 +211,24 @@ wins and the conflict is logged here so the prompt can be revised.
   re-run the 0009 seed (on conflict do update) so DB and static agree. —
   status: ESCALATED (owner + attorney; engine will not change catalog copy
   unilaterally because it desyncs static from DB).
+
+- **Hy-008 (refined cycle 9)** — under Lighthouse's mobile simulation (4×
+  CPU, ~1.6 Mbps, 150 ms RTT) LCP is 3.1–3.4 s on `/`, `/shop`, a PDP and
+  `/test-results` with FCP 2.1–2.4 s; CLS 0, TBT < 120 ms. The waterfall:
+  2 KB document → 15 KB CSS + two variable fonts (34 + 36 KB, preloaded,
+  High) + ~180 KB of High-priority module scripts all contend on the
+  simulated link before the hero text can paint in its web font. Candidate
+  levers (deterministic, "bytes & requests" lane): keep `vendor-supabase`
+  (43 KB, ~80 KB unused per Lighthouse) out of the landing closure; subset
+  the two variable fonts to Latin; both to be tested THROUGH the LHCI gate
+  (H-013). — status: OPEN, leads cycle 10's performance work.
+- **Hy-009** [opened cycle 9] `scripts/test-jsx-undefined.mjs`'s noise
+  stripper treats an apostrophe in JSX text or a block comment as a string
+  opener (`'s report code goes …`, line 185 of AdminHome.jsx already does
+  this) and can swallow later declarations depending on parity; a new
+  comment with quotes made every component in AdminHome "undeclared".
+  Fix: strip block comments before strings, and ignore quotes inside JSX
+  text. — status: OPEN, small; do it when the file is next touched.
 
 ## Scorecard sharpenings (never loosenings)
 
@@ -310,6 +340,39 @@ wins and the conflict is logged here so the prompt can be revised.
   `.github/workflows/post-deploy.yml` on every successful Production
   deployment — cycle 8.
 
+## Prompt conflicts (addendum *Path to Ten*, 2026-09-13 — the addendum wins; logged so the prompt can be revised)
+
+- **"Add to PLAYBOOK as H-008."** H-008 already exists (structural claims are
+  false until computed, cycle 2). Filed as **H-014** with the same wording.
+- **"Cycle 2 / 3 / 4."** The addendum was written after engine cycle 1; its
+  cycle numbers map to engine cycles **9 / 10 / 11**. Its "already blind /
+  cannot download Chromium / cannot fetch Google Fonts" premise was true in
+  cycle 1 and false since cycle 2 (Chromium pre-installed; fonts
+  self-hosted). The live site is the only blind spot.
+- **"Commit `evidence/summary.json` back to the PR branch"** vs C6 "never
+  push to `main`": the scheduled live probe runs from `main` and would have
+  had to commit there. Owner decision (cycle 9): both workflows push compact
+  JSON to a dedicated orphan **`evidence` branch**; B4 reads from it.
+- **B1 "`npm run build` + `vite preview`"**: replaced by the E2E build served
+  through `scripts/serve-dist.mjs` (H-011 — `vite preview` applies neither
+  the `vercel.json` rewrites nor its headers; the gated pages need the E2E
+  build). Logged, not silently changed.
+- **"4.14 unlocked (now true)"**: 4.3 was 7 when the addendum arrived; 4.14
+  stays gated until B3 lifts 4.3.
+
+- 4.3: "static↔DB in sync" = `db:verify` counts + `db-shape-diff` rows, both
+  run in CI on a fresh Supabase stack (`db-gates.yml`) — cycle 9.
+- 4.7: "Lighthouse budgets" = LHCI, 3 runs, MEDIAN, mobile simulation, hard
+  gate on `/`, `/shop`, a PDP, `/test-results` (LCP ≤ 2.5 s, CLS ≤ 0.1,
+  TBT ≤ 200 ms) in `evidence.yml` — cycle 9. Local unthrottled numbers no
+  longer count toward this card.
+- 4.9: axe runs on EVERY sitemap route (+ the gated pages) in CI, not a
+  sample — cycle 9.
+- 4.12: "uptime target" = the 6-hourly live probe green, with a self-closing
+  issue while red — cycle 9.
+- 4.13: lint is 0 warnings, enforced by `--max-warnings 0`; test runtime
+  budget recorded in the cycle log — cycle 9.
+
 ## Change log
 
 - **2026-09-13 (cycle 1)** — added H-001…H-005 (seeded, each re-verified or
@@ -358,3 +421,11 @@ wins and the conflict is logged here so the prompt can be revised.
   cycle's lesson: the "/quality is a page" claim was false until the
   routing gate computed it). Rewritten cost/perf generator yielded on its
   first run. Scorecards 4.6, 4.7, 4.8, 4.10, 4.12 sharpened.
+- **2026-09-13 (cycle 9)** — added H-014 (9 = CI-verified, 10 = prod-verified;
+  from the owner's addendum) with the RECON step-0 corollary. Prompt-conflicts
+  section opened with five entries from the addendum diff. Hy-008 refined
+  with the first properly simulated numbers (LCP 3.1–3.4 s); Hy-009 opened
+  (JSX gate stripper). Ops dry run yielded 4; the all-routes axe sweep
+  yielded on its first run. 4.7 corrected DOWN (8 → 7) — the honesty rule
+  applied to the engine's own past scores. Scorecards 4.3, 4.7, 4.9, 4.12,
+  4.13 sharpened.

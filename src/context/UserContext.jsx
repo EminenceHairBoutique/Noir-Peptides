@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { siteOrigin } from "../lib/siteUrl";
 import { ATTESTATION_VERSION } from "../config/attestation";
@@ -89,6 +89,16 @@ const hydrateUser = (raw) => {
    Provider
 ========================= */
 
+// Opt cycle 9 (4.13): module-level so the memoized fetch below has no render-scoped dependency.
+const FALLBACK_ACCESS = {
+  accountTier: "customer",
+  partnerStatus: "none",
+  partnerTier: null,
+  role: "customer",
+  attestationCompletedAt: null,
+  attestationVersion: null,
+};
+
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,16 +107,8 @@ export const UserProvider = ({ children }) => {
   // The attestation fields back the hard auth wall (see RequireAuth).
   // Columns are selected defensively so the app degrades safely if a given
   // migration hasn't been applied yet.
-  const FALLBACK_ACCESS = {
-    accountTier: "customer",
-    partnerStatus: "none",
-    partnerTier: null,
-    role: "customer",
-    attestationCompletedAt: null,
-    attestationVersion: null,
-  };
 
-  const fetchAccountAccess = async (userId) => {
+  const fetchAccountAccess = useCallback(async (userId) => {
     if (!userId || !supabase) return { ...FALLBACK_ACCESS };
     try {
       const { data, error } = await supabase
@@ -130,7 +132,7 @@ export const UserProvider = ({ children }) => {
     } catch (_e) {
       return { ...FALLBACK_ACCESS };
     }
-  };
+  }, []);
 
   /* ---------- SESSION HYDRATION ---------- */
   useEffect(() => {
@@ -213,7 +215,7 @@ export const UserProvider = ({ children }) => {
         }
       }
     };
-  }, []);
+  }, [fetchAccountAccess]);
 
   /* =========================
      AUTH METHODS (REAL)

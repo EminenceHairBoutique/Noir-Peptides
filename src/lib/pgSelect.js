@@ -33,15 +33,20 @@ export function isMissingColumnError(error) {
 /**
  * @param {(columns: string) => Promise<{data: any, error: any}>} run
  *        Builds and awaits the query for a given column list.
- * @param {string} fullColumns  columns including post-migration additions
- * @param {string} baseColumns  columns guaranteed to exist pre-migration
+ * @param {...string} columnLists  column lists from the newest migration's
+ *        down to the base set that is guaranteed to exist; each is tried in
+ *        turn and the first that is not an undefined-column error is returned
+ *        (opt cycle 9: three steps — 0036, 0033, base).
  */
-export async function selectDegrading(run, fullColumns, baseColumns) {
-  const first = await run(fullColumns);
-  if (!isMissingColumnError(first?.error)) return first;
-  if (import.meta?.env?.DEV) {
-    // Loud in dev, silent in prod: this means a migration is pending.
-    console.warn("[pgSelect] falling back to base columns — pending migration?", first.error);
+export async function selectDegrading(run, ...columnLists) {
+  let result = null;
+  for (const cols of columnLists) {
+    result = await run(cols);
+    if (!isMissingColumnError(result?.error)) return result;
+    if (import.meta?.env?.DEV) {
+      // Loud in dev, silent in prod: this means a migration is pending.
+      console.warn("[pgSelect] falling back to an older column list — pending migration?", result.error);
+    }
   }
-  return run(baseColumns);
+  return result;
 }

@@ -47,8 +47,9 @@ export function buildCsp({ analyticsEnabled: a, allowInlineScript, forHeader = f
   const directives = [
     ["default-src", ["'self'"]],
     ["script-src", scriptSrc],
-    ["style-src", ["'self'", "'unsafe-inline'", "fonts.googleapis.com"]],
-    ["font-src", ["'self'", "data:", "fonts.gstatic.com"]],
+    // Fonts are self-hosted (opt cycle 2); no Google Fonts origin (cycle 9, C3).
+    ["style-src", ["'self'", "'unsafe-inline'"]],
+    ["font-src", ["'self'", "data:"]],
     ["img-src", imgSrc],
     ["frame-src", ["js.stripe.com", "*.stripe.com"]],
     ["connect-src", connectSrc],

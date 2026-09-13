@@ -1203,6 +1203,48 @@ function SdsRow({ row, onSaved, onError }) {
   );
 }
 
+/* ── Storefront code name (migration 0036, opt cycle 9 C7) ───────────────
+   Optional. When set, the shop, the product page, the cart and the checkout
+   summary show it instead of the substance name; certificates, safety data
+   sheets and order records keep the substance name. The code-name option
+   counsel raised is therefore a data entry here, not a deploy. The server
+   holds the text to the public-copy rules and an empty value clears it.
+   Hidden until the API returns the 0036 column. */
+function CodeNameRow({ row, onSaved, onError }) {
+  const supported = "code_name" in row;
+  const [edit, setEdit] = useState(row.code_name ?? "");
+  const [busy, setBusy] = useState(false);
+  if (!supported) return null;
+  const dirty = edit.trim() !== (row.code_name ?? "");
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await adminSend("/api/admin/catalog", "PATCH", { kind: "product", id: row.id, code_name: edit.trim() });
+      onSaved("product", r.product, null);
+    } catch (e) { onError(e.message); }
+    finally { setBusy(false); }
+  };
+  const inp = "rounded-lg border border-white/12 bg-white/[0.03] px-2 py-1 text-se-bone text-[12px] focus:border-se-gold focus:outline-none";
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-2 pl-8 border-t border-white/5">
+      <span className="text-[11px] uppercase tracking-wide text-se-steel shrink-0">Code name</span>
+      <input
+        type="text"
+        maxLength={80}
+        placeholder={`blank = show ${row.name}`}
+        title="Shown instead of the substance name on the shop, product page, cart and checkout. Certificates keep the substance name."
+        className={`${inp} flex-1 min-w-[220px]`}
+        value={edit}
+        onChange={(e) => setEdit(e.target.value)}
+      />
+      <button onClick={save} disabled={!dirty || busy}
+        className="text-[11px] rounded border border-se-gold/40 text-se-gold px-3 py-1 hover:bg-se-gold/10 disabled:opacity-30">
+        {busy ? "Saving…" : "Save"}
+      </button>
+    </div>
+  );
+}
+
 /* ── Category soft-launch visibility (migration 0034, Sept-11 T7) ──────────
    One checkbox per category. Hidden = the category and its products leave
    /shop, the category page, related rails, the sitemap and the prerender, and
@@ -1349,7 +1391,10 @@ function CatalogManager() {
                 </div>
               </div>
               {open.has(p.id) && (
-                <SdsRow row={p} onSaved={onSaved} onError={setErr} />
+                <>
+                  <SdsRow row={p} onSaved={onSaved} onError={setErr} />
+                  <CodeNameRow row={p} onSaved={onSaved} onError={setErr} />
+                </>
               )}
               {open.has(p.id) && vs.map((v) => (
                 <CatalogRow key={v.id} kind="variant" row={v}

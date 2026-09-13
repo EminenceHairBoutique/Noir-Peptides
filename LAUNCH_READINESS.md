@@ -1,11 +1,46 @@
 # Noir Peptides — Launch Readiness
 
-_Last updated: 2026-09-13_
+_Last updated: 2026-09-13 (opt cycle 9)_
 
 This tracks the Launch Remediation work (6 tasks) and what remains before going
 live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
+
+## ✅ Done (Sept-13 optimization cycle 9 — branch `claude/opt-cycle-9-20260913`, Draft PR)
+
+The owner's *Path to Ten* addendum, its "Cycle 2" (`OPTIMIZATION_LOG.md`, cycle 9):
+
+- **The engine has eyes.** Three workflows: `Evidence` (screenshots of every
+  route at four widths, axe on every route, Lighthouse median-of-3 hard
+  budgets, crawls → the orphan `evidence` branch), `Live probe` (every 6 h
+  against `PROD_URL`; one self-closing "Live probe failing" issue) and
+  `DB gates` (the real `verify:rls` / `db:verify` + a static↔DB shape diff on
+  a fresh Supabase stack). `node scripts/evidence-latest.mjs` reads the
+  results from any sandbox.
+- **Pre-authorized debt cleared:** legacy `src/data/products.js` + audit
+  script + CI step deleted (proof: nothing imported it); Stripe webhook
+  signature failure is a generic envelope; CSP no longer names the Google
+  Fonts hosts.
+- **`products.code_name`** (migration `0036`, set on nothing): an optional
+  storefront display name — shop, product page, cart, checkout — editable in
+  the Control Room behind the copy door. Certificates and order records keep
+  the substance name. → `docs/MIGRATIONS_0036.md`.
+- **Accessibility:** the first all-routes axe sweep found and fixed
+  unlabeled controls on `/contact` and a heading jump on `/about`.
+- **Hygiene:** lint at zero warnings, enforced; `docs/SCHEMA.md`'s migration
+  table completed (it had stopped at 0016).
+
+**Honest state:** the Lighthouse LCP budget (2.5 s) is missed on all four
+gated routes under mobile simulation (3.1–3.4 s), so the `Evidence` check is
+red until LCP moves — the engine leads with it next cycle. Performance is
+scored **7**, corrected down from 8.
+
+**Owner Sprint (D1–D12) status: none complete yet** — the exact command or
+screen for each step is in the cycle-9 log's Owner Sprint table. First three:
+`verify:rls` on prod, apply `0031`–`0036`, make the repo private. Set the
+repository variables `PROD_URL` and `CANONICAL_HOST` so the live probe
+targets the real host.
 
 ## ✅ Done (Sept-13 optimization cycle 8 — branch `claude/opt-cycle-8-20260913`)
 
@@ -204,7 +239,7 @@ escalations). Six verified items:
 `0030` — this leads every report until cleared. Repo still public. Domain not
 attached. Migrations `0031`–`0034` not yet applied. 0 of 19 certificates
 lab-linked (now possible from the Control Room). Legacy `src/data/products.js`
-+ CI "Product data audit" step await a delete decision.
++ CI "Product data audit" step awaited a delete decision (deleted in cycle 9).
 
 ## ✅ Done (Sept-11 launch-hardening pass — branch `claude/launch-hardening-sep11`)
 
@@ -359,6 +394,10 @@ against the real database.
 
 ## ⛔ Blocked on you (owner actions / decisions)
 
+> **Cycle 9 onward:** the sequenced list with a command or screen per step
+> is the **Owner Sprint** table (D1–D12) in `OPTIMIZATION_LOG.md`; the items
+> below are the original launch list and remain valid.
+
 1. **Domain consolidation (gated).** Confirm the single canonical host and which
    other domains/deployments should 301 to it. I have **not** hard-coded any
    apex→www or cross-domain redirect yet — give me the targets and I'll add them
@@ -391,8 +430,6 @@ against the real database.
 - **Dynamic-rail UI wiring.** `GET /api/payments/rails` exists; the Checkout
   page should consume it to render rails dynamically (currently Stripe + crypto
   buttons). Backend is ready.
-- **Legacy `src/data/products.js`** (stale 13-product file) should be removed once
-  its importers are repointed to the live catalog (see `docs/SCHEMA.md`).
 - **pgvector** must be enabled on Supabase for `0008` (native there).
 - **E2E not executed** in-sandbox (Playwright browser download blocked); specs
   parse only. Guardrail unit tests do run and pass.
