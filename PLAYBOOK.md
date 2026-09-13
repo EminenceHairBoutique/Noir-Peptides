@@ -98,6 +98,16 @@ wins and the conflict is logged here so the prompt can be revised.
   answered a different question than the change. — yield: 0 shipped (two
   items cut early, correctly)
 
+- **H-014** [added cycle 9, from the owner's addendum] A card reaches **9**
+  when every check that can be verified locally or in CI is VERIFIED green.
+  A card reaches **10** only with production-verified evidence (live probe,
+  prod `verify:rls`, prod `db:verify`, a real payment smoke). Never award a
+  10 on local evidence; never mark `?` when a dated evidence artifact exists
+  (read it and show the date). — evidence (cycle 9): eight cycles of 9s with
+  no path to 10 until B1/B2/B3 exist; the addendum labelled this rule
+  "H-008" — that label was taken (see Prompt conflicts). — yield: the
+  ten-tracker in every report from cycle 9 on
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
@@ -310,6 +320,26 @@ wins and the conflict is logged here so the prompt can be revised.
   `.github/workflows/post-deploy.yml` on every successful Production
   deployment — cycle 8.
 
+## Prompt conflicts (addendum *Path to Ten*, 2026-09-13 — the addendum wins; logged so the prompt can be revised)
+
+- **"Add to PLAYBOOK as H-008."** H-008 already exists (structural claims are
+  false until computed, cycle 2). Filed as **H-014** with the same wording.
+- **"Cycle 2 / 3 / 4."** The addendum was written after engine cycle 1; its
+  cycle numbers map to engine cycles **9 / 10 / 11**. Its "already blind /
+  cannot download Chromium / cannot fetch Google Fonts" premise was true in
+  cycle 1 and false since cycle 2 (Chromium pre-installed; fonts
+  self-hosted). The live site is the only blind spot.
+- **"Commit `evidence/summary.json` back to the PR branch"** vs C6 "never
+  push to `main`": the scheduled live probe runs from `main` and would have
+  had to commit there. Owner decision (cycle 9): both workflows push compact
+  JSON to a dedicated orphan **`evidence` branch**; B4 reads from it.
+- **B1 "`npm run build` + `vite preview`"**: replaced by the E2E build served
+  through `scripts/serve-dist.mjs` (H-011 — `vite preview` applies neither
+  the `vercel.json` rewrites nor its headers; the gated pages need the E2E
+  build). Logged, not silently changed.
+- **"4.14 unlocked (now true)"**: 4.3 was 7 when the addendum arrived; 4.14
+  stays gated until B3 lifts 4.3.
+
 ## Change log
 
 - **2026-09-13 (cycle 1)** — added H-001…H-005 (seeded, each re-verified or
@@ -358,3 +388,7 @@ wins and the conflict is logged here so the prompt can be revised.
   cycle's lesson: the "/quality is a page" claim was false until the
   routing gate computed it). Rewritten cost/perf generator yielded on its
   first run. Scorecards 4.6, 4.7, 4.8, 4.10, 4.12 sharpened.
+- **2026-09-13 (cycle 9)** — added H-014 (9 = CI-verified, 10 = prod-verified;
+  from the owner's addendum). Prompt-conflicts section opened with five
+  entries from the addendum diff. (Yields and sharpenings are appended at
+  the end of the cycle.)

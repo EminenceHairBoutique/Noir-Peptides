@@ -1475,3 +1475,139 @@ deploy workflow's first run is the next production deploy. No migrations,
 no data, no payment / RLS / CSP files touched.
 
 **Rollback.** Revert the branch.
+
+---
+
+## Cycle 9 — 2026-09-13 (addendum "Path to Ten", its "Cycle 2")
+
+**HEAD before:** `5977b84` (main, Merge PR #40). **Branch:** `claude/opt-cycle-9-20260913`.
+**Prompt:** the owner's addendum *Path to Ten* (version 2026-09-13) to
+`noir-optimization-engine-fable51.md`. Where it conflicts with the base
+prompt or this playbook, the addendum wins and the conflict is logged in
+`PLAYBOOK.md` (§ Prompt conflicts). Its §C pre-authorizations are in force
+for this cycle: C1 legacy deletion, C2 webhook envelope, C3 CSP font lines,
+C4 workflows, C5 `evidence/`, C6 push + **Draft** PR without asking, C7
+`code_name`, C8 admin screens (deferred to cycle 10). Everything else the
+base prompt marks ask-before stays ask-before.
+
+### RECON
+
+Nothing landed on `main` since the cycle-8 merge. Build 79 routes / sitemap
+73 / `404.html`; `test:unit` 62 suites / 1068 ✓ / 0 ✗; `npm audit` 0; lint 0
+errors / **3 warnings** (`SEO.jsx:234` ×2, `UserContext.jsx:216`). Live site
+still unreachable from the sandbox. `evidence/` does not exist.
+`supabase/config.toml` does not exist (no CLI project). `ROTATION_CHECKLIST.md`
+exists. `lighthouse` / `@lhci/cli` are not installed.
+
+**The addendum diffed against reality (H-007).** It was written after cycle
+1 and plans "Cycle 2 → 5". Eight cycles have merged since (PRs #33–#40).
+Already in the tree — credited, not redone: internal-link depth ≤ 2 clicks
+(c2), fonts self-hosted from tracked woff2 + preloads (c2; Hy-002 resolved by
+measurement — only the CSP origins remain, see C3), axe-core sweep (c2) incl.
+the gated pages (c7), keyboard-only checkout E2E + authenticated fixture
+(c5), order-confirmation email tested (c5), server error ledger (c6),
+post-deploy `test:e2e:prod` on production deployments (c8), real 404s +
+routing gate (c8), rendered-hygiene crawl — dead links, lorem, "coming
+soon", TODO, placeholder, empty `<main>` (c8), bytes & requests budget (c8),
+`.env.example` complete + gated (c3), `prerender-meta.json` (Sept 11),
+category posture executable (`soft_launch_hidden` + Control Room toggle +
+rebuild hook), rate-limit coverage gate (c7), copy doors on every
+admin-entered public text (c5–c7), static↔seed sync gate
+(`test-seed-sync.mjs`), runbook current (c7).
+
+**Premise corrections (H-007):**
+- "The engine was blind — cannot download Chromium, cannot fetch Google
+  Fonts." Chromium is pre-installed in this sandbox
+  (`/opt/pw-browsers/chromium-1194`); screenshots, axe and E2E have run
+  locally since cycle 2; fonts are self-hosted. The one real blind spot is
+  the **live site** (egress to `*.vercel.app` / `noirpeptides.com` is
+  blocked). So B2 (live probe in CI) is what gives the engine eyes; B1 is
+  the durable, dated evidence trail.
+- "4.14 unlocked when 4.1–4.5 ≥ 8 (now true)." 4.3 is **7** (db:verify never
+  run anywhere but by hand). 4.14 stays gated until B3 lifts 4.3.
+- The addendum's honesty rule is labelled "H-008"; that label is taken
+  (structural claims are false until computed, cycle 2). Filed as **H-014**.
+- Addendum "Cycle 2 / 3 / 4" = engine cycles **9 / 10 / 11**.
+
+**Still missing — this cycle's scope:** B1 evidence workflow (screenshot
+matrix, axe on every route, Lighthouse median-of-3 hard gate, crawl,
+compact summary), B2 live probe (6-hourly, against `PROD_URL`, issue on
+failure), B3 DB gates (the real `verify:rls` + `db:verify` need PostgREST +
+GoTrue, not bare Postgres), B4 fallback reader, C1, C2, C3, C7, lint 0
+warnings, §F reporting, H-014.
+
+**Owner decisions taken before execution (asked, answered):**
+1. Evidence lives on a dedicated orphan **`evidence` branch** (CI pushes
+   compact JSON there; the engine fetches it at RECON). The addendum said
+   "commit back to the PR branch"; C6 says never push to `main`, and the
+   scheduled probe would have had to. Logged as a conflict.
+2. Lighthouse is a **hard gate on the median of 3 runs**.
+3. B3 runs the **Supabase CLI local stack** in a new `db-gates.yml`; the PG16
+   ordering job in `ci.yml` stays.
+4. C7 `code_name` ships on the **client, prerender and admin** surfaces; the
+   server order-line path (`lib/pricing.js` nested select → persisted lines
+   → emails) is ask-before and is escalated, not touched.
+
+**Deviations from the addendum's text, logged (H-007 / H-011):**
+- B1 serves `npm run build:e2e` through `scripts/serve-dist.mjs` (the
+  Vercel-style server that applies the `vercel.json` rewrites and headers),
+  not `npm run build` + `vite preview :4173`: `vite preview` uses neither, so
+  screenshots / axe / Lighthouse would measure a transport the site never
+  uses, and only the E2E build makes `/cart` and `/checkout` reachable.
+- Lighthouse runs through `@lhci/cli` (same engine; adds median-of-N and
+  assertions), pinned in the workflow via `npx`, **not** added to
+  `package.json` — keeps `npm ci` and `npm audit` unchanged.
+- B2 "sitemap URL count matches build": the probe job builds without DB env
+  and asserts prod ≥ local (DB-sourced routes can only add), recording both.
+
+### SCORE (before this cycle's work)
+
+| # | Scorecard | Score | Blocks 9 (engine) |
+| --- | --- | --- | --- |
+| 4.1 | Legal | 9 | — (10 needs live scanner = 0 + counsel) |
+| 4.2 | Security | 9 | webhook echo; `verify:rls` not CI-provable; fonts CSP |
+| 4.3 | Data | 7 | `db:verify` not CI-provable; no static↔DB diff |
+| 4.4 | Trust | 9 | — (COA upload / batch permalinks → cycle 10–11) |
+| 4.5 | Commerce | 9 | — |
+| 4.6 | SEO | 9 | — |
+| 4.7 | Performance | 8 | no Lighthouse gate |
+| 4.8 | UI/UX | 7 | no screenshot matrix / per-route notes |
+| 4.9 | Accessibility | 9 | axe not on every route |
+| 4.10 | Mobile | 9 | — |
+| 4.11 | Admin | 9 | — (C8 screens → cycle 10) |
+| 4.12 | Observability | 8 | no live probe / uptime target |
+| 4.13 | Hygiene | 8 | 3 lint warnings; legacy `products.js` |
+| 4.14 | Growth | — | gated (4.3 < 8) |
+
+### PLAN (written before execution; one commit per item, in this order)
+
+0. This entry + `PLAYBOOK.md` H-014 and the conflict log.
+1. **[B1] `evidence.yml`** — E2E build served Vercel-style; screenshot
+   matrix (sitemap + `/cart` + `/checkout`) × {320, 390, 768, 1280}; axe on
+   every route (the existing sweep, `A11Y_ALL_ROUTES=1`); LHCI median-of-3
+   hard gate on `/`, `/shop`, `/product/bpc-157`, `/test-results`; link-depth
+   + hygiene crawls; `evidence/summary.json` → artifact + `evidence` branch.
+2. **[B2] `live-probe.yml` + `scripts/live-probe.mjs`** — every 6 h against
+   `PROD_URL`; the assertion list from the addendum (canonical host,
+   `dbEnvPresent` — this executes Hy-001 —, CSP byte-equal to the builder,
+   HSTS, nosniff, scanner hits = 0, sitemap ≥ local build, ≥ 1 COA row,
+   rails envelope, real 404); axe + LHCI on prod; `live-probe.json` →
+   `evidence` branch; single "Live probe failing" issue.
+3. **[B3] `db-gates.yml`** — Supabase CLI stack in a scratch project
+   (`0027_PROPOSED` excluded), `verify:rls` and `db:verify` unchanged, plus
+   `scripts/db-shape-diff.mjs` (static ↔ DB rows).
+4. **[B4] `scripts/evidence-latest.mjs`** — the sandbox reader; RECON rule.
+5. **[C1]** delete `src/data/products.js` + audit script + CI step + docs.
+6. **[C2]** webhook signature failure → `{ error: "invalid signature" }`.
+7. **[C3]** CSP `style-src` / `font-src` without Google font hosts.
+8. **[C7]** `0036_products_code_name.sql`; `displayName` mapping; shopper
+   surfaces; prerender overlay; admin field + copy door; tests. Set on nothing.
+9. **[4.13]** lint 0 warnings, `--max-warnings 0`.
+10. §F report: ten-tracker, Owner Sprint D1–D12, provenance; docs; runbook.
+11. Push + Draft PR (C6). The PR's own `evidence` / `db-gates` runs are the
+    proof; red runs are fixed on the branch and the run URLs cited here.
+
+Generators this cycle: Ops dry run (B1–B4), Failure injection (B3 on a fresh
+stack; C2), Data honesty (C7 mapping, shape diff), Inversion (C1: "what
+still imports a file nothing renders?"), Accessibility sweep (B1 every
+route), Cost/perf — measurement lane (Lighthouse in CI).
