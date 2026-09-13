@@ -9,6 +9,7 @@ import { requireUser } from "./_utils/auth.js";
 import { checkRateLimit } from "./_utils/rateLimit.js";
 import { readJsonBody, jsonResponse as json } from "./_utils/body.js";
 import { validateBody } from "./_utils/validate.js";
+import { checkLabelText } from "../lib/labelCopyRules.js";
 
 const ASPECTS = ["quality", "packaging", "coa", "shipping", "service"];
 
@@ -19,6 +20,9 @@ const DISALLOWED = [
   /\b(felt|feeling|results?|gains?|recovery|healed|weight\s*loss|fat\s*loss|libido|energy|sleep better|skin)\b/i,
   /\bmg\s*\/\s*kg\b|\b(dose|dosage|dosing|inject|subcutaneous|intramuscular)\b/i,
   /\b(cured|treated|treats|healed|works for my)\b/i,
+  // Opt c6: outcome verbs and body-part / condition words have no place in a
+  // quality / packaging / COA / shipping review.
+  /\b(recover(?:ed|s|y|ing)?|heal(?:ed|s|ing)?|tendon|joints?|muscles?|injur(?:y|ies|ed)|wounds?|inflammation|pain|anxiety|mood|libido|appetite|metabolism|my (?:body|skin|hair|gut|stomach))\b/i,
 ];
 
 function violatesClaimSafety(text) {
@@ -51,8 +55,13 @@ export default async function handler(req, res) {
   });
   if (!ok) return json(res, 400, { error: "Invalid request", details: errors });
 
-  // Claim-safe screening of free text.
-  if (violatesClaimSafety(`${value.title || ""} ${value.body || ""}`)) {
+  // Claim-safe screening of free text: the review-specific list above PLUS the
+  // site-wide rules (opt c6, 4.1) — the compliance scanner outside a negation
+  // and every use-language pattern (volume, solvent, route, dose, schedule,
+  // reconstitution instruction). Reviews are the only public copy a buyer
+  // writes; they are held to the same rule as a printed label.
+  const text = `${value.title || ""} ${value.body || ""}`;
+  if (violatesClaimSafety(text) || checkLabelText(text).length > 0) {
     return json(res, 400, {
       error:
         "Reviews can describe quality, packaging, COA, and shipping only — not human/animal use, results, dosing, or therapeutic claims.",

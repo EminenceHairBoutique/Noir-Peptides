@@ -7,6 +7,26 @@ live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
 
+## ✅ Done (Sept-13 optimization cycle 6 — branch `claude/opt-cycle-6-20260913`)
+
+Four verified items and one measured cut (`OPTIMIZATION_LOG.md`, cycle 6):
+
+- **Legal: buyer reviews are held to the site's rules.** The review endpoint
+  now applies the same use-language rules and compliance scanner that gate
+  printed labels, on top of its own outcome / body-part list; anything
+  flagged is refused with guidance and nothing is written.
+- **Commerce: the checkout draft survives a reload** (session storage only;
+  the three RUO certifications are re-affirmed every time). Asserted in E2E.
+- **Observability: API failures now reach the Control Room.** Every
+  safely-failed request is recorded (scrubbed, no PII) in a new
+  `server_errors` ledger — migration `0035` — and listed beside the client
+  errors. Until 0035 is applied the tab says so.
+- **Cut, with data:** `font-display: optional` for the mono faces won as an
+  inline variant and lost when built (+832 ms LCP on `/`, 4 of 4). Reverted.
+
+**Owner:** apply `0035_server_errors.sql` with `0031`–`0034` (same
+one-shot as before); everything else unchanged.
+
 ## ✅ Done (Sept-13 optimization cycle 5 — branch `claude/opt-cycle-5-20260913`)
 
 Three verified items and one measured cut (`OPTIMIZATION_LOG.md`, cycle 5):

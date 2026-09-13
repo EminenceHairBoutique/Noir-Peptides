@@ -1365,6 +1365,60 @@ function CatalogManager() {
 }
 
 /* ── Client error telemetry ───────────────────────────────────────────── */
+/* Opt c6 (4.12): API failures recorded by lib/apiError.js failSafely()
+   (migration 0035) — the server half of the Errors tab. */
+function ServerErrors() {
+  const [rows, setRows] = useState([]);
+  const [pending, setPending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+  const load = () => {
+    setLoading(true);
+    adminGet("/api/admin/server-errors")
+      .then((d) => { setRows(d.errors || []); setPending(Boolean(d.migrationPending)); setErr(null); })
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+  const setResolved = async (id, resolved) => {
+    try {
+      await adminSend("/api/admin/server-errors", "PATCH", { id, resolved });
+      setRows((rs) => rs.map((r) => (r.id === id ? { ...r, resolved } : r)));
+    } catch (e) { setErr(e.message); }
+  };
+  return (
+    <div className="space-y-3 mt-8" data-testid="server-errors">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-accent uppercase tracking-[0.16em] text-se-steel">API failures (server)</p>
+        <button onClick={load} className="inline-flex items-center gap-1.5 text-[12px] text-se-steel hover:text-se-gold">
+          <RefreshCw size={13} /> Refresh
+        </button>
+      </div>
+      {loading && <p className="text-se-steel text-sm">Loading…</p>}
+      {err && <p className="text-red-300 text-sm">{err}</p>}
+      {!loading && pending && (
+        <p className="text-[12px] text-amber-300">Apply migration 0035 (server_errors) to start recording API failures here.</p>
+      )}
+      {!loading && !pending && !rows.length && (
+        <div className="glass-panel p-6 text-se-bone/50 text-sm">No API failures recorded. Every safely-failed request lands here with its request id.</div>
+      )}
+      {rows.map((r) => (
+        <div key={r.id} className={`glass-panel p-4 ${r.resolved ? "opacity-50" : ""}`}>
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <span className="text-[11px] text-se-steel font-accent truncate">
+              {r.context || r.code || "api"} · {r.status} · {new Date(r.created_at).toLocaleString()} · <span className="font-mono">{r.request_id}</span>
+            </span>
+            <button onClick={() => setResolved(r.id, !r.resolved)} className={`shrink-0 text-[11px] ${r.resolved ? "text-amber-300" : "text-emerald-300"} hover:underline`}>
+              {r.resolved ? "Reopen" : "Resolve"}
+            </button>
+          </div>
+          <p className="text-[12.5px] text-se-bone/85 font-mono break-words">{r.message}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ClientErrors() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1484,7 +1538,7 @@ export default function AdminHome() {
           {tab === "coa" && <CoaManager />}
           {tab === "discounts" && <DiscountsManager />}
           {tab === "flags" && <AiFlags />}
-          {tab === "errors" && <ClientErrors />}
+          {tab === "errors" && (<><ClientErrors /><ServerErrors /></>)}
           {tab === "scanner" && <ComplianceScanner />}
         </div>
       </div>

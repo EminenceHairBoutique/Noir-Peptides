@@ -85,25 +85,30 @@ wins and the conflict is logged here so the prompt can be revised.
   420–460 ms opacity-0 window over already-painted content. — yield: 1
   (the fix kept for the verified reason, the hypothesis rewritten)
 
-- **H-013** [added cycle 5] For a paint metric, run the change as a
-  route-injected VARIANT (CSS or HTML swapped in by the test harness) and win
-  over ≥4 back-to-back runs before writing it into the tree. — evidence: the
-  styled prerender shell was written, built, A/B'd and reverted in one cycle:
-  it made the home page's largest paint land 860 ms later in 4 of 4 runs.
-  The same experiment as an injected variant would have cost ten minutes and
-  no build. — yield: 0 shipped (one item cut early, correctly)
+- **H-013** [added cycle 5, amended cycle 6] For a paint metric, run the
+  change as a route-injected VARIANT and win over ≥4 back-to-back runs
+  before writing it into the tree — AND inject it through the same delivery
+  path the real change will use. — evidence (cycle 5): the styled prerender
+  shell was written, built, A/B'd and reverted: +860 ms on the home page's
+  largest paint in 4 of 4 runs. Amendment (cycle 6): `font-display:
+  optional` for the mono faces won as an INLINE `<style>` variant (FCP −130,
+  LCP −140, 4 of 4) and then LOST when built into the external stylesheet
+  (LCP +832, 4 of 4) — an inline @font-face is parsed before the
+  render-blocking stylesheet arrives; the bundled one is not. The variant
+  answered a different question than the change. — yield: 0 shipped (two
+  items cut early, correctly)
 
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
-| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 3 | 1 | cycle 5: first screenshots of the GATED pages (/cart, /checkout step 1 + 2) via the auth fixture; JS-off screenshots of the prerender — 0 shipped items, two findings recorded |
-| Regulator walk | 5 | 5 | cycle 5 (admin-entered label text refused at the door — same rules as the gate) |
+| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 4 | 2 | cycle 6 (checkout draft survives a reload — found walking the gated flow the fixture opened) |
+| Regulator walk | 6 | 6 | cycle 6 (reviews — the only public copy a buyer writes — held to the site's rules) |
 | Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 4 | 2 | cycle 4 (cart next-tier nudge — first hit since the rewrite) |
 | Data honesty sweep | 3 | 3 | cycle 2 — cycle 3: 0 yield — not run cycle 4 |
 | Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 5 | 3 | cycle 5 (a stale attestation on a signed-in profile → the checkout bounces to the attestation step — asserted in E2E) |
-| Cost/perf profile | 5 | 6 | cycle 4 — cycle 5: styled prerender shell measured and CUT (+860 ms LCP on `/`), Hy-008 refined |
-| Ops dry run | 4 | 2 | cycle 3 — cycle 4: status emails checked, 0 yield |
+| Cost/perf profile | 6 | 6 | cycle 4 — cycles 5–6: two items measured and CUT (styled shell +860 ms; mono `optional` +832 ms built-in) — 0 yield two cycles running → rewrite or retire next cycle |
+| Ops dry run | 5 | 3 | cycle 6 (server error ledger in the Control Room) |
 | Inversion | 4 | 3 | cycle 5 ("what makes a chargeback stick?" → receipt-grade confirmation email) |
 | Accessibility sweep (axe) — added cycle 2 | 4 | 4 | cycle 5 (authenticated E2E fixture; keyboard-only walk through the gated cart → checkout; attestation gate asserted) |
 
@@ -170,9 +175,15 @@ wins and the conflict is logged here so the prompt can be revised.
   4). The shell and the preload were reverted. What is known: the hero
   paragraph's first React paint is sometimes smaller than the static
   candidate and only a later repaint qualifies; what is not: which repaint.
-  — next test (H-013): route-inject `font-display: optional` for the mono
-  face and, separately, a fixed hero `min-height`, and read the candidate
-  sequence over ≥6 runs each.
+  — cycle 6: `font-display: optional` for the mono faces was tested both
+  ways (see H-013): fast as an inline variant, slow when built. A preload of
+  the mono file reproduces the slow mode reliably (3 of 4, twice now). The
+  slow mode therefore correlates with the mono face being AVAILABLE at
+  React's first paint, not with it arriving late — the opposite of the
+  cycle-4 reading. Next test: measure the hero paragraph's paint with the
+  mono face replaced by the fallback family entirely (inline `font-family`
+  override on the hero) to see whether the mono metrics themselves trigger
+  the late candidate. Status: OPEN; no lever shipped.
 - **Hy-006** Keyboard-only checkout cannot be asserted until an authenticated
   E2E fixture exists. — status: **RESOLVED cycle 5** — `npm run build:e2e`
   gives only the Vite step a fake `*.supabase.co` URL (prerender / CSP steps
@@ -262,6 +273,17 @@ wins and the conflict is logged here so the prompt can be revised.
   (`scripts/test-order-email.mjs`: lines, quantities, unit prices, total,
   ship-to, method, escaping, honest omission) — cycle 5.
 
+- 4.1: "admin-editable fields with public render" now includes buyer
+  reviews — `api/reviews.js` applies the shared use-language rules and the
+  scanner (outside a negation) on top of its own list; enforced by
+  `scripts/test-reviews-screen.mjs` (real handler) — cycle 6.
+- 4.5: "state survives back-navigation and reload" is asserted for the
+  checkout step-1 draft in `checkout-keyboard.spec.js` (session storage
+  only; certifications never restored) — cycle 6.
+- 4.12: "server error ledger populated and visible in admin" is now real —
+  `failSafely` → `server_errors` (0035) → Control Room Errors tab; enforced
+  by `scripts/test-server-errors.mjs` — cycle 6.
+
 ## Change log
 
 - **2026-09-13 (cycle 1)** — added H-001…H-005 (seeded, each re-verified or
@@ -295,3 +317,7 @@ wins and the conflict is logged here so the prompt can be revised.
   Hy-006 resolved (authenticated E2E fixture, no production seam); Hy-008
   refined with the data from the cut item. Buyer walk credited with its
   first gated-page screenshots. Scorecards 4.1, 4.5/4.9, 4.11 sharpened.
+- **2026-09-13 (cycle 6)** — H-013 amended (inject through the real delivery
+  path; evidence: the mono `optional` result inverted when built). Hy-008
+  refined again and still open; cost/perf profile at 0 yield for two cycles
+  → rewrite or retire next cycle. Scorecards 4.1, 4.5, 4.12 sharpened.

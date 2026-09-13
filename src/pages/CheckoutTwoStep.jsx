@@ -15,7 +15,8 @@
 // record server-side (POST /api/checkout-compliance — SQL in
 // scripts/proposed-order-attestations.sql), THEN advances to payment. Cart
 // state is preserved across steps and across a back-navigation.
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { readCheckoutDraft, writeCheckoutDraft, clearCheckoutDraft } from "../lib/checkoutDraft";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useUser } from "../context/UserContext";
@@ -75,20 +76,29 @@ export default function CheckoutTwoStep() {
   );
 
   // Single source of Step-1 state; preserved across step navigation.
-  const [form, setForm] = useState({
-    contact: {
-      firstName: user?.name?.split(" ")[0] || "",
-      lastName: user?.name?.split(" ").slice(1).join(" ") || "",
-      email: user?.email || "",
-      phone: "",
-    },
-    shipping: { ...emptyAddr },
-    billingDifferent: false,
-    billing: { ...emptyAddr },
-    research: { entity: "", protocol: "" },
-    shippingMethod: "",
-    attestations: {},
+  // Opt c6 (4.5): the step-1 draft survives a reload. sessionStorage (this
+  // tab only, gone when it closes — never localStorage); the three RUO
+  // certifications are deliberately NOT restored: they are re-affirmed on
+  // every pass. Cleared the moment payment starts.
+  const [form, setForm] = useState(() => {
+    const fresh = {
+      contact: {
+        firstName: user?.name?.split(" ")[0] || "",
+        lastName: user?.name?.split(" ").slice(1).join(" ") || "",
+        email: user?.email || "",
+        phone: "",
+      },
+      shipping: { ...emptyAddr },
+      billingDifferent: false,
+      billing: { ...emptyAddr },
+      research: { entity: "", protocol: "" },
+      shippingMethod: "",
+      attestations: {},
+    };
+    const draft = readCheckoutDraft();
+    return draft ? { ...fresh, ...draft, attestations: {} } : fresh;
   });
+  useEffect(() => { writeCheckoutDraft(form); }, [form]);
 
   const subtotal = Number(total) || 0;
   const step1Valid = useMemo(() => isStep1Valid(form), [form]);
@@ -131,6 +141,7 @@ export default function CheckoutTwoStep() {
   };
 
   const onPay = async (rail) => {
+    clearCheckoutDraft();
     if (!rail) return;
     setError(null);
     setSubmitting(true);

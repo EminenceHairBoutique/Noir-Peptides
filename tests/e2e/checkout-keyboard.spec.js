@@ -101,6 +101,27 @@ test.describe("gated checkout, keyboard-only (attested researcher)", () => {
     await page.screenshot({ path: testInfo.outputPath("checkout-step2.png"), fullPage: true });
   });
 
+  test("the step-1 draft survives a reload; the certifications do not", async ({ authedPage: page }) => {
+    await seedCart(page);
+    await page.goto("/checkout");
+    await expect(page.locator("#ct-first")).toBeVisible({ timeout: 15_000 });
+    await page.fill("#ct-first", "Ada");
+    await page.fill("#ship-line1", "12 Lab Row");
+    await page.fill("#ship-city", "Austin");
+    await page.selectOption("#ri-entity", { index: 1 });
+    const boxes = page.locator('section[aria-labelledby="at-h"] input[type="checkbox"]');
+    await boxes.nth(0).check();
+    await page.reload();
+    await expect(page.locator("#ct-first")).toHaveValue("Ada", { timeout: 15_000 });
+    await expect(page.locator("#ship-line1")).toHaveValue("12 Lab Row");
+    await expect(page.locator("#ship-city")).toHaveValue("Austin");
+    expect(await page.locator("#ri-entity").inputValue()).not.toBe("");
+    await expect(boxes.nth(0)).not.toBeChecked();
+    // Nothing of the draft reaches localStorage.
+    const inLocal = await page.evaluate(() => Object.keys(localStorage).filter((k) => /checkout/i.test(k)));
+    expect(inLocal).toEqual([]);
+  });
+
   test("a signed-in user WITHOUT a current attestation is sent to the attestation step", async ({ page }) => {
     await installAuth(page, { profile: profileFor({ attested: false }) });
     await page.goto("/checkout");
