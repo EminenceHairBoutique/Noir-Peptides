@@ -5,9 +5,8 @@
        from a caught error may be LOGGED (console.*) or passed to failSafely
        (which logs it under a request id and returns the stable envelope), but
        must never appear in a `.send(`, `.json(`, or `json(res, …)` call.
-       Documented exception: api/stripe-webhook.js echoes Stripe's own
-       signature-verification message on 400 — that file is ask-before and is
-       listed in the escalation list, not silently exempted.
+       (api/stripe-webhook.js echoed Stripe's signature-verification message
+       on 400 until opt cycle 9, C2: it now returns the generic envelope.)
     2. Every api/admin/*.js handler calls requireAdmin.
   Plus a runtime proof on the public contact endpoint: a failing email
   transport yields the envelope, not the transport's message.
@@ -37,9 +36,7 @@ function files(dir, out = []) {
 }
 const all = files(API);
 
-const KNOWN_EXCEPTIONS = {
-  "api/stripe-webhook.js": "echoes Stripe's signature-verification message on 400 (ask-before file; escalated)",
-};
+const KNOWN_EXCEPTIONS = {};
 
 console.log("1. No raw error text reaches a response:");
 const leakRe = /(\.send\(|\.json\(|json\(\s*res\s*,)[^;]*\b(err|error|e)\??\.message/;
@@ -56,6 +53,7 @@ for (const f of all) {
 }
 ok(leaks.length === 0, `no api/** file sends err.message to the client (leaks: ${JSON.stringify(leaks)})`);
 ok(Object.keys(KNOWN_EXCEPTIONS).every((k) => all.some((f) => path.relative(process.cwd(), f) === k)), "every documented exception still exists (no stale exemptions)");
+ok(!/Webhook Error:/.test(readFileSync(path.join(process.cwd(), "api/stripe-webhook.js"), "utf8")) && /\{ error: "invalid signature" \}/.test(readFileSync(path.join(process.cwd(), "api/stripe-webhook.js"), "utf8")), "api/stripe-webhook.js: a signature failure is the generic { error: \"invalid signature\" } envelope (opt cycle 9, C2)");
 for (const rel of ["api/contact.js", "api/partners/directory-settings.js", "api/ai/compliance-scan.js"]) {
   const src = readFileSync(path.join(process.cwd(), rel), "utf8");
   ok(!/\.(send|json)\([^;]*\.message/.test(src.replace(/\/\/[^\n]*/g, "")), `${rel}: the cycle-1 fix holds`);
