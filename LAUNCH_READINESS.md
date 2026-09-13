@@ -7,6 +7,29 @@ live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
 
+## ✅ Done (Sept-13 optimization cycle 2 — branch `claude/opt-cycle-2-20260913`)
+
+Seven verified items (`OPTIMIZATION_LOG.md`, cycle 2):
+
+- **Crawl depth is now true and enforced.** The Aug-28 "every public page ≤2
+  clicks from any other" claim was false (315 pairs over, `/deals` and
+  `/legal/returns` orphaned). The prerendered footer nav links Home, Deals and
+  every visible category; the alias is noindex; `test-link-depth.mjs` gates it.
+- **Fonts self-hosted** from the label engine's existing files, preloaded — no
+  Google Fonts request on any page (`test-fonts-selfhosted.mjs`).
+- **Accessibility:** axe sweep in CI; 20 serious findings → 0 (contrast
+  tokens, link underline, heading order, decorative watermark). 407 moderate
+  landmark findings remain (planned, cycle 3).
+- **Legal:** the footer watermark still carried the retired "Performance"
+  tagline — corrected; a source-wide guard now prevents its return.
+- **Attestation records carry the user agent** on every order.
+- **Secret scrubber** covers Anthropic and Resend key shapes.
+- **SW precache budget** enforced. Mobile 52/52 on the final build.
+
+**What didn't move (owner):** `verify:rls` on prod; repo visibility; domain;
+migrations `0031`–`0034`; lab data entry; the legacy products file. **New
+ask:** drop the Google Fonts origins from the CSP (ask-before file).
+
 ## ✅ Done (Sept-13 optimization cycle 1 — branch `claude/opt-cycle-1-20260913`)
 
 Engine loop established: `PLAYBOOK.md` (heuristics, generator yields,

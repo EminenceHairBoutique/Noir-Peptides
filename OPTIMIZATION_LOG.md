@@ -188,3 +188,189 @@ visibility, payment rails, RLS, or CSP block touched.
 
 **HEAD after (code):** `d2ee963` — plus this docs commit on top.
 
+---
+
+## Cycle 2 — 2026-09-13
+
+**HEAD before:** `c0c7e73` (main, Merge PR #33). **Branch:** `claude/opt-cycle-2-20260913`.
+
+### RECON
+
+Ran in the order cycle 1 said it would: numeric diff first (H-007), corpus gate
+second. Nothing landed on `main` since the cycle-1 merge. Build 78 routes /
+sitemap 73 / CSP meta; `test:unit` 40 suites / 790 ✓; `npm audit` 0; corpus
+gate green. The committed prompt (`noir-optimization-engine-fable51.md`, version
+2026-09-12) still carries the cycle-1-corrected CONTEXT; no new drift.
+Live site: still unreachable (egress 403) → live checks stay `?`. **New this
+cycle:** `fonts.googleapis.com`/`gstatic` and `registry.npmjs.org` ARE
+reachable, which unblocks Hy-002 and an accessibility engine.
+
+**Acting on cycle 1's "what I'd do differently":** corpus scan ran first ✓;
+the link-depth gate below is written BEFORE its fix ✓; no anchor-append JSX
+edits ✓ (restructure explicitly); numeric diff ran before any full read ✓.
+
+**Findings from RECON (all VERIFIED by a command this cycle):**
+- **4.6 — the "every public page ≤2 clicks from any other" claim (Aug 28) is
+  false in the prerendered graph.** All-pairs BFS over the 73 indexable pages:
+  315 pairs exceed 2 clicks; `/about → /deals` is unreachable; `/about → /` is
+  3. Cause: the prerendered footer nav has no Home, no Deals, and no category
+  links; `/legal/returns` is an alias with no inbound link at all.
+- **4.1 — attestation records carry IP but no user agent.** `api/attestation.js`
+  captures `attestation_user_agent` into `profiles` (migration 0003) and
+  `attestation_audit.user_agent` exists (0003/0022), but
+  `logCheckoutAttestation` in `lib/payments/fulfillment.js` selects only
+  version/statements/legal_name/ip and writes no `user_agent`.
+- **4.2 — the secret scrubber has no pattern for Anthropic (`sk-ant-…`) or
+  Resend (`re_…`) keys**, both of which are configured in this deployment.
+- 4.7 — certificate images total 5.4 MB (~300 KB each): evidence documents,
+  linked not inlined; report only, never recompress. SW precache 80 entries /
+  1,085 KB — no budget test exists.
+- 4.5 — `checkoutIdempotencyKey` is covered by `tests/audit/p1-checkout-hardening`.
+
+### SCORE (before this cycle's work)
+
+| # | Scorecard | Score | Evidence |
+| --- | --- | --- | --- |
+| 4.1 | Legal | 8 | corpus gate green; attestation lacks UA on the order record |
+| 4.2 | Security | 7 | envelopes gated; scrubber misses two live key shapes |
+| 4.3 | Data integrity | 7 | seed/asset gates green |
+| 4.4 | Trust | 7 | unchanged |
+| 4.5 | Commerce | 7 | idempotency covered |
+| 4.6 | SEO | **5** | link-depth claim false (315 pairs); alias page orphaned |
+| 4.7 | Performance | 7 | PDP budget green; Google Fonts hop; no precache budget |
+| 4.8 | UI/UX | ? | — |
+| 4.9 | Accessibility | ? | engine now installable |
+| 4.10 | Mobile | 8 (stale) | to be re-run this cycle |
+| 4.11 | Admin | 7 | — |
+| 4.12 | Observability | 6 | — |
+| 4.13 | Hygiene | 7 | — |
+
+### PLAN (written before execution)
+
+1. **[4.6] Link-depth gate, test first.** `scripts/test-link-depth.mjs`: over
+   the built dist, every indexable page reachable from `/`, and every ordered
+   pair of indexable pages within 2 clicks. Record the failure. Then fix: the
+   prerendered footer nav gains Home, Deals and the visible categories
+   (`getVisibleCategories()`, so a soft-launch-hidden category is never linked);
+   `/legal/returns` becomes a noindex alias of `/legal/shipping` (generator +
+   component), leaving the indexable set. Generator: buyer walk (static).
+2. **[4.1] Attestation user agent on every order.** `logCheckoutAttestation`
+   selects `attestation_user_agent` and writes `user_agent`. Runtime test with
+   a stubbed database. Generator: data honesty sweep.
+3. **[4.2] Secret scrubber** gains `sk-ant-…` and `re_…`; tests. Generator:
+   inversion ("what would put a key in a log line?").
+4. **[4.7] Self-host the three font families** (latin subsets, OFL, ~10 files)
+   and drop the Google Fonts links + preconnects. Test: no google-font host in
+   dist; every `@font-face` file exists; licence notice present. Screenshots at
+   320/1280 before/after. **CSP origins for fonts are left in place** — the
+   CSP block in `vercel.json` is ask-before; their removal is proposed, not done.
+5. **[4.9] Accessibility sweep** with `@axe-core/playwright` (new
+   devDependency — justification: WCAG 2.2 AA is scorecard 4.9, axe is the
+   reference engine, dev-only, no runtime impact). `npm run a11y` over 8 routes
+   at 390 and 1280; fix violations that are ≤5 lines each; report the rest.
+   Findings-first, not yet a CI gate.
+6. **[4.10] Re-run the 52-test mobile suite** on the final build for a real score.
+7. **[4.7] SW precache budget test** (≤ 1.5 MB).
+8. Docs: this log, PLAYBOOK (≥1 heuristic with evidence; generator table;
+   Buyer walk rewritten as a static graph walk after 0 yield in cycle 1),
+   `LAUNCH_READINESS.md`, escalations, PR draft. Ask before commit/push/PR.
+
+**Cut / deferred:** category copy (Hy-003, owner); legacy `products.js`
+(ask-before); font CSP origin removal (ask-before, proposed).
+
+### EXECUTION — results
+
+Gate on the finished tree: `npm run build` 78 routes / sitemap **72** (the
+`/legal/returns` alias left the indexable set) / CSP meta on 78; `npm run lint`
+0 errors; `npm run test:unit` **45 suites, 835 ✓** (was 40 / 790 → +5 suites,
++45 assertions); **mobile suite 52/52** on the final build; **axe sweep: 0
+critical/serious** on 9 routes × 2 widths (was 20 serious). Screenshots at
+320/1280 for `/`, PDP, `/test-results` before/after in the scratchpad
+(`shots/before-*`, `after2-*`, `final-*`).
+
+| # | Item | Shipped | Status | Test (assertions) |
+| --- | --- | --- | --- | --- |
+| 1 | Link depth (gate written first) | `test-link-depth.mjs` failed on the old tree exactly as RECON predicted (315 pairs, 2 orphans); prerendered footer nav gains Home, Deals and the 8 **visible** categories; `/legal/returns` → noindex alias (generator + `LegalPageLayout noindex` + `ShippingRefunds alias`); React footer gains Deals | **VERIFIED** — gate green: worst all-pairs distance 2, 0 orphans; 2nd method: leaf page links Home/Deals/8 categories, 75/78 pages link `/deals` | test-link-depth (5) |
+| 2 | Attestation user agent on the order record | `logCheckoutAttestation` selects `attestation_user_agent`, writes `user_agent` (column exists since 0003/0022 — no migration) | **VERIFIED** — real function executed against a stubbed DB; 2nd method: the two-line diff | test-attestation-record (10) |
+| 3 | Secret scrubber shapes | `sk-ant-…` and `re_…` (≥20 chars — "re_confirmed" must not redact) | **VERIFIED** — synthetic keys redacted, existing shapes intact, no false positives | test-secret-scrubber (14) |
+| 4 | Self-hosted fonts | **Reuses the five woff2 files the label engine already tracks** (`public/fonts`, since `4a0a29a`) — my first draft downloaded near-duplicates; deleted (H-009). `src/fonts.css` declares Syne 600–800 and DM Sans 300–600 from the variable files + Plex Mono 400/500/600; Google link + preconnects removed; the two variable files preloaded | **VERIFIED** — Chromium loads 5 faces from our origin; width measurement proves the variable files honour every requested weight (Syne 600/700/800 → 648/701/1017 px; DM Sans 300–600 → 573/581/592/605 px); 0 Google Fonts requests in dist; payload 99 KB | test-fonts-selfhosted (10) |
+| 5 | Accessibility sweep + fixes | `npm run a11y` (axe-core, new devDependency — justification: WCAG 2.2 AA is scorecard 4.9, axe is the reference engine, dev-only). Fixed: compliance line `steel/70 → /80` (3.86 → 4.69:1); secondary-text token `bone/45 → /55` (3.97 → 5.49:1, 25 occurrences); `/test-results` verify link underlined; `/shop` cards get an sr-only `<h2>`; footer watermark rendered from a CSS pseudo-element so it is not text content. **CI step added** to the E2E job | **VERIFIED** — re-sweep 0 critical/serious (from 20); mobile 52/52 | a11y sweep (gate: serious/critical) |
+| 5b | **Legal — found by the a11y detour:** the footer watermark still read "PRECISION · PURITY · **PERFORMANCE**", the tagline the Aug-26 audit retired everywhere else; invisible to the corpus gate (JSX text, not a scanner term) | Text corrected to "Provenance"; corpus test gains a source-wide guard against the retired tagline | **VERIFIED** — `git grep` → 0 | test-copy-corpus (+1) |
+| 6 | Mobile suite re-run | 52/52 on the final build. One real failure on the way: `bottom-nav › footer reachable above the bar` — a font-swap reflow *after* the test's scroll (fonts never loaded in this sandbox before this cycle). Fixed at the root (preload the two variable fonts) and in the measurement (wait for `document.fonts.ready`) | **VERIFIED** | — |
+| 7 | SW precache budget | ≤ 1.5 MB, no precached asset > 300 KB, heavy vendors runtime-cached | **VERIFIED** (1,085 KB, 80 entries) | test-sw-budget (5) |
+
+**SUSPECTED (not executed):** anything about the live site (egress still
+blocked); Hy-001 (production build passed the T2 assertion) still untested.
+**Deferred:** the 407 `region` (moderate) findings — Hy-004, planned for cycle
+3 (one `<main>` in the app shell; ~6 page files; own screenshots).
+
+### SCORECARD DELTA
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.1 | Legal | 8 | **8** | retired "Performance" tagline found and removed; attestation record now carries UA. Not higher: category copy (Hy-003) and the legacy `products.js` still await owner decisions |
+| 4.2 | Security | 7 | **8** | scrubber covers every configured key shape; envelopes + admin guard gated (cycle 1). Not higher: `verify:rls` on prod unconfirmed; repo public |
+| 4.3 | Data integrity | 7 | 7 | unchanged |
+| 4.4 | Trust | 7 | 7 | unchanged (lab data still owner-entered) |
+| 4.5 | Commerce | 7 | 7 | unchanged |
+| 4.6 | SEO | 5 | **8** | crawl depth now ≤2 for every pair and enforced; alias no longer duplicate content; domain still owner-gated |
+| 4.7 | Performance | 7 | **8** | no third-party font hop; fonts preloaded; precache budget enforced. No Lighthouse run (`?` on LCP) |
+| 4.8 | UI/UX | ? | ? | screenshots taken, no systematic audit |
+| 4.9 | Accessibility | ? | **7** | 0 critical/serious across 18 page-views; 407 moderate landmark findings open (Hy-004); keyboard-only checkout and 200% zoom unchecked |
+| 4.10 | Mobile | 8 (stale) | **8** | 52/52 re-run on the final build |
+| 4.11 | Admin | 7 | 7 | unchanged |
+| 4.12 | Observability | 6 | 6 | unchanged |
+| 4.13 | Hygiene | 7 | 7 | +5 suites; a11y in CI; legacy audit step still present (ask-before) |
+
+### GENERATOR YIELDS (cycle 2)
+
+Buyer walk (static) 1 · Data honesty 1 · Inversion 1 · Cost/perf 2 ·
+Accessibility sweep (new) 1 (+ the tagline find) · Regulator walk 0 (corpus
+green; the tagline was found by the a11y sweep, not the walk — recorded under
+the sweep) · Competitor delta 0 · Failure injection 0 · Ops dry run 0.
+
+### ESCALATIONS (owner-only; ranked — #1 leads until cleared)
+
+1. **`npm run verify:rls` on prod** — unconfirmed since `0030`.
+2. Attorney: category posture → `soft_launch_hidden`; Hy-003 category descriptions.
+3. Apply `0031`–`0034`; decide `0027`. 4. Repo private. 5. Domain + `VITE_SITE_URL`.
+6. Enter labs + lookup codes (Control Room screen from cycle 1; needs `0032`).
+7. Delete legacy `src/data/products.js` + `scripts/audit-products.mjs` + CI step.
+8. `api/stripe-webhook.js` signature-error echo (ask-before).
+9. **New:** remove `fonts.googleapis.com` / `fonts.gstatic.com` from the CSP
+   (style-src / font-src) now that no font is fetched from them — the CSP
+   block in `vercel.json` is ask-before; `scripts/csp.mjs` is the one edit.
+10. **New:** Hy-004 landmark fix (engine, cycle 3) — no owner action, listed
+    so the moderate a11y backlog is visible.
+
+### What I'd do differently
+
+Grep for an existing instance before fetching anything (H-009) — the fonts
+were already in the repo. Wire a new test engine's API from its own error
+docs before the first run (`newContext`), not from memory. When a suite that
+was green goes red after an unrelated change, ask what *else* changed in the
+environment — here it was that web fonts loaded for the first time, which no
+test had ever seen. And stop using `pkill -f` with a pattern that appears in
+the calling shell's own command line; the `[x]` bracket form is the fix.
+
+### PR DRAFT (open only on approval)
+
+**Title:** Optimization cycle 2 — crawl depth, self-hosted fonts, accessibility, attestation UA
+
+**Summary.** Seven verified items on top of PR #33: (1) the "≤2 clicks from
+any page" claim made mechanical and made true (315 pairs over, 2 orphans →
+0); (2) attestation records now carry the user agent; (3) scrubber covers
+Anthropic and Resend key shapes; (4) fonts self-hosted from the label engine's
+existing files with preloads — no third-party font hop; (5) axe sweep in CI,
+20 serious findings → 0, plus the retired "Performance" tagline found and
+removed from the footer watermark; (6) mobile 52/52 with a root-cause fix for
+a font-swap reflow; (7) SW precache budget. +5 suites, +45 assertions.
+
+**Risks.** Secondary-text token brightened (`/45 → /55`, 25 sites) — visual,
+screenshotted. `/legal/returns` is now noindex. New devDependency
+`@axe-core/playwright` (dev-only). CI gains an a11y step that fails on
+serious/critical only.
+
+**Rollback.** Revert the branch; no migrations, no data, no payment/RLS/CSP
+files touched.
+
