@@ -102,6 +102,7 @@ export default function CheckoutTwoStep() {
   useEffect(() => { writeCheckoutDraft(form); }, [form]);
 
   const subtotal = Number(total) || 0;
+  const itemCount = items.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
   // Opt cycle 11 (4.14): promo + points are optional hints; the server derives
   // every dollar (computeAdjustments). Balance is the server-hydrated
   // profiles.loyalty_points, so the select never offers points the server
@@ -226,6 +227,22 @@ export default function CheckoutTwoStep() {
         <h1 className="sr-only">Checkout — step {step} of 2: {step === 1 ? "Personal" : "Payment"}</h1>
         <ProgressBar step={step} />
             <DisclaimerBanner className="mb-6" />
+            {step === 1 && (
+              /* Opt cycle 11 (4.8 F4): on one-column layouts the order summary
+                 sat 3 000 px down a 5 400 px page. A compact strip at the top
+                 of step 1 carries the count and subtotal and jumps to it. */
+              <div className="lg:hidden glass-panel px-4 py-3 mb-6 flex items-center justify-between gap-3" data-testid="summary-strip">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-accent text-se-bone">
+                    {itemCount} {itemCount === 1 ? "item" : "items"} · Subtotal {money(subtotal)}
+                  </p>
+                  <p className="text-[11px] font-accent text-se-steel">Shipping calculated at payment</p>
+                </div>
+                <a href="#order-summary" className="shrink-0 inline-flex items-center min-h-[44px] px-3 text-[11px] font-accent uppercase tracking-[0.14em] text-se-gold hover:text-se-bone">
+                  View summary
+                </a>
+              </div>
+            )}
             {step === 1 ? (
               <StepPersonal submitting={submitting} state={form} setState={setForm} subtotalDollars={subtotal}
                 showErrors={showErrors} onContinue={onContinue} user={user} />
@@ -240,7 +257,7 @@ export default function CheckoutTwoStep() {
 
           {/* Order summary */}
           <div className="lg:col-span-5">
-            <div className="sticky top-28 glass-panel p-6">
+            <div id="order-summary" className="sticky top-28 glass-panel p-6 scroll-mt-28">
               <h2 className="font-display text-[14px] tracking-[0.1em] mb-6">ORDER SUMMARY</h2>
               <div className="space-y-4">
                 {items.map((item) => (

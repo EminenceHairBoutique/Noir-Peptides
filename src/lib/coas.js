@@ -122,25 +122,34 @@ export async function lookupByLot(lot) {
 // cards fall back to their static behavior.
 let _latestCoaPromise = null;
 
+// Opt cycle 11: the same mirrored seed the other readers fall back to, so a
+// card never says "COA on request" for a product whose certificates are
+// already published (env-less builds, a failed client query).
+function latestFromRows(rows) {
+  const map = {};
+  for (const row of rows) {
+    // rows arrive newest-first; keep the first (latest) per product
+    if (row.product_id && !map[row.product_id]) map[row.product_id] = normalize(row);
+  }
+  return map;
+}
+const seedLatest = () =>
+  latestFromRows([...seedAll()].sort((a, b) => String(b.tested_at || "").localeCompare(String(a.tested_at || ""))));
+
 export function getLatestCoaMap() {
   if (!_latestCoaPromise) {
     _latestCoaPromise = (async () => {
-      if (!supabase) return {};
+      if (!supabase) return seedLatest();
       try {
         const { data, error } = await supabase
           .from("coas")
           .select("id, product_id, lot_number, batch_number, tested_at, file_url")
           .order("tested_at", { ascending: false, nullsFirst: false })
           .limit(500);
-        if (error || !Array.isArray(data)) return {};
-        const map = {};
-        for (const row of data) {
-          // rows arrive newest-first; keep the first (latest) per product
-          if (row.product_id && !map[row.product_id]) map[row.product_id] = normalize(row);
-        }
-        return map;
+        if (error || !Array.isArray(data)) return seedLatest();
+        return latestFromRows(data);
       } catch {
-        return {};
+        return seedLatest();
       }
     })();
   }
