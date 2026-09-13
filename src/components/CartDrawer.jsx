@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { X, Minus, Plus, Lock } from "lucide-react";
 import { motion as Motion } from "framer-motion";
 import { useCart } from "../context/CartContext";
+import { nextTierFor } from "../lib/tiers";
 import { DISCLAIMER_COMPACT } from "../config/compliance";
 import FreeShipNudge from "./FreeShipNudge";
 
@@ -114,6 +115,15 @@ export default function CartDrawer() {
                       Pre-Order
                     </p>
                   )}
+
+                  {(() => {
+                    const next = nextTierFor(item.basePrice ?? item.price, item.tiers, item.quantity);
+                    return next ? (
+                      <p className="mt-1 text-[11px] text-se-bone/55" data-testid="next-tier">
+                        Add {next.more} more for {money(next.unitPrice)} each
+                      </p>
+                    ) : null;
+                  })()}
 
                   <div className="mt-3 flex items-center gap-3">
                     <div className="flex items-center border border-white/10">
