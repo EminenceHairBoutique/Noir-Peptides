@@ -35,6 +35,22 @@ export default function CartDrawer() {
     return () => (document.body.style.overflow = "");
   }, [isOpen]);
 
+  // Opt cycle 4 (4.9, WCAG 2.4.3): the drawer is a dialog — focus moves INTO
+  // it when it opens (the close control) and returns to whatever opened it
+  // when it closes, so a keyboard user is never left behind the overlay.
+  const closeBtnRef = useRef(null);
+  const openerRef = useRef(null);
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    openerRef.current = document.activeElement;
+    const t = setTimeout(() => closeBtnRef.current?.focus(), 30);
+    return () => {
+      clearTimeout(t);
+      const opener = openerRef.current;
+      if (opener && typeof opener.focus === "function" && document.contains(opener)) opener.focus();
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -47,13 +63,16 @@ export default function CartDrawer() {
         exit={{ x: "100%" }}
         transition={{ type: "spring", stiffness: 260, damping: 28 }}
         className="fixed right-0 top-0 h-full w-full max-w-[420px] z-50 bg-se-charcoal border-l border-white/5 flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Cart"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
           <p className="text-[11px] font-accent tracking-[0.22em] uppercase text-se-bone">
             Cart
           </p>
-          <button onClick={closeCart} aria-label="Close cart" className="text-se-steel hover:text-se-bone transition">
+          <button ref={closeBtnRef} onClick={closeCart} aria-label="Close cart" className="text-se-steel hover:text-se-bone transition">
             <X className="w-5 h-5" />
           </button>
         </div>
