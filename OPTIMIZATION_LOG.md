@@ -1781,3 +1781,85 @@ migration applied to live, no price / visibility / flag change, no
 pricing / shipping / checkout-session / btcpay file touched.
 
 **Rollback.** Revert the branch; migration 0036 is additive and unapplied.
+
+---
+
+## Cycle 10 — 2026-09-13 (addendum "Cycle 3 — ops to nine")
+
+**HEAD before:** `32fe4c7` (cycle-9 branch, PR #41 open as a Draft — this
+branch is stacked on it, as cycle 7 was on 6). **Branch:**
+`claude/opt-cycle-10-20260913`.
+
+### RECON
+
+Read from the `evidence` branch (B4, first use): `ci/latest.json` for
+`7303688` — verdict red on Lighthouse only; screens 308 / axe 0 / crawls
+pass. `DB gates`' first run failed on a quoting bug in the workflow (fixed
+in `32fe4c7`, re-run pending). Live probe: no record yet (runs from `main`).
+Local: build 79 routes / sitemap 73; lint 0/0; unit 1123 ✓.
+
+**Findings that shape this cycle (VERIFIED by reading, measured where
+stated):**
+- **4.7 — every LCP is text; the boot path is the cost.** `vendor-supabase`
+  (44 KB transfer, 83 % unused on `/`) is in the entry closure only because
+  `UserContext.jsx` imports the client statically and the provider mounts
+  at boot. The `/` hero sits inside an unconditional 0.9 s framer-motion
+  opacity fade. The two preloaded variable fonts total 72 KB with no
+  `unicode-range`; the hero paragraph's mono face is not preloaded and
+  arrives at 173–460 ms. `/shop` TBT 332 ms = 44 cards with per-card motion.
+- **4.11 — no Storage upload exists anywhere**; `coas.file_url` is a plain
+  `href` in four renderers and is baked into static HTML, so a signed URL
+  can never be stored — a stable same-origin URL must redirect to a fresh
+  one. No admin route is rate-limited. Feature flags: three, all default
+  off, one parser. The Control Room shows env presence in exactly one place
+  (the rebuild-hook copy).
+- **4.11 — emails:** the shipped email exists (`sendOrderStatusEmail`) and is
+  untested; an attestation receipt does not exist.
+- **4.5 — the BTCPay rail passes no idempotency key** (ask-before file —
+  escalated, not touched); step 1's Continue button has no double-submit
+  guard; no behavioural double-submit test.
+- **4.10 — the mobile suite has run locally every cycle and never in CI**;
+  the tap-target check is a reporter, not a gate; seven keyframe classes
+  ignore `prefers-reduced-motion`.
+
+### SCORE (before this cycle's work)
+
+As cycle 9's final table: 4.7 **7** (lowest), 4.8 7, 4.3 8 (→ 9 when
+`db-gates` is green), 4.12 8, others 9; 4.14 unlocked.
+
+### PLAN (written before execution; one commit per item, in this order)
+
+1. **[4.7] LCP through the LHCI lane** (`scripts/perf-lhci.mjs`, same
+   config and server as the CI gate; H-013): baseline, then one lever per
+   build — (a) Supabase client out of the boot path (dynamic import in the
+   hydration effect), (b) hero paints without the entry fade on first
+   mount, (c) Latin subsets for the storefront faces (new files; the label
+   embeds keep the originals), (d) `/shop` cards without above-the-fold
+   motion. Keep a lever only if the median LCP drops with no CLS/TBT
+   regression. The gate stays hard; 4.7 scores from CI.
+2. **[4.11 C8a] COA file upload** → private `coa-files` bucket (migration
+   0037, `coas.file_path`), `api/admin/coa-upload.js` (raw body ≤ 4 MB,
+   magic-byte sniff PDF/JPEG, rate-limited), public `api/coa-file/[name].js`
+   (published only → 302 to a 10-minute signed URL), Control Room upload
+   controls, `storage` stub + harness tests.
+3. **[4.11 C8b] Read-only feature-flag screen** (`api/admin/flags.js`, GET
+   only, on/off never values; tab "Feature flags").
+4. **[4.11 C8c] Owner Sprint panel** (`api/admin/owner-sprint.js`: D2/D5/D6
+   from data, D4/D8/D9 env presence, the rest grey with the command; tab
+   "Owner Sprint").
+5. **[4.11] Emails to the gate:** test the shipped email; add an
+   attestation-receipt email sent best-effort after a successful
+   attestation record; corpus gate.
+6. **[4.5] Duplicate submit:** step-1 Continue disabled while submitting +
+   an E2E double-click spec (one request); delete the unused
+   `api/payments/rails.js` after grep proof.
+7. **[4.10] Mobile in CI** (`test:mobile` + E2E-job step), tap-target
+   assertion (≥ 44 px) with fixes, reduced-motion wrap + spec.
+8. **[4.11] RUNBOOK §6 → Owner Sprint**; `LAUNCH_READINESS.md`.
+9. §F report from CI artifacts; PLAYBOOK (H-011 extended; Hy-008 numbers;
+   Hy-009 closed while `AdminHome.jsx` is touched); push; Draft PR.
+
+Generators: Cost/perf (bytes & requests) leads with four deterministic
+levers; Ops dry run (C8 ×3, mobile in CI); Failure injection (upload sniff,
+double submit); Regulator walk (attestation receipt copy); Accessibility
+sweep (tap targets, reduced motion).
