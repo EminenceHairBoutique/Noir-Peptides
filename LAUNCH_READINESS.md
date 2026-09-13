@@ -17,7 +17,9 @@ The addendum's "Cycle 4 — polish to nine everywhere + growth foundations"
   carries the route's largest above-the-fold paragraph. Lighthouse LCP
   (mobile simulation, median of 5) on the four gated routes: `/` 3.1 → 1.4 s,
   `/shop` 3.3 → 1.9 s, product page 3.1 → 1.5 s, `/test-results` 3.3 → 1.5 s.
-  The `Evidence` check on the PR is the CI proof.
+  **CI proof: the `Evidence` check is green on the PR head** (run 34789025447 —
+  LCP 1.5–2.0 s on all four routes, CLS 0, TBT ≤ 135 ms); performance is
+  scored 9 (10 needs the live host).
 - **Specifications, honest:** sequence / molecular weight / CAS for the 12
   products with verified values (transcribed, CAS check-digit validated;
   migration `0038`, update-only — `docs/MIGRATIONS_0038.md`); the panel omits

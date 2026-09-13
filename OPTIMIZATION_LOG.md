@@ -2161,6 +2161,14 @@ fixed, and the local key-route sweep widened so it cannot miss them again.
 `/` is bimodal on the local lane (1.37–1.5 s or ≈1.85 s across runs; always
 under budget) — noted, not chased.
 
+**CI, final (head `72b80dc`, Evidence run 34789025447, 23:29Z): GREEN.**
+LCP `/` 1659 · `/shop` 2047 · `/product/bpc-157` 1510 · `/test-results`
+1514 ms (budget 2500); CLS 0; TBT 51 / 135 / 135 / 82 ms (budget 200);
+screens, axe (all routes), link and hygiene crawls green. With `CI`
+(lint · unit · build, migration hygiene, E2E + mobile), `DB gates` and
+GitGuardian green on the same head, PR #44 is fully green — the first
+green Evidence run since the gate was created in cycle 9.
+
 **CI, second finding (E2E job, mobile step, run 34787382668):** 12 mobile
 failures that the local mobile runs had not shown — because the local runs
 went through `serve-dist` while CI's `test:mobile` uses `vite preview`
@@ -2197,7 +2205,7 @@ publisher (landed 22:00Z). Owner-side durable option: the project's
 | 4.4 | Trust | 9 | 9 | permalinks + certificate cards in every build, real COA chips on cards, 11 verified spec sets; still 9: 33 spec sets and every 10-condition are owner data (D5, D5b) |
 | 4.5 | Commerce | 9 | 9 | the spend path exists and is proven; BTCPay idempotency still escalated; 10 = live smoke (D8) |
 | 4.6 | SEO | 9 | 9 | sitemap 73 → 89 with crawlable batch history; 10 = D4 |
-| 4.7 | Performance | 7 | **8** | every gated route under 2.0 s locally on the CI lane (5 runs); **9 only when the CI Evidence run on this PR is green** (H-014), 10 = live Lighthouse |
+| 4.7 | Performance | 7 | **9** | **CI Evidence green on head `72b80dc`** (run 34789025447: LCP `/` 1659 · `/shop` 2047 · PDP 1510 · `/test-results` 1514 ms, CLS 0, TBT ≤ 135 ms — every hard budget met); with CI, DB gates, hygiene, E2E and mobile all green on the same head this is the H-014 nine. 10 = live Lighthouse on the real host (D4 + a recorded live-probe run) |
 | 4.8 | UI/UX | 7 | **8** | per-route review done from a re-shot matrix, four defects fixed, tokens single-sourced and gated; 9 = a second clean review pass after the owner's iPhone walk (D10) |
 | 4.11 | Admin | 9 | 9 | spec fields + D5b; unchanged otherwise |
 | 4.12 | Observability | 8 | 8 | the live probe is on `main` since #41 merged but has no green run recorded in `evidence/live/` yet (no repo variables set) |
@@ -2214,7 +2222,7 @@ publisher (landed 22:00Z). Owner-side durable option: the project's
 | 4.4 Trust | 9 | — | D5 · D5b (33 spec sets) | local: `test-prerender-coverage` (seed branch), sitemap 89 · 2026-09-13 |
 | 4.5 Commerce | 9 | — | D8 (+ BTCPay idempotency key, ask-before) | local: `test-pricing-coherence` 38 ✓, `checkout-rewards.spec` 2 ✓ |
 | 4.6 SEO | 9 | — | D4 | local: link-depth, routing, jsonld-shapes on 95 pages |
-| 4.7 Performance | 8 | **CI Evidence green on this PR** | live Lighthouse (D4 + first probe) | local: `evidence/lhci-*` 5-run medians (table above) · CI: pending on the PR |
+| 4.7 Performance | 9 | — | live Lighthouse (D4 + first probe) | **CI: Evidence run 34789025447 green** (`ci/latest.json` for the #44 head, 2026-09-13 23:29Z) · local: `evidence/lhci-*` 5-run medians |
 | 4.8 UI/UX | 8 | second review pass | D10 | local: `evidence/screens` re-shot 2026-09-13 |
 | 4.9 Accessibility | 9 | — | live axe (first probe) | local sweep 0/0 after two fixes · CI on the PR |
 | 4.10 Mobile | 9 | — | D10 | local: mobile 38/38 (the suite count changed with the reduced-motion + rewards specs) |
