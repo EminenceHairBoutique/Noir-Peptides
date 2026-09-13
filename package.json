@@ -10,7 +10,6 @@
     "build": "node scripts/generate-og-image.mjs && vite build && node scripts/generate-static-seo.mjs && node scripts/generate-sw-precache.mjs && node scripts/emit-csp.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "audit:products": "node scripts/audit-products.mjs",
     "test:guardrail": "node scripts/test-guardrail.mjs",
     "test:compliance": "node scripts/test-compliance-scan.mjs",
     "verify:rls": "node --env-file-if-exists=.env scripts/verify-rls.mjs",

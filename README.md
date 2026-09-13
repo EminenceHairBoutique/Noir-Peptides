@@ -44,5 +44,6 @@ npm run build    # vite build + static SEO generation
 npm run lint
 ```
 
-Catalog data lives in `src/data/products.js`. An additive Supabase migration
-for a database-backed catalog is in `supabase/migrations/`.
+Catalog data lives in `src/data/tier1Catalog.js` (the static source of truth,
+seeded into Supabase by migration `0009`); the client reads the database
+through `src/lib/catalog.js`. Migrations are in `supabase/migrations/`.

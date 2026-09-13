@@ -64,10 +64,11 @@ and all RLS policies.
 
 ## Legacy note
 
-`src/data/products.js` is a **stale** 13-product static file with category
-slugs that no longer match the live catalog. It is **not** the source of truth
-(that is `src/data/tier1Catalog.js` + the `0009` seed) and should be removed in
-a follow-up once its remaining importers are repointed.
+The stale 13-product `src/data/products.js` (category slugs that no longer
+matched the live catalog) was **deleted in opt cycle 9** together with
+`scripts/audit-products.mjs` and the CI "Product data audit" step, after a grep
+and a build proved nothing imported it. The source of truth is
+`src/data/tier1Catalog.js` + the `0009` seed.
 
 ## COA seed (migration 0019)
 

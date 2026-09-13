@@ -204,7 +204,7 @@ escalations). Six verified items:
 `0030` — this leads every report until cleared. Repo still public. Domain not
 attached. Migrations `0031`–`0034` not yet applied. 0 of 19 certificates
 lab-linked (now possible from the Control Room). Legacy `src/data/products.js`
-+ CI "Product data audit" step await a delete decision.
++ CI "Product data audit" step awaited a delete decision (deleted in cycle 9).
 
 ## ✅ Done (Sept-11 launch-hardening pass — branch `claude/launch-hardening-sep11`)
 
@@ -391,8 +391,6 @@ against the real database.
 - **Dynamic-rail UI wiring.** `GET /api/payments/rails` exists; the Checkout
   page should consume it to render rails dynamically (currently Stripe + crypto
   buttons). Backend is ready.
-- **Legacy `src/data/products.js`** (stale 13-product file) should be removed once
-  its importers are repointed to the live catalog (see `docs/SCHEMA.md`).
 - **pgvector** must be enabled on Supabase for `0008` (native there).
 - **E2E not executed** in-sandbox (Playwright browser download blocked); specs
   parse only. Guardrail unit tests do run and pass.

@@ -50,9 +50,10 @@ supabase/migrations/  # 0001..0008 (additive, idempotent)
 
 ## Data flow rules
 
-- **Catalog**: client reads via `src/lib/catalog.js` (RLS-gated Supabase). Do NOT
-  import `src/data/products.js` from client code — it is a server-only price
-  source (the checkout API) so it never ships in the bundle.
+- **Catalog**: client reads via `src/lib/catalog.js` (RLS-gated Supabase); the
+  static source of truth is `src/data/tier1Catalog.js` + the `0009` seed. The
+  legacy `src/data/products.js` was deleted in opt cycle 9 — do not recreate a
+  second catalog file.
 - **Pricing is server-trusted**: never price from the client. `price_tiers`
   (volume pricing) is resolved server-side in `create-checkout-session.js`.
 - **Auth/z**: route every endpoint through `api/_utils/auth.js`. Admin =
