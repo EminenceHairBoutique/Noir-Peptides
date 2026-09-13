@@ -92,7 +92,7 @@ export default function AgeGate() {
           </>
         )}
 
-        <p className="mt-6 text-[11px] text-se-steel/70">
+        <p className="mt-6 text-[11px] text-se-steel/80">
           For research use only. Not for human or veterinary use.
         </p>
       </div>

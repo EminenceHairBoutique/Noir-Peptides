@@ -184,7 +184,7 @@ export default function Home() {
               <h2 className="font-display text-[clamp(1.6rem,4vw,2.6rem)] tracking-[0.02em]">
                 THE CATALOG
               </h2>
-              <p className="text-[14px] text-se-bone/45 mt-3 max-w-lg font-accent">
+              <p className="text-[14px] text-se-bone/55 mt-3 max-w-lg font-accent">
                 Batch-documented peptide reference materials organized by
                 research domain.
               </p>
@@ -216,7 +216,7 @@ export default function Home() {
                     <h3 className="font-display text-[17px] tracking-[0.02em] mb-2">
                       {cat.name}
                     </h3>
-                    <p className="text-[12px] text-se-bone/45 leading-relaxed font-accent">
+                    <p className="text-[12px] text-se-bone/55 leading-relaxed font-accent">
                       {cat.description}
                     </p>
                   </Link>
@@ -358,7 +358,7 @@ export default function Home() {
             <h2 className="font-display text-[clamp(1.4rem,3.5vw,2.2rem)] tracking-[0.02em] mb-4">
               RESEARCH-ONLY INTEGRITY
             </h2>
-            <p className="text-[14px] text-se-bone/45 max-w-xl mx-auto leading-relaxed font-accent mb-8">
+            <p className="text-[14px] text-se-bone/55 max-w-xl mx-auto leading-relaxed font-accent mb-8">
               No human-use claims. No therapeutic claims. No dosage language.
               Just documented research materials, supplied to qualified
               researchers.

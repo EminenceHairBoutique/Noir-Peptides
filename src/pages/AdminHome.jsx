@@ -56,7 +56,7 @@ function StatCard({ label, value, sub, icon: Icon }) {
         {Icon && <Icon className="w-4 h-4 text-se-gold/70" strokeWidth={1.5} />}
       </div>
       <p className="font-display text-2xl text-se-bone">{value}</p>
-      {sub && <p className="text-[12px] text-se-bone/45 font-accent mt-1">{sub}</p>}
+      {sub && <p className="text-[12px] text-se-bone/55 font-accent mt-1">{sub}</p>}
     </div>
   );
 }
@@ -180,7 +180,7 @@ function LabsForm({ onCreated, onError }) {
   return (
     <form onSubmit={submit} className="glass-panel p-5 space-y-3" data-testid="labs-form">
       <h3 className="font-display text-[16px]">Add a testing laboratory</h3>
-      <p className="text-[12px] text-se-bone/45 font-accent">
+      <p className="text-[12px] text-se-bone/55 font-accent">
         Real accreditation details only. The lookup template must be https and contain the literal
         <code className="mx-1 text-se-gold">{"{code}"}</code>where the lab's report code goes — otherwise no verify link is rendered.
       </p>
@@ -256,7 +256,7 @@ function CoaManager() {
       {/* Create form */}
       <form onSubmit={submit} className="glass-panel p-6 space-y-3 h-fit">
         <h3 className="font-display text-[16px] flex items-center gap-2"><Plus size={15} className="text-se-gold" /> Add a Certificate of Analysis</h3>
-        <p className="text-[12px] text-se-bone/45 font-accent">Enter real per-batch lab values. Nothing is auto-generated.</p>
+        <p className="text-[12px] text-se-bone/55 font-accent">Enter real per-batch lab values. Nothing is auto-generated.</p>
 
         <select className={field} value={form.product_id} onChange={(e) => set("product_id", e.target.value)} required>
           <option value="">Select product…</option>
@@ -372,7 +372,7 @@ function ComplianceScanner() {
     <div className="grid lg:grid-cols-2 gap-6">
       <div className="glass-panel p-6">
         <h3 className="font-display text-[16px] mb-2">Paste copy to scan</h3>
-        <p className="text-[12px] text-se-bone/45 font-accent mb-3">
+        <p className="text-[12px] text-se-bone/55 font-accent mb-3">
           Advisory RUO linter — flags human-use, dosing/administration, and therapeutic/disease
           language before you publish. Review each flag in context (it intentionally over-flags,
           including inside negative disclaimers).
@@ -633,7 +633,7 @@ function OrdersManager() {
   return (
     <div className="space-y-3">
       {err && <p className="text-red-300 text-sm">{err}</p>}
-      <p className="text-[12px] text-se-bone/45 font-accent">
+      <p className="text-[12px] text-se-bone/55 font-accent">
         Click an order number for contents, shipping address, tracking entry, and a printable
         packing slip. Status changes email the customer. Newest first (last 100).
       </p>
@@ -873,7 +873,7 @@ function DiscountsManager() {
     <div className="grid lg:grid-cols-2 gap-6">
       <form onSubmit={submit} className="glass-panel p-6 space-y-3 h-fit">
         <h3 className="font-display text-[16px] flex items-center gap-2"><Plus size={15} className="text-se-gold" /> New promo code</h3>
-        <p className="text-[12px] text-se-bone/45 font-accent">
+        <p className="text-[12px] text-se-bone/55 font-accent">
           Checkout validates codes server-side; totals are always re-priced on the server.
         </p>
         <div className="grid grid-cols-2 gap-3">
@@ -974,7 +974,7 @@ function AiFlags() {
 
   return (
     <div className="space-y-3">
-      <p className="text-[12px] text-se-bone/45 font-accent">
+      <p className="text-[12px] text-se-bone/55 font-accent">
         Every refusal (dosing/administration request) and every blocked output-drift is logged here.
       </p>
       {flags.map((f) => (
@@ -1266,7 +1266,7 @@ function CatalogManager() {
 
   return (
     <div className="space-y-3">
-      <p className="text-[12px] text-se-bone/45 font-accent">
+      <p className="text-[12px] text-se-bone/55 font-accent">
         Prices, stock, and flags save straight to the live database (audit-logged). Flipping an
         item to <span className="text-se-bone/70">in stock</span> automatically emails everyone
         on its restock waitlist, once. Descriptions stay compliance-reviewed and are not
@@ -1360,7 +1360,7 @@ function ClientErrors() {
     <div className="space-y-3">
       {err && <p className="text-red-300 text-sm">{err}</p>}
       <div className="flex items-center justify-between">
-        <p className="text-[12px] text-se-bone/45 font-accent">
+        <p className="text-[12px] text-se-bone/55 font-accent">
           Grouped by error signature; repeats within 24h increment the count instead of adding rows.
         </p>
         <button onClick={load} className="inline-flex items-center gap-1.5 text-[12px] text-se-steel hover:text-se-gold">

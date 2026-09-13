@@ -89,7 +89,7 @@ export default function ResearchArticle() {
                     <h3 className="font-display text-[15px] tracking-[0.02em] mb-2">
                       {a.title}
                     </h3>
-                    <p className="text-[12px] text-se-bone/45 font-accent">{a.summary}</p>
+                    <p className="text-[12px] text-se-bone/55 font-accent">{a.summary}</p>
                   </Link>
                 ))}
               </div>

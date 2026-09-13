@@ -217,7 +217,7 @@ export default function LabelStudio() {
             <div>
               <p className="text-overline mb-2">Admin</p>
               <h1 className="font-display font-extrabold text-[clamp(1.6rem,4vw,2.6rem)] tracking-[0.02em]">Label Studio</h1>
-              <p className="text-[12px] text-se-bone/45 font-accent mt-1 max-w-xl">
+              <p className="text-[12px] text-se-bone/55 font-accent mt-1 max-w-xl">
                 RUO vial-label review. Drafts never publish; only Approved / Production Ready labels may render
                 outside this studio.
               </p>

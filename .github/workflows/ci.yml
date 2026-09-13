@@ -116,6 +116,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - run: npm run test:e2e
+      # Accessibility sweep (opt cycle 2): axe-core over 9 routes at 390/1280
+      # against the built dist. Exits 1 on serious/critical violations.
+      - name: Accessibility sweep (axe)
+        run: |
+          node scripts/serve-dist.mjs &
+          sleep 2
+          npm run a11y
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

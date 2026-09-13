@@ -73,7 +73,7 @@ function CoaInterpreter() {
       resultLabel="Interpret COA"
     >
       <h3 className="font-display text-[16px]">Paste a Certificate of Analysis</h3>
-      <p className="text-[12px] text-se-bone/45 font-accent">
+      <p className="text-[12px] text-se-bone/55 font-accent">
         Explains the analytical fields (HPLC purity, mass-spec identity, endotoxin, batch metadata).
         No use, dosing, or reconstitution-for-use guidance.
       </p>
@@ -94,7 +94,7 @@ function LiteratureSummarizer() {
       resultLabel="Summarize literature"
     >
       <h3 className="font-display text-[16px]">Summarize preclinical literature</h3>
-      <p className="text-[12px] text-se-bone/45 font-accent">
+      <p className="text-[12px] text-se-bone/55 font-accent">
         Reports findings, mechanisms (as described), models, and stated limitations — framed as
         "the literature describes," never as human outcomes.
       </p>

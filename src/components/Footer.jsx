@@ -130,9 +130,15 @@ const Footer = () => {
       {/* Brand statement */}
       <div className="border-t border-se-concrete">
         <div className="content-wide py-10 text-center">
-          <p className="font-display text-[clamp(1.1rem,3vw,1.8rem)] tracking-[0.16em] text-se-bone/[0.10] leading-tight">
-            PRECISION · PURITY · PERFORMANCE
-          </p>
+          {/* Decorative watermark. Rendered from a CSS pseudo-element (index.css
+              .footer-watermark) so it is not text content — screen readers and
+              the contrast rule both skip it. Tagline is the retired-"Performance"
+              form: Provenance (Aug-26 compliance audit). */}
+          <div
+            aria-hidden="true"
+            data-text="PRECISION · PURITY · PROVENANCE"
+            className="footer-watermark font-display text-[clamp(1.1rem,3vw,1.8rem)] tracking-[0.16em] text-se-bone/[0.10] leading-tight"
+          />
         </div>
       </div>
 

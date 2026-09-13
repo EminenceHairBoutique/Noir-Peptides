@@ -110,7 +110,7 @@ export default function Contact() {
                   <h2 className="font-display text-[22px] tracking-[0.04em] mb-3">
                     MESSAGE SENT
                   </h2>
-                  <p className="text-[14px] text-se-bone/45 font-accent">
+                  <p className="text-[14px] text-se-bone/55 font-accent">
                     We'll respond to qualified inquiries shortly.
                   </p>
                 </div>
