@@ -112,7 +112,7 @@ export default function StepPayment({
             disabled={submitting}
             className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent tracking-[0.12em] placeholder:text-se-steel focus:outline-none focus:border-se-gold transition disabled:opacity-50"
           />
-          <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
+          <p className="text-[10px] text-se-steel font-accent mt-1.5">
             Validated by the server at payment. Bundles and kits are excluded.
           </p>
         </div>
@@ -137,7 +137,7 @@ export default function StepPayment({
               </option>
             ))}
           </select>
-          <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
+          <p className="text-[10px] text-se-steel font-accent mt-1.5">
             {REDEEM_INCREMENT} pts = ${redeemDollars(REDEEM_INCREMENT)}. Checked against your balance at payment.
           </p>
         </div>
