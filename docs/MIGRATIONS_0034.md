@@ -57,6 +57,13 @@ With `soft_launch_hidden = true` on a category:
   file and after hydration;
 - nothing is deleted or un-published — flip it back and everything returns.
 
+**The prerendered pages follow only on a rebuild.** The flip changes the
+database and the running app at once, but the static category and product
+pages already on the CDN — the indexable ones — stay until the site is built
+again. With `VERCEL_DEPLOY_HOOK_URL` set (Vercel → Project → Settings → Git →
+Deploy Hooks), the Control Room triggers that rebuild the moment you flip and
+tells you so; without it, redeploy by hand right after flipping.
+
 **Mirror it in code.** The storefront falls back to the bundled catalog when
 the database is unreachable, and the prerenderer reads only the bundled
 catalog. So when you hide a category, also set `softLaunchHidden: true` on that
