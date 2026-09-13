@@ -255,6 +255,11 @@ export default async function handler(req, res) {
       }
     }
 
+    // Decide the visibility flip BEFORE the update: `existing` must not be
+    // trusted to stay a snapshot once the row is written.
+    const visibilityFlip =
+      kind === "category" && "soft_launch_hidden" in fields && existing.soft_launch_hidden !== fields.soft_launch_hidden;
+
     const { data: updated, error } = await supabaseServer
       .from(table)
       .update(kind === "product" ? { ...fields, updated_at: new Date().toISOString() } : fields)
@@ -288,8 +293,32 @@ export default async function handler(req, res) {
       }
     }
 
-    return json(res, 200, { [kind]: updated, restock });
+    // Opt cycle 4 (4.1 / 4.6): a visibility flip changes the DB and the
+    // runtime, but the prerendered category + product pages stay on the CDN —
+    // indexable — until the site is rebuilt. Trigger the rebuild here so the
+    // flip is complete without a second step; report honestly when it can't.
+    let rebuild = null;
+    if (visibilityFlip) {
+      rebuild = await triggerRebuild();
+      await auditLog(req, admin.id, "catalog.rebuild", id, { rebuild });
+    }
+
+    return json(res, 200, { [kind]: updated, restock, ...(rebuild ? { rebuild } : {}) });
   }
 
   return json(res, 405, { error: "Method not allowed" });
+}
+
+// POST the Vercel deploy hook (VERCEL_DEPLOY_HOOK_URL). Exported for
+// scripts/test-admin-catalog.mjs. Never throws; never fails the flip.
+export async function triggerRebuild(fetchImpl = globalThis.fetch) {
+  const url = String(process.env.VERCEL_DEPLOY_HOOK_URL || "").trim();
+  if (!url) return "not_configured";
+  if (!/^https:\/\/api\.vercel\.com\/v1\/integrations\/deploy\//.test(url)) return "not_configured";
+  try {
+    const r = await fetchImpl(url, { method: "POST" });
+    return r && r.ok ? "triggered" : "failed";
+  } catch {
+    return "failed";
+  }
 }

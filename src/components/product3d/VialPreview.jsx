@@ -6,7 +6,9 @@
 // exposes the label content to screen readers — the 3D scene is never the only
 // access path to product information.
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import LabelPreview from "../labels/LabelPreview";
+// Opt cycle 4 (4.7, Hy-005): the flat-label poster is lazy for the same
+// reason as in MediaGallery — it renders only once an approved label exists.
+const LabelPreview = lazy(() => import("../labels/LabelPreview"));
 import { storageLineFor } from "../../lib/labels/storage";
 import { RUO_PRIMARY_WARNING } from "../../../lib/labelConstants";
 
@@ -52,7 +54,9 @@ export default function VialPreview({ config, templateId, accent }) {
 
   const fallback = (
     <div>
-      <LabelPreview config={config} templateId={templateId} presetId="front" />
+      <Suspense fallback={<div className="h-full w-full" aria-hidden="true" />}>
+        <LabelPreview config={config} templateId={templateId} presetId="front" />
+      </Suspense>
       <p className="mt-2 text-[11px] text-se-steel font-accent">
         Static label preview{supported ? "" : " (3D not supported on this device)"}.
       </p>

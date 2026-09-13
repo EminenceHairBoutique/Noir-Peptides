@@ -334,21 +334,9 @@ export async function getTiers(variantId) {
   }
 }
 
-/**
- * The unit price for a quantity given a product's base price + tiers.
- * Mirrors the server's resolveUnitPriceDollars so displayed price == charged.
- */
-export function unitPriceForQuantity(basePrice, tiers, qty) {
-  const base = Number(basePrice) || 0;
-  if (!Array.isArray(tiers) || !tiers.length) return base;
-  let price = base;
-  for (const t of tiers) {
-    if (qty >= Number(t.min_quantity) && Number.isFinite(Number(t.unit_price))) {
-      price = Number(t.unit_price);
-    }
-  }
-  return price;
-}
+// Bundle-tier maths lives in src/lib/tiers.js (pure, Node-importable so the
+// unit tests exercise the real function). Re-exported here for existing callers.
+export { unitPriceForQuantity, nextTierFor } from "./tiers.js";
 
 /**
  * Fetch published reviews for a product (RLS: attested read). Returns [].

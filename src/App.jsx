@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useState } from "react";
 import { Routes, Route, useLocation, useParams, Navigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { useCart } from "./context/CartContext";
@@ -112,11 +112,22 @@ function ProductAliasRedirect() {
 // then gets shoved a full viewport down once the route (or its skeleton)
 // mounts. That single reflow measured CLS = 1.0 on the PDP. It is only a floor:
 // pages taller than the viewport are unaffected.
+// Opt cycle 4 (4.7 / 4.8, Hy-007): the FIRST route's content is already on
+// screen from the prerendered HTML. Fading it from opacity 0 replaced painted
+// content with an invisible tree for 300 ms on every first load, and pushed
+// the largest paint to the end of the fade. The first mount therefore skips
+// the entrance animation; route changes after that keep it.
+let firstRouteMounted = false;
 function Page({ children }) {
+  const [skipFade] = useState(() => {
+    if (firstRouteMounted) return false;
+    firstRouteMounted = true;
+    return true;
+  });
   return (
     <Motion.div
       className="min-h-screen"
-      initial={{ opacity: 0 }}
+      initial={skipFade ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
     >

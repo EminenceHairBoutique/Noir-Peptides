@@ -67,9 +67,13 @@ console.log("\nSource-sync guards:");
   assert((cartSrc.match(/clampQty\(/g) || []).length >= 3, "clampQty applied on add, update, and merge paths");
   const priceSrc = readFileSync("lib/pricing.js", "utf8");
   assert(/Math\.min\(99,/.test(priceSrc), "server still clamps to 99 (contract intact)");
+  // Opt cycle 4: the tier rule lives in the pure module src/lib/tiers.js
+  // (catalog.js re-exports it); the mirror above must match THAT source.
+  const tiersSrc = readFileSync("src/lib/tiers.js", "utf8");
+  const fn = tiersSrc.slice(tiersSrc.indexOf("export function unitPriceForQuantity"));
+  assert(/qty >= Number\(t\.min_quantity\)/.test(fn), "tier rule unchanged in src/lib/tiers.js (mirror valid)");
   const catalogSrc = readFileSync("src/lib/catalog.js", "utf8");
-  const fn = catalogSrc.slice(catalogSrc.indexOf("export function unitPriceForQuantity"));
-  assert(/qty >= Number\(t\.min_quantity\)/.test(fn), "catalog tier rule unchanged (mirror valid)");
+  assert(/export \{ unitPriceForQuantity, nextTierFor \} from "\.\/tiers\.js";/.test(catalogSrc), "catalog.js re-exports the tier rule (existing imports intact)");
 }
 
 if (failures) {

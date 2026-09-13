@@ -8,9 +8,12 @@
 // canvas claims horizontal drags for rotation (touch-action: pan-y), which is
 // intended: swiping ON the vial rotates it; the dots (and swipes that start
 // outside the canvas) change slides.
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import VialPreview from "./VialPreview";
-import LabelPreview from "../labels/LabelPreview";
+// Opt cycle 4 (4.7, Hy-005): the flat-label renderer (and the QR library it
+// pulls) is ~23 KB gzipped and is needed only when an APPROVED label exists
+// for the variant. Lazy so it never rides the product page's first load.
+const LabelPreview = lazy(() => import("../labels/LabelPreview"));
 
 export default function MediaGallery({ vialLabel }) {
   const scrollerRef = useRef(null);
@@ -72,11 +75,14 @@ export default function MediaGallery({ vialLabel }) {
               </div>
             ) : (
               <div className="h-full w-full flex items-center justify-center p-4 overflow-y-auto">
-                <LabelPreview
-                  config={vialLabel}
-                  templateId={vialLabel.template_id}
-                  presetId={s.key === "front" ? "front" : "full_wrap"}
-                />
+                {/* The slide box is fixed-size, so the fallback cannot shift layout. */}
+                <Suspense fallback={<div aria-hidden="true" className="h-full w-full" />}>
+                  <LabelPreview
+                    config={vialLabel}
+                    templateId={vialLabel.template_id}
+                    presetId={s.key === "front" ? "front" : "full_wrap"}
+                  />
+                </Suspense>
               </div>
             )}
           </div>

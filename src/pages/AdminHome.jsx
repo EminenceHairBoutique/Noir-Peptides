@@ -1210,8 +1210,14 @@ function SdsRow({ row, onSaved, onError }) {
    un-published. Rendered only when the API returned the column (migration
    applied); mirror the same value in src/data/tier1Catalog.js so the static
    fallback agrees. */
+const REBUILD_COPY = {
+  triggered: "Rebuild triggered — the static pages update when the deploy finishes (a few minutes).",
+  not_configured: "Static pages update on the next deploy. Set VERCEL_DEPLOY_HOOK_URL to rebuild automatically.",
+  failed: "Rebuild request failed — redeploy from Vercel so the static pages match.",
+};
 function CategoryRow({ row, onSaved, onError }) {
   const [busy, setBusy] = useState(false);
+  const [rebuild, setRebuild] = useState(null);
   const hidden = row.soft_launch_hidden === true;
   const toggle = async () => {
     setBusy(true);
@@ -1221,6 +1227,7 @@ function CategoryRow({ row, onSaved, onError }) {
         id: row.slug,
         soft_launch_hidden: !hidden,
       });
+      setRebuild(r.rebuild || null);
       onSaved("category", r.category, null);
     } catch (e) { onError(e.message); }
     finally { setBusy(false); }
@@ -1237,6 +1244,11 @@ function CategoryRow({ row, onSaved, onError }) {
         hidden ? "border-amber-500/30 bg-amber-500/10 text-amber-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>
         {hidden ? "hidden" : "visible"}
       </span>
+      {rebuild && REBUILD_COPY[rebuild] && (
+        <p className={`basis-full text-[11px] ${rebuild === "triggered" ? "text-emerald-300" : "text-amber-300"}`} data-testid="rebuild-status">
+          {REBUILD_COPY[rebuild]}
+        </p>
+      )}
     </div>
   );
 }

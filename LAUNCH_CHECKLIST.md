@@ -8,6 +8,10 @@ below are operator/legal/business actions the code cannot perform.
 
 - [ ] **RUO vs. consumer/human-use positioning decision** (the single largest
       risk to this venture). Confirm the research-use-only posture with counsel.
+      If counsel hides a category: Control Room → Catalog → "hidden at launch",
+      then let the rebuild run (set `VERCEL_DEPLOY_HOOK_URL` so it triggers
+      itself; otherwise redeploy by hand) and mirror `softLaunchHidden` in
+      `src/data/tier1Catalog.js` — see `docs/MIGRATIONS_0034.md`.
 - [ ] **Payment-processor conversation.** Card processors frequently prohibit
       peptide/research-chemical sales for human use and freeze accounts. Confirm
       acceptance with Stripe (or an alternative) BEFORE wiring keys.

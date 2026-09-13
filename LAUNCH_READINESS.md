@@ -7,6 +7,38 @@ live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
 
+## ✅ Done (Sept-13 optimization cycle 4 — branch `claude/opt-cycle-4-20260913`)
+
+Six verified items (`OPTIMIZATION_LOG.md`, cycle 4):
+
+- **Legal: the printed label is now gated.** Real labels (every template,
+  front + full wrap, four configs) are rendered and scanned; volumes,
+  solvents, routes, doses, schedules and reconstitution instructions are
+  forbidden outright; the engine's fixed strings are scanned the same way.
+  Nothing was found. One sentence is escalated to counsel (below).
+- **Accessibility: the cart drawer is a dialog that takes focus** and
+  returns it on close; a keyboard-only walk of the public commerce path
+  (shop → product → Add to Cart → drawer → Escape) runs in E2E.
+- **Ops/SEO: hiding a category now rebuilds the site** when the Vercel deploy
+  hook is configured, and the Control Room says plainly when it is not —
+  the prerendered (indexable) pages no longer wait for a manual deploy.
+- **Performance:** the flat-label renderer and the QR library no longer
+  ride every product page (−21 KB transfer per PDP); the first route no
+  longer fades in from invisible over already-painted content (a 420–460 ms
+  opacity-0 window on throttled mobile, measured); `npm run perf:compare`
+  A/Bs two builds back to back.
+- **Commerce:** cart lines say "Add N more for $X each" when a cheaper
+  bundle tier is within reach (display only; server pricing untouched).
+
+**What didn't move (owner):** unchanged from cycle 3. **New escalation
+(counsel, low):** the full-wrap label carries "After reconstitution:
+storage conditions must be determined by the validated research protocol."
+It names no solvent, volume or schedule and the gate accepts it; whether a
+label should mention reconstitution at all is a counsel call
+(`src/lib/labels/storage.js`, `RECONSTITUTION_NOTE`). **New owner action:**
+set `VERCEL_DEPLOY_HOOK_URL` (Vercel → Project → Settings → Git → Deploy
+Hooks) so a visibility flip rebuilds the static pages by itself.
+
 ## ✅ Done (Sept-13 optimization cycle 3 — branch `claude/opt-cycle-3-20260913`)
 
 Six verified items (`OPTIMIZATION_LOG.md`, cycle 3):
