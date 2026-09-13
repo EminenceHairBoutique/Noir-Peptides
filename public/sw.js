@@ -17,7 +17,6 @@
   version; in dev/preview-without-build it stays empty and the worker is
   runtime-caching only.
 */
-/* eslint-env serviceworker */
 
 const NP = self.__NP_PRECACHE__ || { version: "dev", assets: [] };
 
