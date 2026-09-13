@@ -1,0 +1,53 @@
+/* src/fonts.css — self-hosted web fonts (opt cycle 2, scorecard 4.7).
+
+   The page uses the SAME files the label engine already ships in
+   public/fonts (see src/lib/labels/fontEmbed.js): Syne and DM Sans as
+   single variable-weight woff2 files, IBM Plex Mono as three static weights.
+   One set of files, two consumers — no duplicate font assets in the repo.
+
+   Served from our own origin: no third-party font hop on first paint, no
+   fonts.googleapis / fonts.gstatic request, nothing for a font CDN to
+   observe. All three families are SIL Open Font License 1.1
+   (public/fonts/LICENSE.txt). Weight ranges below are the weights the site
+   requests; the variable files cover them (verified by measurement in
+   scripts/shots.mjs). */
+
+@font-face {
+  font-family: 'Syne';
+  font-style: normal;
+  font-weight: 600 800;
+  font-display: swap;
+  src: url('/fonts/syne-var.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 300 600;
+  font-display: swap;
+  src: url('/fonts/dm-sans-var.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-600.woff2') format('woff2');
+}
