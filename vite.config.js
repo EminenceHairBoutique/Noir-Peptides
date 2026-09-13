@@ -12,6 +12,10 @@ export default defineConfig({
     // intentionally large but is ONLY loaded via the lazy VialScene import
     // (admin Label Studio 3D view); it never ships in the initial bundle.
     chunkSizeWarningLimit: 950,
+    // Opt cycle 3 (4.7): the prerender generator reads dist/.vite/manifest.json
+    // to announce each route's page chunk with <link rel="modulepreload">, so
+    // the chunk downloads in parallel with the main bundle instead of after it.
+    manifest: true,
     rollupOptions: {
       output: {
         manualChunks(id) {

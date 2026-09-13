@@ -16,6 +16,7 @@
   Usage: node scripts/serve-dist.mjs [port]     (default 4180)
 */
 import http from "node:http";
+import zlib from "node:zlib";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,13 +40,25 @@ const TYPES = {
   ".ico": "image/x-icon",
 };
 
+// Opt cycle 3 (4.7): gzip text responses when the client accepts it, so
+// throttled measurements over this server resemble Vercel (which compresses)
+// instead of over-counting bytes ~5× on CSS/JS.
+let currentReq = null;
 function send(res, status, body, type) {
-  res.writeHead(status, { "Content-Type": type || "text/plain; charset=utf-8" });
+  const t = type || "text/plain; charset=utf-8";
+  const compressible = /^(text\/|application\/(json|javascript|xml|manifest))/.test(t);
+  const accepts = /\bgzip\b/.test(String(currentReq?.headers?.["accept-encoding"] || ""));
+  if (compressible && accepts && body && body.length > 512) {
+    res.writeHead(status, { "Content-Type": t, "Content-Encoding": "gzip", Vary: "Accept-Encoding" });
+    return res.end(zlib.gzipSync(body));
+  }
+  res.writeHead(status, { "Content-Type": t });
   res.end(body);
 }
 
 http
   .createServer((req, res) => {
+    currentReq = req;
     const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
     // Block traversal.
     const safe = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, "");

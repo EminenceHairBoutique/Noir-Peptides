@@ -191,6 +191,75 @@ function ensureSiteUrl(pathname) {
   return `${SITE_URL}${p.startsWith("/") ? "" : "/"}${p}`;
 }
 
+// ── Route-chunk modulepreload (opt cycle 3, scorecard 4.7) ────────────────
+// Vite emits one lazy chunk per page (App.jsx lazy-imports every route). The
+// browser discovers that chunk only after the main bundle has executed — a
+// serialized hop that sat between first paint and largest paint on every
+// route measured. The Vite manifest (build.manifest) maps a page source to
+// its chunk + static imports, so each prerendered page can announce its own
+// chunk in <head>. Never the heavy lazy vendors (3D / PDF / QR) — the PDP
+// preload guard (test-pdp-preload.mjs) enforces that; a chunk is only ever
+// listed here when it is a STATIC import of the page.
+// The landing page (/) is deliberately NOT mapped: with its 4 KB chunk
+// resident before the main bundle finishes, the throttled-mobile profile
+// (npm run perf) showed its largest paint landing ~900 ms LATER (2.0 s →
+// 2.9 s, 5 of 6 runs) while /shop improved by ~380 ms; the mechanism is
+// suspected to be the route fade-in competing with initial script work.
+// Re-test after the fade is revisited (PLAYBOOK Hy-007).
+const ROUTE_PAGE_SOURCES = [
+  [/^\/shop(\/|$)/, "Shop"],
+  [/^\/product\//, "ProductDetail"],
+  [/^\/test-results$/, "TestResults"],
+  [/^\/test-results\//, "TestResultsProduct"],
+  [/^\/documents$/, "Documents"],
+  [/^\/verify-lot$/, "VerifyLot"],
+  [/^\/research$/, "Research"],
+  [/^\/research\//, "ResearchArticle"],
+  [/^\/legal\/terms$/, "Terms"],
+  [/^\/legal\/privacy$/, "Privacy"],
+  [/^\/legal\/research-use-policy$/, "ResearchUsePolicy"],
+  [/^\/legal\/fda-disclaimer$/, "FdaDisclaimer"],
+  [/^\/legal\/ruo-agreement$/, "RuoAgreement"],
+  [/^\/legal\/(shipping|returns)$/, "ShippingRefunds"],
+  [/^\/faqs$/, "Faqs"],
+  [/^\/about$/, "About"],
+  [/^\/contact$/, "Contact"],
+  [/^\/deals$/, "Deals"],
+  [/^\/coa-policy$/, "CoaPolicy"],
+  [/^\/quality$/, "Quality"],
+  [/^\/login$/, "Login"],
+  [/^\/register$/, "Register"],
+];
+const NEVER_PRELOAD = /vendor-three|vendor-pdf|jsQR/;
+export function routePageSource(pathname) {
+  const hit = ROUTE_PAGE_SOURCES.find(([re]) => re.test(pathname));
+  return hit ? `src/pages/${hit[1]}.jsx` : null;
+}
+async function loadViteManifest() {
+  try {
+    return JSON.parse(await fs.readFile(path.join(DIST_DIR, ".vite", "manifest.json"), "utf8"));
+  } catch {
+    return null;
+  }
+}
+/** <link rel="modulepreload"> tags for a route's page chunk + its static imports. */
+export function renderRoutePreloads(pathname, manifest, baseHtml) {
+  if (!manifest) return "";
+  const key = routePageSource(pathname);
+  if (!key || !manifest[key]) return "";
+  const files = [];
+  const seen = new Set();
+  const visit = (k) => {
+    if (seen.has(k) || !manifest[k]) return;
+    seen.add(k);
+    const entry = manifest[k];
+    if (entry.file && !NEVER_PRELOAD.test(entry.file) && !baseHtml.includes(`/${entry.file}`)) files.push(entry.file);
+    for (const imp of entry.imports || []) visit(imp);
+  };
+  visit(key);
+  return files.map((f) => `<link rel="modulepreload" crossorigin href="/${f}">`).join("\n");
+}
+
 function replaceSeoBlock(html, newBlock) {
   const start = html.indexOf(SEO_BEGIN);
   const end = html.indexOf(SEO_END);
@@ -1383,6 +1452,10 @@ async function main() {
     ...hiddenRoutes,
   ];
 
+  const viteManifest = await loadViteManifest();
+  let preloadedRoutes = 0;
+  if (!viteManifest) console.warn("[seo] dist/.vite/manifest.json missing — route-chunk modulepreload skipped (run the full `npm run build`)");
+
   for (const route of routes) {
     const pathname = route.pathname;
     const url = ensureSiteUrl(pathname);
@@ -1422,7 +1495,9 @@ async function main() {
       jsonLd,
     });
 
-    const withSeo = replaceSeoBlock(baseHtml, seoBlock);
+    const preloads = renderRoutePreloads(pathname, viteManifest, baseHtml);
+    if (preloads) preloadedRoutes++;
+    const withSeo = replaceSeoBlock(baseHtml, preloads ? `${seoBlock.trim()}\n${preloads}` : seoBlock);
     const finalHtml = injectBody(withSeo, route.bodyHtml);
 
     const outFile =
@@ -1432,6 +1507,11 @@ async function main() {
 
     await fs.mkdir(path.dirname(outFile), { recursive: true });
     await fs.writeFile(outFile, finalHtml, "utf8");
+  }
+  if (viteManifest) {
+    console.log(`[seo] route-chunk modulepreload injected into ${preloadedRoutes} pages`);
+    // The manifest is a build-time input, not a deliverable.
+    await fs.rm(path.join(DIST_DIR, ".vite"), { recursive: true, force: true });
   }
 
   // The public catalog (shop, categories, products) + education + legal pages

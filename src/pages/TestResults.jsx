@@ -106,7 +106,7 @@ export default function TestResults() {
         type="website"
       />
 
-      <main className="min-h-screen bg-se-black">
+      <div className="min-h-screen bg-se-black">
         <div className="content-wide pt-28 pb-16">
           <p className="text-[11px] font-accent tracking-[0.2em] uppercase text-se-gold">
             Transparency
@@ -318,7 +318,7 @@ export default function TestResults() {
             For research use only. Not for human or veterinary use.
           </p>
         </div>
-      </main>
+      </div>
     </>
   );
 }

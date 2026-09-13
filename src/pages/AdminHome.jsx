@@ -498,8 +498,41 @@ function printPackingSlip(order) {
   w.document.close();
 }
 
+/* Opt cycle 3 (4.11): the consent record behind an order, read-only. Shows
+   exactly what is on file — version, legal name, the attested statements,
+   IP, user agent, timestamp — or says there is none. Never a placeholder. */
+export function AttestationRecord({ record }) {
+  if (!record) {
+    return (
+      <p className="text-[11px] text-amber-300/90 mt-4" data-testid="attestation-none">
+        No research-use attestation record is on file for this order.
+      </p>
+    );
+  }
+  const statements = Array.isArray(record.statements) ? record.statements : [];
+  return (
+    <div className="mt-4" data-testid="attestation-record">
+      <p className="text-[11px] uppercase tracking-wide text-se-steel mb-1">Research-use attestation on file</p>
+      <p className="text-[12px] text-se-bone/75 leading-relaxed">
+        {record.legal_name || "—"}
+        {record.version ? <span className="font-mono text-[11px] text-se-steel"> · v{record.version}</span> : null}
+        {record.created_at ? <span className="text-se-steel"> · {new Date(record.created_at).toLocaleString()}</span> : null}
+      </p>
+      {statements.length > 0 && (
+        <ol className="mt-1 list-decimal pl-4 text-[11px] text-se-bone/60 leading-relaxed space-y-0.5">
+          {statements.map((st, i) => <li key={i}>{typeof st === "string" ? st : st?.text || st?.statement || JSON.stringify(st)}</li>)}
+        </ol>
+      )}
+      <p className="mt-1 font-mono text-[10px] text-se-steel break-all">
+        IP {record.ip_address || "—"} · UA {record.user_agent ? record.user_agent.slice(0, 120) : "—"}
+      </p>
+    </div>
+  );
+}
+
 function OrderDetail({ orderNumber, onOrderChanged, onError }) {
   const [order, setOrder] = useState(null);
+  const [attestation, setAttestation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tracking, setTracking] = useState({ url: "", carrier: "" });
   const [busy, setBusy] = useState(false);
@@ -512,6 +545,7 @@ function OrderDetail({ orderNumber, onOrderChanged, onError }) {
       .then((d) => {
         if (!alive) return;
         setOrder(d.order);
+        setAttestation(d.attestation || null);
         setTracking({ url: d.order?.tracking_url || "", carrier: d.order?.tracking_carrier || "" });
       })
       .catch((e) => onError(e.message))
@@ -571,6 +605,7 @@ function OrderDetail({ orderNumber, onOrderChanged, onError }) {
         {order.shipped_at && (
           <p className="text-[11px] text-se-steel mt-2">Shipped {new Date(order.shipped_at).toLocaleString()}</p>
         )}
+        <AttestationRecord record={attestation} />
       </div>
       <div className="space-y-2">
         <p className="text-[11px] uppercase tracking-wide text-se-steel">Ship & track</p>

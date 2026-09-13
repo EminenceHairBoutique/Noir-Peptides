@@ -30,13 +30,43 @@ for (const width of [390, 1280]) {
   }
   await context.close();
 }
-await browser.close();
 fs.writeFileSync(out, JSON.stringify(report, null, 2));
 const byRule = {};
 for (const r of report) { const k = `${r.impact}|${r.id}`; byRule[k] = byRule[k] || { impact: r.impact, id: r.id, help: r.help, pages: new Set(), nodes: 0 }; byRule[k].pages.add(`${r.route}@${r.width}`); byRule[k].nodes += r.count; }
 const order = { critical: 0, serious: 1, moderate: 2, minor: 3 };
 console.log("\n=== violations by rule ===");
 for (const v of Object.values(byRule).sort((a, b) => order[a.impact] - order[b.impact])) console.log(`[${v.impact}] ${v.id} — ${v.help} — ${v.nodes} node(s) on ${v.pages.size} page-view(s)`);
+// Opt cycle 3 (Hy-004): landmark structure is a budget of ZERO — one <main>,
+// every node inside a landmark, one h1 — now that the baseline is clean.
+const LANDMARK_RULES = ["region", "landmark-one-main", "landmark-no-duplicate-main", "landmark-main-is-top-level", "landmark-unique", "page-has-heading-one"];
+const landmark = report.filter((r) => LANDMARK_RULES.includes(r.id)).reduce((n, r) => n + r.count, 0);
+console.log(`landmark findings (${LANDMARK_RULES.join(", ")}): ${landmark}`);
+
+// Keyboard: the first Tab on a shell page must land on the skip link, and
+// activating it must move focus into #main (WCAG 2.4.1 bypass block).
+let keyboardFailures = 0;
+{
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  for (const route of ["/shop", "/test-results", "/faqs"]) {
+    await page.goto(base + route, { waitUntil: "networkidle" });
+    // The age gate is a modal on first visit; accept it so the page is reachable.
+    const gate = page.getByRole("button", { name: /enter|confirm|i am|agree|continue/i }).first();
+    if (await gate.isVisible().catch(() => false)) { await gate.click(); await page.waitForTimeout(300); }
+    await page.keyboard.press("Tab");
+    const first = await page.evaluate(() => ({ text: document.activeElement?.textContent?.trim(), href: document.activeElement?.getAttribute("href") }));
+    const onSkip = first.href === "#main" && /skip to content/i.test(first.text || "");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(150);
+    const landed = await page.evaluate(() => { const a = document.activeElement; const m = document.getElementById("main"); return !!m && (a === m || m.contains(a)); });
+    const pass = onSkip && landed;
+    if (!pass) keyboardFailures++;
+    console.log(`${pass ? "✓" : "✗"} keyboard ${route}: first Tab → ${JSON.stringify(first)}; Enter → focus ${landed ? "inside" : "OUTSIDE"} #main`);
+  }
+  await context.close();
+}
+
+await browser.close();
 const blocking = report.filter((r) => r.impact === "critical" || r.impact === "serious").length;
-console.log(`\ncritical/serious findings: ${blocking}; report: ${out}`);
-process.exit(blocking ? 1 : 0);
+console.log(`\ncritical/serious findings: ${blocking}; landmark findings: ${landmark}; keyboard failures: ${keyboardFailures}; report: ${out}`);
+process.exit(blocking || landmark || keyboardFailures ? 1 : 0);

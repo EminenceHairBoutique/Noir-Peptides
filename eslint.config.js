@@ -60,6 +60,18 @@ export default defineConfig([
     },
   },
 
+  // Service worker — worker globals (self, caches, clients …). ESLint 10 drops
+  // `/* eslint-env */` comments, so the environment lives here instead.
+  {
+    files: ["public/sw.js"],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "script",
+      globals: globals.serviceworker,
+    },
+  },
+
   // Context providers export hooks/constants — allow without breaking fast refresh rule
   {
     files: ["src/context/**/*.{js,jsx}"],

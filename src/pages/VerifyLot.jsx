@@ -137,7 +137,7 @@ export default function VerifyLot() {
         noindex
       />
 
-      <main className="min-h-screen bg-se-black">
+      <div className="min-h-screen bg-se-black">
         <div className="content-wide pt-28 pb-16 max-w-3xl">
           <h1 className="font-display text-3xl text-se-bone">
             {code ? "Batch Verification" : "Verify a Lot"}
@@ -219,7 +219,7 @@ export default function VerifyLot() {
             For research use only. Not for human or veterinary use.
           </p>
         </div>
-      </main>
+      </div>
     </>
   );
 }

@@ -374,3 +374,231 @@ serious/critical only.
 **Rollback.** Revert the branch; no migrations, no data, no payment/RLS/CSP
 files touched.
 
+
+---
+
+## Cycle 3 — 2026-09-13
+
+**HEAD before:** `6c51b24` (main, Merge PR #34). **Branch:** `claude/opt-cycle-3-20260913`.
+
+### RECON
+
+Order as in cycles 1–2: numeric diff first (H-007), corpus gate second. Nothing
+landed on `main` since the cycle-2 merge (PR #34 merged 05:26 UTC by the
+owner). Build 78 routes / sitemap 72 / meta CSP; `test:unit` 45 suites / 835 ✓;
+lint 0 errors (3 warnings + one ESLint-10 deprecation in `public/sw.js`);
+`npm audit` 0. Live site still unreachable from the sandbox (egress 403 on
+`noirpeptides.com` and `*.vercel.app`) → live checks stay `?`.
+
+**Acting on cycle 2's "what I'd do differently":** grepped before adding
+anything (no new assets this cycle); the a11y engine was driven from its own
+API this time (`newContext` per width, no retries); the throttled-perf script
+was run from the repo root after its first run failed on module resolution
+from the scratch directory (same class of lesson — run tools from where their
+dependencies resolve); no `pkill -f` used.
+
+**Findings (VERIFIED by a command this cycle unless marked):**
+- **4.1 — no gate scans what the buyer actually sees.** The corpus gate covers
+  data files, AI instructions and the email template; the retired tagline in
+  cycle 2 lived in JSX and was invisible to it. Running the scanner over the
+  visible text + meta descriptions of all 78 prerendered pages: 71 findings on
+  20 pages, every one a negation/legal-disclaimer context on inspection
+  (`/coa-policy` "does not establish that the product is sterile / injectable",
+  `/legal/terms` prohibited-use list, FAQ negations). No positive claim found —
+  but nothing enforces that on the next copy change.
+- **4.9 — Hy-004 confirmed:** 407 `region` nodes (moderate) across 14 of 18
+  page-views. `/shop` alone is 185 (no `<main>` at all); `/faqs` 7; the other
+  pages 2–3 — the cookie banner's two paragraphs (outside every landmark) and
+  the `LegalPageLayout` root. Five pages carry their own `<main>`; the shell
+  has none. No skip link exists (WCAG 2.4.1).
+- **4.11 — the order detail cannot show the attestation that authorized the
+  order.** `api/admin/orders.js` selects fulfilment columns only;
+  `attestation_audit` rows are stamped with `order_id` + `context: "checkout"`
+  since migration 0015 (and carry IP + UA since cycle 2), but the Control Room
+  never reads them. The ops dry run "find the attestation record without SQL"
+  fails at that step. Refund/cancel: status select exists; no rail-side refund
+  (no live rail) — honest as-is.
+- **4.7 — throttled mobile LCP (Slow-4G-class, 4× CPU, uncompressed local
+  serve):** `/` 5.0 s, `/shop` 4.4 s, `/product/bpc-157` 2.9 s, `/test-results`
+  4.4 s; FCP 2.5–2.9 s; CLS 0 on all four. The waterfall shows the cause: the
+  route chunk (`PublicLanding-*.js`, `Shop-*.js`, …) plus its shared chunks
+  (`SEO-*.js`, `pageCopy-*.js`) are requested only after the main bundle
+  executes (t≈3.5 s) — a serialized hop the prerendered HTML could announce
+  with `modulepreload`. Local numbers over-penalize: `serve-dist.mjs` sends no
+  compression (CSS 82 KB on the wire vs 14.7 KB gzipped); Vercel compresses.
+  The hop, not the bytes, is the finding.
+- **4.13 — `.env.example` is incomplete:** 13 names read by runtime or script
+  code are undocumented (`ALLOWED_ORIGINS`, `PAYMENTS_STRIPE_LIVE_ACK`,
+  `FEATURE_AI_PUBLIC` is only in a comment, `RLS_PROBE_EMAIL/PASSWORD`,
+  `E2E_API_URL`, server-side `SUPABASE_URL`/`SUPABASE_ANON_KEY`, plus platform
+  names). No gate.
+- Failure injection (SW update path): `public/sw.js` does `skipWaiting` +
+  `clients.claim` and serves navigations network-first → a deploy while a
+  worker is active cannot pin an old shell. 0 yield; second cycle at 0.
+- Competitor delta: the three items on the Sept bar (clickable lab key, batch
+  depth, blends line) are owner-data or owner-posture; 0 yield; second cycle
+  at 0 → both generators rewritten in the PLAYBOOK this cycle.
+- Data honesty: no numeric claim is rendered in the static bodies of `/`,
+  `/test-results`, `/about`, `/coa-policy` (counters are DB-driven at runtime).
+- JSON-LD types in tree: Organization, WebSite, WebPage, CollectionPage,
+  Product, Offer, AggregateOffer, Brand, BreadcrumbList, Article, FAQPage.
+  No Review / AggregateRating / Drug / MedicalEntity.
+
+### SCORE (before this cycle's work)
+
+| # | Scorecard | Score | Evidence |
+| --- | --- | --- | --- |
+| 4.1 | Legal | 8 | corpus gate green; rendered output unscanned |
+| 4.2 | Security | 8 | unchanged; `verify:rls` on prod unconfirmed; repo public |
+| 4.3 | Data integrity | 7 | unchanged |
+| 4.4 | Trust | 7 | unchanged |
+| 4.5 | Commerce | 7 | unchanged |
+| 4.6 | SEO | 8 | link-depth gate green |
+| 4.7 | Performance | 7 | LCP 2.9–5.0 s throttled (local, uncompressed); route-chunk hop |
+| 4.8 | UI/UX | ? | — |
+| 4.9 | Accessibility | 7 | 0 serious; 407 moderate landmark nodes; no skip link |
+| 4.10 | Mobile | 8 | 52/52 at cycle-2 end |
+| 4.11 | Admin | 6 | attestation record not reachable from the order screen |
+| 4.12 | Observability | 6 | unchanged |
+| 4.13 | Hygiene | 7 | env example incomplete; ESLint-10 deprecation |
+
+### PLAN (written before execution; ranked impact × confidence / effort, legal first)
+
+1. **[4.1] Rendered-output compliance gate.** `scripts/test-dist-copy.mjs`:
+   scan every `dist/**/index.html` — visible text, meta/OG descriptions, JSON-LD
+   text, `alt`/`aria-label`/`title` attributes — with an exact allowlist of
+   accepted findings per page (H-006: negations only, negation window checked).
+   Any new finding fails; any vanished accepted finding is reported. Generator:
+   regulator walk.
+2. **[4.9] Hy-004 + skip link.** One `<main id="main">` in the app shell for
+   non-bare routes; the five page-level `<main>`s become `<div>`; cookie banner
+   gets a named region; "Skip to content" link first in the tab order. The a11y
+   sweep gains a landmark budget (`region`, `landmark-one-main`, `page-has-
+   heading-one` must be 0) and a keyboard check (first Tab lands on the skip
+   link; activating it moves focus into `#main`). Prerender coverage unchanged
+   (static bodies keep their `<main>`). Screenshots 320/1280. Generator:
+   accessibility sweep.
+3. **[4.11] Attestation record on the order detail.** `api/admin/orders.js`
+   detail GET also returns the checkout-context `attestation_audit` row for
+   the order (version, legal name, statements, IP, UA, timestamp) or `null`;
+   `OrderDetail` renders it or says "No attestation record on file" — never a
+   placeholder. `scripts/test-admin-orders.mjs` executes the real handler
+   against the admin stub. Generator: ops dry run.
+4. **[4.7] Route-chunk modulepreload + measurable perf script.** Vite
+   `build.manifest` on; the prerender generator injects `modulepreload` for the
+   route's page chunk and its static imports (never `vendor-three`/`vendor-pdf`
+   /`jsQR` — the PDP guard stays); `serve-dist.mjs` gzips text so local
+   numbers resemble Vercel; `scripts/perf-profile.mjs` (`npm run perf`) prints
+   TTFB/FCP/LCP/CLS/bytes per route on throttled mobile, before/after recorded
+   here. Test: every mapped route's HTML preloads a chunk that exists in dist.
+   Generator: cost/perf profile.
+5. **[4.13] `.env.example` completeness gate** + the missing entries (secret-
+   free, commented), with a secret-shape check on every value. Generator:
+   inversion ("what makes a deploy fail silently? an env var nobody wrote
+   down").
+6. **[4.13] ESLint 10 forward-compat:** `public/sw.js` loses its `eslint-env`
+   comment; the flat config gains a service-worker block. Tiny.
+
+Not this cycle: keyboard-only checkout (needs an authenticated E2E session —
+no auth fixture exists; noted as a cycle-4 candidate with the fixture as the
+first step); 200 % zoom (WCAG 1.4.10 reflow is 320 CSS px, which the mobile
+guard already enforces on 5 routes — recorded, not duplicated).
+
+### EXECUTION — results
+
+| # | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| 1 | Rendered-output compliance gate | **VERIFIED** | `scripts/test-dist-copy.mjs` (6 assertions): 78 pages; 11 pages carry 87 accepted findings, all negations within a list-scale window (widened to 480 chars for the two list-form disclaimers on `/coa-policy` and `/legal/shipping`); 56 product/category/article pages have zero findings; the retired tagline is absent. Three findings on `/` come from the FAQPage JSON-LD that no corpus entry covers (H-010). Second method: the scanner's own findings printed with context and read by hand for `/`, `/coa-policy`, `/legal/shipping` |
+| 2 | One main landmark + skip link | **VERIFIED** | axe sweep on the final build: `region` 407 → **0**, every landmark rule 0, 0 critical/serious across 18 page-views; keyboard check green on 3 routes (first Tab → "Skip to content"; Enter → focus inside `#main`); `document.querySelectorAll("main").length === 1` at 320 and 1280; prerender coverage green (static bodies keep their `<main>`). Correction: the landing and auth layouts had to be demoted too — the first sweep after the change reported `landmark-no-duplicate-main` on `/` and `/login`. Screenshots: `skip-link-focused-{320,1280}.png`, `after-skip-*.png`, `test-results-*.png` (scratch) |
+| 3 | Attestation record on the order detail | **VERIFIED** | `scripts/test-admin-orders.mjs` (24 assertions) executes the real handler against the stub: checkout-context row returned with version / legal name / 2 statements / IP / UA / timestamp; registration row never chosen; no record → `attestation: null`; missing table → null; list unchanged; `user_id` not echoed; Control Room wiring + explicit empty sentence asserted. Second method: handler read end-to-end after the change |
+| 4 | Route-chunk modulepreload + perf script | **VERIFIED, with a scope cut** | `scripts/test-route-preload.mjs` (37 assertions) on the final dist: 75 pages preload their page chunk (Shop ×9, ProductDetail ×44, …), every href resolves, no 3D/PDF/QR vendor anywhere, manifest not deployed, `/` excluded. **Measurement (throttled mobile, gzip server, back-to-back runs, LCP ms):** `/shop` base 2520 / 2540 → 2376 / 2368 (variant test: 2548 / 2564 / 2536 → 2136–2224, **−350 to −400**); `/test-results` 2508 / 2520 → 2276 / 2328 (**−200**); PDP and `/faqs`: LCP = FCP (the prerendered text is the largest paint) → **no effect**, the earlier 1296 → 1028 reading was FCP bimodality, not a gain; **`/` regressed** with its chunk preloaded: 2020 → 2900–2930 in 5 of 6 runs (third LCP candidate — the hero paragraph re-rendered by React — lands ~900 ms later; placement after the stylesheet and `fetchpriority="low"` did not change it; the service worker was ruled out by blocking it). Cut: `/` is not mapped; final profile `/` 2128, `/shop` 2312, PDP 1020, `/test-results` 2272, `/faqs` 1208 — all five under 2.5 s. Mechanism SUSPECTED: the route fade-in (`Page` in `src/App.jsx`) competing with initial script execution when the chunk is already resident → Hy-007 |
+| 5 | `.env.example` completeness gate | **VERIFIED** | `scripts/test-env-example.mjs` (4 assertions): 34 names read across api/lib/src/scripts; 7 undocumented names added (`ALLOWED_ORIGINS`, `PAYMENTS_STRIPE_LIVE_ACK`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `RLS_PROBE_EMAIL`, `RLS_PROBE_PASSWORD`, `E2E_API_URL`), 1 dead name removed (`STRIPE_US_SHIPPING_RATE_ID`; `LAUNCH_CHECKLIST.md` corrected — shipping is server-side from `src/config/checkout.js`); no credential shape in any value. Second method: the first run of the gate failed on exactly those names before the file was edited |
+| 6 | ESLint 10 forward-compat | **VERIFIED** | `npm run lint`: the `ESLintEnvWarning` for `public/sw.js` is gone (0 occurrences), 0 errors, the 3 pre-existing `react-hooks` warnings unchanged |
+
+**Final gate on the finished tree:** build 78 routes / sitemap 72 / meta CSP ·
+lint 0 errors · **49 suites, 902 assertions** (+4 / +67) · axe 0 critical /
+0 serious / 0 landmark / 0 keyboard on 9 routes × 2 widths · perf worst LCP
+2312 ms (throttled mobile, gzip) · **E2E 29 passed / 4 skipped** (the four
+`E2E_API_URL` server-gate specs) · **mobile 52/52** — both on the final build
+with `PLAYWRIGHT_CHROMIUM_PATH` set to the pre-installed Chromium (the
+sandbox's Playwright wants headless-shell 1208, which is not installed; the
+first run failed 27 + 52 on that alone — harness, not code).
+
+**Cut / not attempted:** keyboard-only checkout (no auth fixture → Hy-006);
+200 % zoom (covered by the 320 px reflow guard; recorded); the PDP static
+import closure (20 chunks incl. label-studio/admin code → Hy-005, cycle 4).
+
+### SCORECARD DELTA
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.1 | Legal | 8 | **9** | rendered output gated per page (text, meta, JSON-LD, attributes); catalog + article pages must be finding-free. Not 10: Hy-003 category copy and the legacy `products.js` still await owner decisions |
+| 4.2 | Security | 8 | 8 | unchanged (`verify:rls` on prod unconfirmed; repo public) |
+| 4.3 | Data integrity | 7 | 7 | unchanged |
+| 4.4 | Trust | 7 | 7 | unchanged (lab data owner-entered) |
+| 4.5 | Commerce | 7 | 7 | unchanged |
+| 4.6 | SEO | 8 | 8 | unchanged (domain owner-gated) |
+| 4.7 | Performance | 7 | **8** | route-chunk hop removed on every route but `/` (measured); LCP under 2.5 s on all five profiled routes in the throttled harness; the profile is now a command. Not higher: `/` regression understood only as a hypothesis; no field data |
+| 4.8 | UI/UX | ? | ? | screenshots only |
+| 4.9 | Accessibility | 7 | **8** | one main landmark, skip link, landmark budget + keyboard check in CI. Not higher: keyboard-only checkout unasserted (Hy-006) |
+| 4.10 | Mobile | 8 | 8 | re-run on the final build (line below) |
+| 4.11 | Admin | 6 | **7** | attestation record on the order screen. Not higher: no rail-side refund (no live rail), tracking is a pasted link |
+| 4.12 | Observability | 6 | 6 | unchanged |
+| 4.13 | Hygiene | 7 | **8** | env example gated; ESLint 10 ready; +4 suites |
+
+### GENERATOR YIELDS (cycle 3)
+
+Regulator walk 1 · Accessibility sweep 1 · Ops dry run 1 · Cost/perf 1 ·
+Inversion 1 · Data honesty 0 (checked: no numeric claim in any static body) ·
+Failure injection 0 (SW update path sound) → rewritten · Competitor delta 0 →
+rewritten · Buyer walk not run.
+
+### ESCALATIONS (owner-only; ranked — #1 leads until cleared)
+
+1. **`npm run verify:rls` on prod** — unconfirmed since `0030`.
+2. Attorney: category posture → `soft_launch_hidden`; Hy-003 category descriptions.
+3. Apply `0031`–`0034`; decide `0027`. 4. Repo private. 5. Domain + `VITE_SITE_URL`.
+6. Enter labs + lookup codes (Control Room; needs `0032`).
+7. Delete legacy `src/data/products.js` + `scripts/audit-products.mjs` + CI step.
+8. `api/stripe-webhook.js` signature-error echo (ask-before).
+9. Remove `fonts.googleapis.com` / `fonts.gstatic.com` from the CSP (ask-before block).
+10. **New (no owner action, listed for visibility):** the `/` route fade-in vs
+    LCP question (Hy-007) and the PDP import closure (Hy-005) are engine work
+    for cycle 4.
+
+### What I'd do differently
+
+Measure with the production transport from the first minute — the RECON perf
+numbers were about the uncompressed test server, and an hour went into a
+"5-second LCP" that was 2.2 s with gzip (H-011). Run experiment scripts from
+the repo root the first time, not the scratch directory (two module-resolution
+failures this cycle, same cause as cycle 2's `pkill` lesson: the harness, not
+the code). Before claiming a perf gain, run the pair back to back at least
+twice and look at the LCP *candidate sequence*, not the last number — the PDP
+"gain" was FCP bimodality and the `/` regression only showed up as a third
+candidate. And when a change lands in a shared shell, sweep the routes the
+shell does NOT wrap too (the duplicate-main finding on `/` and `/login`).
+
+### PR DRAFT (open only on approval)
+
+**Title:** Optimization cycle 3 — rendered-copy gate, one main landmark + skip link, attestation on the order screen, route-chunk preload
+
+**Summary.** Six verified items on top of PR #34: (1) the compliance scanner
+now runs over what the buyer sees — every prerendered page's text, meta,
+JSON-LD and alt/aria text — with an exact per-page allowlist; (2) one `<main>`
+per document, a "Skip to content" link, and the CI a11y sweep now fails on any
+landmark finding or a broken skip link (407 → 0); (3) the Control Room's order
+detail shows the research-use attestation that authorized the order, or says
+none is on file; (4) every prerendered page except `/` announces its route
+chunk with `modulepreload` (measured −200 to −400 ms LCP on `/shop` and
+`/test-results`; `/` excluded after a measured regression), plus `npm run perf`
+and gzip on the test server; (5) `.env.example` complete and gated; (6) ESLint
+10 forward-compat. +4 suites, +67 assertions.
+
+**Risks.** Seven page/layout `<main>` elements became `<div>` (screenshotted
+at 320/1280; static prerendered bodies unchanged). `serve-dist.mjs` now gzips
+(affects only local/CI serving). `build.manifest` is on; the manifest is
+deleted after the prerender step. No migrations, no data, no payment / RLS /
+CSP files touched.
+
+**Rollback.** Revert the branch.

@@ -69,6 +69,7 @@ src/output.css
 .admin-labs-test-*.mjs
 .attestation-test-*.mjs
 .a11y-report.json
+.perf-report.json
 .lh-run.mjs
 .seo-work/
 .ld2.cjs

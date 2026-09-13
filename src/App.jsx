@@ -151,6 +151,11 @@ export default function App() {
         {!isBare && <Navbar />}
         <ScrollToTop />
 
+        {/* Opt cycle 3 (4.9, Hy-004): ONE main landmark per document, here.
+            Every page (landing, auth and shell pages alike) renders as
+            content — <div>, never its own <main>. tabIndex lets the skip
+            link move focus here. */}
+        <main id="main" tabIndex={-1} className="outline-none">
         <ErrorBoundary>
           <Routes>
               {/* ── PUBLIC ── */}
@@ -251,6 +256,7 @@ export default function App() {
               <Route path="*" element={<Page><NotFound /></Page>} />
           </Routes>
         </ErrorBoundary>
+        </main>
 
         {!isBare && <CookieBanner />}
         {!isBare && <Footer />}

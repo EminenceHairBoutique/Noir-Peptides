@@ -7,6 +7,33 @@ live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
 
+## ✅ Done (Sept-13 optimization cycle 3 — branch `claude/opt-cycle-3-20260913`)
+
+Six verified items (`OPTIMIZATION_LOG.md`, cycle 3):
+
+- **Legal: the rendered site is now scanned, not just its inputs.**
+  `test-dist-copy.mjs` runs the compliance scanner over every prerendered
+  page's visible text, meta / OG descriptions, JSON-LD and alt / aria text
+  with an exact per-page allowlist of negations. 78 pages; product, category
+  and article pages must be finding-free. Nothing positive was found.
+- **Accessibility: one main landmark + skip link.** 407 moderate landmark
+  findings → 0; "Skip to content" is the first Tab stop on every shell page
+  and moves focus into `#main`; the CI sweep now fails on any landmark
+  finding or a broken skip link.
+- **Ops: the attestation behind an order is on the order screen.** The
+  Control Room's order detail shows the checkout-time consent record
+  (version, legal name, statements, IP, user agent, timestamp) or says
+  plainly that none is on file.
+- **Performance:** every prerendered page announces its route chunk with
+  `modulepreload` (76 pages); `npm run perf` measures throttled-mobile
+  TTFB / FCP / LCP / CLS; the test server now gzips like Vercel does.
+- **Hygiene:** `.env.example` is complete (7 undocumented names added, 1 dead
+  one removed) and gated; ESLint 10 forward-compat for the service worker.
+
+**What didn't move (owner):** unchanged from cycle 2 — `verify:rls` on prod
+leads; category posture; migrations; repo visibility; domain; lab data; the
+legacy products file; the CSP font origins.
+
 ## ✅ Done (Sept-13 optimization cycle 2 — branch `claude/opt-cycle-2-20260913`)
 
 Seven verified items (`OPTIMIZATION_LOG.md`, cycle 2):
