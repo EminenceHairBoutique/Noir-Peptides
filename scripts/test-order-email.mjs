@@ -10,11 +10,12 @@
   Run: node scripts/test-order-email.mjs   (wired into npm run test:unit)
 */
 import { readFileSync } from "node:fs";
-import { orderStatusHtml, attestationReceiptHtml } from "../lib/email.js";
 process.env.VITE_SUPABASE_URL ||= "https://placeholder.supabase.co";
 process.env.VITE_SUPABASE_ANON_KEY ||= "placeholder";
 process.env.SUPABASE_SERVICE_ROLE_KEY ||= "placeholder";
-const { orderConfirmationHtml } = await import("../lib/email.js");
+// Dynamic on purpose: lib/email.js pulls the server client, which needs the
+// placeholders above to exist BEFORE the module is evaluated.
+const { orderConfirmationHtml, orderStatusHtml, attestationReceiptHtml } = await import("../lib/email.js");
 
 let failures = 0;
 const ok = (cond, msg) => {
