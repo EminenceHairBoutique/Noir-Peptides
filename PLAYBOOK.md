@@ -103,14 +103,14 @@ wins and the conflict is logged here so the prompt can be revised.
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
 | Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 4 | 2 | cycle 6 (checkout draft survives a reload — found walking the gated flow the fixture opened) |
-| Regulator walk | 6 | 6 | cycle 6 (reviews — the only public copy a buyer writes — held to the site's rules) |
+| Regulator walk | 7 | 7 | cycle 7 (discount descriptions + lab names held to the rules at the door) |
 | Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 4 | 2 | cycle 4 (cart next-tier nudge — first hit since the rewrite) |
-| Data honesty sweep | 3 | 3 | cycle 2 — cycle 3: 0 yield — not run cycle 4 |
-| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 5 | 3 | cycle 5 (a stale attestation on a signed-in profile → the checkout bounces to the attestation step — asserted in E2E) |
-| Cost/perf profile | 6 | 6 | cycle 4 — cycles 5–6: two items measured and CUT (styled shell +860 ms; mono `optional` +832 ms built-in) — 0 yield two cycles running → rewrite or retire next cycle |
-| Ops dry run | 5 | 3 | cycle 6 (server error ledger in the Control Room) |
+| Data honesty sweep | 4 | 4 | cycle 7 (the "scan the label" claim traced end to end: render → rasterize → decode → parse, every template) |
+| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 6 | 4 | cycle 7 (hostile-client flood → rate-limit coverage gate; found nothing missing, now enforced) |
+| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 7 | 6 | cycle 4 — cycles 5–6: two timing items measured and cut; cycle 7: not run (rewrite first) |
+| Ops dry run | 6 | 4 | cycle 7 (runbook brought current: deploy hook, Errors tab, E2E build, copy gates) |
 | Inversion | 4 | 3 | cycle 5 ("what makes a chargeback stick?" → receipt-grade confirmation email) |
-| Accessibility sweep (axe) — added cycle 2 | 4 | 4 | cycle 5 (authenticated E2E fixture; keyboard-only walk through the gated cart → checkout; attestation gate asserted) |
+| Accessibility sweep (axe) — added cycle 2 | 5 | 5 | cycle 7 (authenticated pass over /cart and both checkout steps; missing h1 found and fixed) |
 
 ## Retired
 
@@ -284,6 +284,17 @@ wins and the conflict is logged here so the prompt can be revised.
   `failSafely` → `server_errors` (0035) → Control Room Errors tab; enforced
   by `scripts/test-server-errors.mjs` — cycle 6.
 
+- 4.1: discount descriptions (`/deals`) and lab names (COA cards) are held
+  to `lib/labelCopyRules.js` at create/patch — `scripts/test-admin-copy-
+  doors.mjs` — cycle 7.
+- 4.2: "every public POST endpoint rate-limits" enforced by
+  `scripts/test-rate-limits.mjs` (webhooks exempt by signature; admin
+  handlers out of scope; AI endpoints via `aiHandler`) — cycle 7.
+- 4.4: "QR round-trip from label PNG tested" is now literal —
+  `scripts/test-qr-roundtrip.mjs` (`npm run test:qr`, E2E job) — cycle 7.
+- 4.9: the axe sweep covers the gated pages (/cart, checkout step 1 and 2)
+  through the auth fixture on the E2E build — cycle 7.
+
 ## Change log
 
 - **2026-09-13 (cycle 1)** — added H-001…H-005 (seeded, each re-verified or
@@ -321,3 +332,10 @@ wins and the conflict is logged here so the prompt can be revised.
   path; evidence: the mono `optional` result inverted when built). Hy-008
   refined again and still open; cost/perf profile at 0 yield for two cycles
   → rewrite or retire next cycle. Scorecards 4.1, 4.5, 4.12 sharpened.
+- **2026-09-13 (cycle 7)** — cost/perf generator rewritten as a
+  deterministic bytes-and-requests check with timing demoted to a
+  measurement-only lane (two cycles at zero yield). No new heuristic:
+  nothing this cycle produced evidence a heuristic would have prevented —
+  the one defect found (the labs handler read `picked.name` instead of
+  `picked.fields.name`) was caught by the test written first. Scorecards
+  4.1, 4.2, 4.4, 4.9 sharpened.

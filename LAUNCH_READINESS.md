@@ -7,6 +7,26 @@ live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
 
+## ✅ Done (Sept-13 optimization cycle 7 — branch `claude/opt-cycle-7-20260913`, stacked on cycle 6)
+
+Five verified items (`OPTIMIZATION_LOG.md`, cycle 7):
+
+- **Legal:** discount descriptions (shown on /deals) and lab names (on every
+  COA card) are refused at the door when they carry use language — the last
+  admin-entered texts with a public render.
+- **Security:** every public POST endpoint rate-limits, and a gate now says
+  so (webhooks are signature-verified instead).
+- **Trust:** "scan the label, land on the lot" is proven end to end — a real
+  label is rendered, rasterized, its QR decoded and parsed by the scanner's
+  own parser, for every template.
+- **Accessibility:** axe now sweeps the gated cart and both checkout steps
+  through the auth fixture; the one finding (no level-one heading on the
+  checkout) is fixed.
+- **Ops:** the runbook covers the deploy hook, the Errors tab, the E2E build
+  and the copy gates.
+
+**Owner:** unchanged from cycle 6.
+
 ## ✅ Done (Sept-13 optimization cycle 6 — branch `claude/opt-cycle-6-20260913`)
 
 Four verified items and one measured cut (`OPTIMIZATION_LOG.md`, cycle 6):

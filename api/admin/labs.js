@@ -16,6 +16,7 @@ import { requireAdmin } from "../_utils/auth.js";
 import { supabaseServer } from "../../lib/supabaseServer.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
 import { failSafely } from "../../lib/apiError.js";
+import { checkLabelText } from "../../lib/labelCopyRules.js";
 
 export const LAB_COLUMNS =
   "id, name, accreditation_body, accreditation_number, public_lookup_url_template, verified_at, notes, created_at";
@@ -108,6 +109,10 @@ export default async function handler(req, res) {
   if (req.method === "POST") {
     const body = (await readJsonBody(req)) || {};
     const picked = pickLabFields(body, { forCreate: true });
+    // Opt c7 (4.1): the lab's name renders on every COA card.
+    if (picked.fields?.name && checkLabelText(picked.fields.name).length) {
+      return json(res, 400, { error: "Lab name rejected — use language is not allowed in public copy", details: checkLabelText(picked.fields.name).map((d) => ({ field: "name", ...d })) });
+    }
     if (picked.__error) return json(res, 400, { error: picked.__error });
     const { data, error } = await supabaseServer.from("labs").insert(picked.fields).select(LAB_COLUMNS).maybeSingle();
     if (error || !data) return failSafely(res, { status: 500, code: "lab_create_failed", message: "Could not save the laboratory. Please try again.", error, context: "admin/labs:create" });
@@ -120,6 +125,9 @@ export default async function handler(req, res) {
     const id = Number(body.id);
     if (!Number.isInteger(id) || id < 1) return json(res, 400, { error: "id is required" });
     const picked = pickLabFields(body);
+    if (picked.fields?.name && checkLabelText(picked.fields.name).length) {
+      return json(res, 400, { error: "Lab name rejected — use language is not allowed in public copy", details: checkLabelText(picked.fields.name).map((d) => ({ field: "name", ...d })) });
+    }
     if (picked.__error) return json(res, 400, { error: picked.__error });
     if (!Object.keys(picked.fields).length) return json(res, 400, { error: "No editable fields supplied" });
     const { data, error } = await supabaseServer.from("labs").update(picked.fields).eq("id", id).select(LAB_COLUMNS).maybeSingle();

@@ -1173,3 +1173,146 @@ and never delays the response (tested). Migration 0035 is not applied by
 this PR. No payment / RLS / CSP files touched.
 
 **Rollback.** Revert the branch.
+
+---
+
+## Cycle 7 — 2026-09-13
+
+**HEAD before:** `16655cd` (cycle-6 head; PR #38 was open and green when
+the owner said "Continue", so this cycle branched from it; #38 merged at
+09:32 UTC — before this cycle's PR was opened — so the PR targets `main`
+and its diff is exactly the cycle-7 commits). **Branch:**
+`claude/opt-cycle-7-20260913`.
+
+### RECON
+
+Nothing landed on `main` since the cycle-6 base (main = `55cc78a`). Build 78
+routes / sitemap 72; `npm audit` 0. The baseline unit run failed on the
+harness (`/usr/bin/time` absent, exit 127) — re-run in the gate.
+
+**Acting on cycle 6's "what I'd do differently":** no paint-timing item this
+cycle at all (cost/perf generator at 0 yield for two cycles → rewritten in
+the PLAYBOOK as a deterministic bytes-and-requests check; timing becomes a
+measurement-only lane); code moved with a script is cut at the function's
+closing brace.
+
+**Findings (VERIFIED by a command unless marked):**
+- **4.1 — two more admin-entered texts render publicly unscanned:** a
+  discount's `description` (300 chars, `api/admin/discounts.js`) is read by
+  `/deals` through RLS for public discounts; a lab's `name`
+  (`api/admin/labs.js`) renders on every COA card. Same class as the label
+  fields (cycle 5) and reviews (cycle 6).
+- **4.2 — every public POST endpoint rate-limits** except the two
+  signature-verified webhooks; the AI endpoints limit centrally through
+  `aiHandler()`; the admin compliance scanner is admin-gated. Nothing to fix
+  — but nothing enforced it either; the new gate found the exemptions the
+  hard way (first run flagged the helper file and the admin scanner).
+- **4.9 — the gated pages have never been swept by axe.** The cycle-5
+  fixture makes `/cart` and both checkout steps reachable; the sweep only
+  covers the nine public routes.
+- **4.4 — the label→verify QR round trip is asserted by string presence
+  only** (`test-labels` checks the code appears in the SVG). No test
+  decodes a rendered label's QR and feeds it to the scanner's parser.
+- **4.11 — the runbook stops at cycle 3:** no mention of the deploy hook,
+  the E2E build, migration 0035 or the server-error panel.
+
+### SCORE (before this cycle's work)
+
+| # | Scorecard | Score | Evidence |
+| --- | --- | --- | --- |
+| 4.1 | Legal | 9 | discount description + lab name unscanned |
+| 4.2 | Security | 8 | rate limits complete but unenforced by a test |
+| 4.4 | Trust | 8 | QR round trip not decoded |
+| 4.9 | Accessibility | 9 | gated pages unswept |
+| 4.11 | Admin | 9 | runbook stale for cycles 4–6 |
+| others | — | as cycle 6 | unchanged |
+
+### PLAN (written before execution; item 2's gate was written during RECON)
+
+1. **[4.1] Discount descriptions and lab names held to the rules** —
+   `checkLabelText` in both admin handlers (400 naming the field); tests
+   execute the real handlers. Generator: regulator walk.
+2. **[4.2] Rate-limit coverage gate** — `scripts/test-rate-limits.mjs`:
+   every public POST handler calls `checkRateLimit` or goes through
+   `aiHandler()`; webhooks exempt by signature; admin handlers out of scope.
+   Generator: failure injection (stale/hostile state).
+3. **[4.9] axe over the gated pages** — the sweep gains an authenticated
+   pass (fixture) over `/cart`, checkout step 1 and step 2; skipped with a
+   note when the dist is not the E2E build; findings fixed. Generator:
+   accessibility sweep.
+4. **[4.4] QR round trip** — `scripts/test-qr-roundtrip.mjs`: render the
+   full-wrap label, rasterize it in Chromium, decode the QR with jsQR, parse
+   with the scanner's parser, expect the verification code; run in the E2E
+   job. Generator: data honesty (a trust claim traced end to end).
+5. **[4.11] Runbook currency** — RUNBOOK sections for the deploy hook, the
+   E2E build, migration 0035 and the Errors tab. Generator: ops dry run.
+6. **PLAYBOOK:** cost/perf generator rewritten (bytes & requests, deterministic).
+
+### EXECUTION — results
+
+| # | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| 1 | Discount descriptions + lab names held to the rules | **VERIFIED** | `checkLabelText` at create and patch in `api/admin/discounts.js` and `api/admin/labs.js`; `scripts/test-admin-copy-doors.mjs` (12 assertions) executes both real handlers: outcome claim / solvent in a description → 400 naming `description`, nothing written; "Dosing & Injection Labs" and a "Therapeutic …" rename → 400 naming `name`; clean copy → 200. The test caught my own defect first: the labs check read `picked.name` where the picker returns `picked.fields.name` (first run: 200, 200) |
+| 2 | Rate-limit coverage gate | **VERIFIED** | `scripts/test-rate-limits.mjs` (5 assertions): 12 public POST handlers; every one calls `checkRateLimit` or goes through `aiHandler()` (which does); both webhooks verify a signature; the limiter is DB-backed with an in-memory backstop. First run flagged the AI helper module and the admin-only compliance scanner — both exempted for the right reasons, not silenced |
+| 3 | axe over the gated pages | **VERIFIED** | authenticated pass in `a11y-sweep.mjs` (fixture; skipped with a note on a non-E2E dist): 6 page-views (/cart, checkout step 1, step 2 × 390/1280). One finding: `page-has-heading-one` on both checkout steps → `<h1 className="sr-only">Checkout — step N of 2 …</h1>`; re-swept in the final gate (line below) |
+| 4 | QR round trip | **VERIFIED** | `scripts/test-qr-roundtrip.mjs` (8 assertions): for all four templates the full-wrap label renders → Chromium rasterizes at 2× → jsQR decodes `https://www.noirpeptides.com/v/A1B2C3D4E5F6G` from the pixels → `parseScannedCode` returns the code. Runs as `npm run test:qr` in the E2E job |
+| 5 | Runbook currency | **VERIFIED (doc)** | `docs/RUNBOOK.md` gains: category visibility → rebuild; Errors tab (client 0025 + server 0035, request-id lookup); the E2E build and why its output is never deployed; the copy gates and what a 400 from the doors means |
+| 6 | Generator rewrite | done | PLAYBOOK: cost/perf → "Bytes & requests" (deterministic) with timing as a measurement-only lane |
+
+**Final gate on the finished tree:** build 78 routes / sitemap 72 · lint 0
+errors · **59 suites, 1035 assertions** (+3 / +16) in 7 s · **mobile 52/52**
+· `build:e2e` → **E2E 33 passed / 4 skipped** · axe 0 critical / 0 serious /
+0 landmark / 0 keyboard across 24 page-views (18 public + **6 gated**) · QR
+round trip 8/8.
+
+### SCORECARD DELTA
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.1 | Legal | 9 | 9 | every admin-entered text with a public render is now at the door; counsel items still open |
+| 4.2 | Security | 8 | **9** | rate limits complete and enforced; envelopes, scrubber, admin guard gated in earlier cycles. Not 10: `verify:rls` on prod unconfirmed; repo public |
+| 4.4 | Trust | 8 | **9** | the QR claim is proven end to end; lab keys remain owner data |
+| 4.9 | Accessibility | 9 | 9 | gated pages swept and clean; screen-reader step announcements still unasserted |
+| 4.11 | Admin | 9 | 9 | runbook current |
+| others | — | — | unchanged |
+
+### GENERATOR YIELDS (cycle 7)
+
+Regulator walk 1 · Failure injection 1 · Accessibility sweep 1 · Data honesty
+1 · Ops dry run 1 · Cost/perf (rewritten) not run · Competitor delta /
+Inversion / Buyer walk not run.
+
+### ESCALATIONS (owner-only; ranked — #1 leads until cleared)
+
+Unchanged from cycle 6 (1: `verify:rls` on prod; 2: counsel items; 3: apply
+`0031`–`0035`; 4: repo private; 5: domain; 6: lab data; 7: legacy
+`products.js`; 8: webhook echo; 9: CSP font origins; 10: deploy hook; 11:
+review backlog re-scan). One addition for the merge queue: **PR #38 (cycle
+6) is still open** — this cycle's PR is stacked on it.
+
+### What I'd do differently
+
+Write the handler test before the handler edit even for a two-line check —
+it took one failing run to find that the lab picker nests its fields. Read
+the picker's return shape, not its name. And when a generator has yielded
+nothing for two cycles, rewrite it at the START of the cycle (done), not
+after another attempt.
+
+### PR DRAFT (open only on approval)
+
+**Title:** Optimization cycle 7 — copy doors for discounts and labs, rate-limit gate, QR round trip, axe on the gated pages
+
+**Summary.** Five verified items stacked on cycle 6 (PR #38): (1) discount
+descriptions and lab names — the last admin-entered texts with a public
+render — are refused at the door when they carry use language; (2) a gate
+proves every public POST endpoint rate-limits (webhooks by signature);
+(3) "scan the label, land on the lot" is proven end to end for every
+template (render → rasterize → decode → parse); (4) axe now sweeps the
+gated cart and checkout through the auth fixture — the missing h1 is fixed;
+(5) the runbook covers cycles 4–7. +3 unit suites, +1 E2E-job step.
+
+**Risks.** None to production behaviour beyond two more 400s from admin
+endpoints on flagged copy and an sr-only heading on the checkout. The CI
+E2E job gains the QR step (needs Chromium, already installed there).
+
+**Rollback.** Revert the branch.
