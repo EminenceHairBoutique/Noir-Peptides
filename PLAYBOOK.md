@@ -115,19 +115,30 @@ wins and the conflict is logged here so the prompt can be revised.
   — RECON step 0 (B4): `node scripts/evidence-latest.mjs` before anything
   else; a dated artifact is scored with its date, stale (> 7 d) as SUSPECTED
 
+- **H-015** [added cycle 11] When a fix must pass a gate the site already
+  enforces (a strict CSP, a bytes budget, a copy scan), enumerate the shapes
+  the gate lets through BEFORE designing the fix, and pick the fix from that
+  set. Evidence: the "obvious" LCP fix was an inline loader; the meta-CSP
+  gate detects exactly one thing — an inline `<script>` — and would have
+  re-enabled `'unsafe-inline'` site-wide. An external `src` script is the
+  only loader shape the gate admits; it needed no CSP change and won by
+  1.4–1.7 s. Corollary: a stub that returns the fixture object itself hides
+  every before/after comparison — a harness must return copies, like the
+  real transport does (cycle 11 restock proof).
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
-| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 5 | 2 | cycle 9: 308 screenshots taken (evidence matrix); review deferred to cycle 11 — 0 yield |
-| Regulator walk | 10 | 9 | cycle 10 (attestation receipt: a record, no product names, corpus-gated) |
+| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 6 | 6 | cycle 11 (per-route review of the matrix at 390: colliding card chips, consent sheet height, summary 3 000 px down, certificate chip clipping — 4 fixes) |
+| Regulator walk | 11 | 11 | cycle 11 (wholesale request copy: logistics only; cart reminder draft: count + link + RUO, no offer) |
 | Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 4 | 2 | cycle 4 (cart next-tier nudge — first hit since the rewrite) |
-| Data honesty sweep | 7 | 8 | cycle 10 (Owner Sprint statuses only from data; env presence never values; 4.7 measured, not asserted) |
-| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 8 | 7 | cycle 10 (JPEG named .pdf, 4 MB + 1, a double-click on Continue) |
-| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 10 | 7 | cycle 10 (LHCI lane: five levers measured, 0 shipped — the simulator model is now understood, see Hy-008) |
-| Ops dry run | 9 | 13 | cycle 10 (COA upload, flag screen, Owner Sprint, mobile in CI) |
-| Inversion | 6 | 5 | cycle 9 ("what still imports a file nothing renders?" → legacy products.js deleted with proof) |
-| Accessibility sweep (axe) — added cycle 2 | 8 | 9 | cycle 10 (tap-target gate + 13 fixes; reduced motion for seven keyframe classes) |
+| Data honesty sweep | 8 | 11 | cycle 11 (specs: 12 transcribed / 32 escalated, TB-500 excluded; certificates from the shipped seed, never synthetic; the card's COA chip only from a real row) |
+| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 9 | 10 | cycle 11 (loader fallback when rAF never fires; restock with a failing / unconfigured transport; QR chunk on a page that never scrolls) |
+| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 11 | 8 | cycle 11 (paint-first loader + shell parity: LCP 3.1–3.3 s → 1.4–1.9 s on every gated route, measured 5 runs; the QR chunk deferred to visibility) |
+| Ops dry run | 10 | 15 | cycle 11 (Control Room spec fields; D5b row; restock executed end to end) |
+| Inversion | 7 | 7 | cycle 11 ("which config does the build never read?" → tailwind.config.js + input.css deleted; "which token does nothing reference?" → four dead :root tokens) |
+| Accessibility sweep (axe) — added cycle 2 | 9 | 11 | cycle 11 (step-2 helper contrast 3.88:1; certificate chip target size — both found by the sweep on new surfaces) |
 
 ## Retired
 
@@ -246,7 +257,16 @@ wins and the conflict is logged here so the prompt can be revised.
   fold paragraph so the LCP candidate is prerendered text on every route;
   (3) only then a boot-closure diet (motion 38 KB + supabase 44 KB behind
   the loader's second stage). The lane: `node scripts/perf-lhci.mjs`. —
-  status: OPEN with a measured model.
+  status: **RESOLVED cycle 11** — (1) + (2) shipped as `public/boot.js`
+  (an external `src` script, not an inline one: the CSP gate admits no
+  other shape, H-015) plus shell paragraphs sized ≥ React's on every gated
+  route. Local medians, 5 runs, same lane: `/` 3097 → **1366** ms · `/shop`
+  3313 → **1862** · PDP 3140 → **1503** · `/test-results` 3264 → **1504**;
+  CLS 0, TBT unchanged. The model held exactly: once the JS wave starts
+  after the first frame, the observed LCP is the prerendered paragraph and
+  the simulator charges only the document, CSS and fonts to it. Step (3),
+  the boot-closure diet, is now optional headroom, not a need. The CI
+  Evidence run on the cycle-11 PR is the H-014 proof.
 - **Hy-009** [opened cycle 9] `scripts/test-jsx-undefined.mjs`'s noise
   stripper treats an apostrophe in JSX text or a block comment as a string
   opener (`'s report code goes …`, line 185 of AdminHome.jsx already does
@@ -475,3 +495,13 @@ wins and the conflict is logged here so the prompt can be revised.
   named path for cycle 11; Hy-009 resolved. Ops dry run yielded 4 (three
   Control Room screens + mobile in CI); the tap-target gate yielded 13
   fixes on its first run. Scorecards 4.4/4.11, 4.5, 4.10, 4.11 sharpened.
+- **2026-09-13 (cycle 11)** — added H-015 (design the fix from the set of
+  shapes the existing gates admit; evidence: the external-`src` loader is
+  the only loader the CSP gate lets through, and it won by 1.4–1.7 s).
+  Hy-008 RESOLVED (paint-first loader + shell parity: every gated route
+  under 2.0 s locally, 5 runs). Cost/perf yielded the cycle's lead item on
+  a structural change after ten cycles of "measure, do not ship"; Data
+  honesty yielded 3 (transcribed specs, seeded certificates, real COA
+  chips); Inversion yielded 2 (dead config, dead tokens); the axe sweep
+  yielded 2 on brand-new surfaces; Buyer walk yielded its first fixes from
+  the matrix (4). Scorecards 4.4, 4.7, 4.8, 4.14 sharpened.
