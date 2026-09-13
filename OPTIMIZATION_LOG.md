@@ -1316,3 +1316,162 @@ endpoints on flagged copy and an sr-only heading on the checkout. The CI
 E2E job gains the QR step (needs Chromium, already installed there).
 
 **Rollback.** Revert the branch.
+
+---
+
+## Cycle 8 — 2026-09-13
+
+**HEAD before:** `6bb21eb` (main, Merge PR #39). **Branch:** `claude/opt-cycle-8-20260913`.
+
+### RECON
+
+Nothing landed on `main` since the cycle-7 merge (PR #39 merged before the
+owner's "Continue"). Build 78 routes / sitemap 72; `test:unit` 59 suites /
+1035 ✓; `npm audit` 0. Live site still unreachable.
+
+**Acting on cycle 7's "what I'd do differently":** the rewritten cost/perf
+generator ran FIRST this cycle as a deterministic gate (bytes & requests),
+before anything else; the regulator read of the research articles was done
+by reading, not by pattern.
+
+**Findings (VERIFIED by a command unless marked):**
+- **4.6 — every unknown path is a soft 404.** `vercel.json` rewrites
+  `/((?!api/).*)` to `/index.html`, so `/asdf`, a mistyped product slug or a
+  removed page answers **200** with the "not found" body; the generator
+  already emits a real `404/index.html` that nothing serves with a 404
+  status. Crawlers index or flag soft 404s; the fix is a routing rule that
+  rewrites ONLY the client-side routes and lets everything else fall to the
+  static 404.
+- **4.12 — nothing runs after a deploy.** `npm run test:e2e:prod` exists
+  (server-gate specs: unauthenticated / stale / malformed requests must be
+  refused with 401 / 403 / 400 — read to confirm they write nothing) but no
+  workflow triggers it; the scorecard asks for a post-deploy chain.
+- **4.8 / 4.4 — rendered hygiene, first deterministic pass:** 78 pages, no
+  lorem / "coming soon" / TBD / `[object Object]` / `undefined` / `NaN` /
+  `null` / Invalid Date / template braces / stray "placeholder" in any
+  visible text, meta, JSON-LD or alt/aria. A raw grep had shown hits — all
+  inside scripts and class names, which is why the gate extracts what a
+  person reads.
+- **4.7 — bytes & requests (rewritten generator, first run):** `/` 262 KB /
+  19 req · `/shop` 278 / 28 · PDP 288 / 33 · `/test-results` 270 / 23 ·
+  `/faqs` 263 / 19 on a cold mobile visit, unthrottled; no heavy lazy chunk
+  on any first visit. Budgets set with ~20 % headroom.
+- **4.1 — research articles read as a regulator would:** four published
+  articles (COA, lab models, HPLC, purity vs content) and two drafts; dry,
+  analytical, the preclinical section states findings are "what the
+  literature reports, not established human effects". No dates are emitted
+  in their JSON-LD (none exist in the data — nothing invented). Nothing to
+  change.
+- **4.10 — the gated pages have no overflow guard** (the mobile audit runs
+  on the production dist, where they are unreachable).
+
+### SCORE (before this cycle's work)
+
+| # | Scorecard | Score | Evidence |
+| --- | --- | --- | --- |
+| 4.6 | SEO | 8 | soft 404 on every unknown path |
+| 4.7 | Performance | 8 | budgets unenforced |
+| 4.8 | UI/UX | 7 | hygiene unasserted (found clean) |
+| 4.10 | Mobile | 8 | gated pages unguarded |
+| 4.12 | Observability | 7 | no post-deploy chain |
+| others | — | as cycle 7 | unchanged |
+
+### PLAN (written before execution of items 1, 2 and 5; items 3–4's gates were written and run during RECON)
+
+1. **[4.6] Real 404s for unknown paths.** The generator also writes
+   `dist/404.html` (what Vercel serves with a 404 status when nothing
+   matches); `vercel.json` rewrites only the client-side routes (cart,
+   checkout, account, admin, auth callbacks, alias redirects, code links)
+   to `index.html`; `serve-dist.mjs` mirrors the rule. `scripts/test-
+   routing.mjs` enumerates every `<Route path>` in `src/App.jsx` and proves
+   each is either prerendered or matched by a rewrite, that `/api/*` is
+   never rewritten, and that a junk path is not. Generator: inversion
+   ("what drops us from Google?" → soft 404s).
+2. **[4.12] Post-deploy smoke chain.** `.github/workflows/post-deploy.yml`
+   on `deployment_status` success for the Production environment runs the
+   server-gate spec against the live origin. Generator: ops dry run.
+3. **[4.8] Rendered hygiene gate** (`test-dist-hygiene.mjs`, in `test:unit`).
+4. **[4.7] Bytes & requests budget** (`test-bytes-budget.mjs`, E2E job).
+5. **[4.10] No horizontal overflow on the gated pages** — asserted in the
+   sweep's authenticated pass at 390. Generator: accessibility sweep.
+
+### EXECUTION — results
+
+| # | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| 1 | Real 404s for unknown paths | **VERIFIED** | `vercel.json`: the catch-all `/((?!api/).*)` → 28 explicit client-route rewrites (account, admin, auth, cart, checkout, aliases, `/v/:code`, `/test-results/:slug`, …); generator writes `dist/404.html`; `serve-dist.mjs` reads the rewrite list from `vercel.json` (path-to-regexp subset) and is importable without starting. `scripts/test-routing.mjs` (23 assertions): all 55 declared routes prerendered or rewritten; 6 junk paths fall to the 404; `/api/*` never rewritten; no static route double-listed; `404.html` is the noindex shell. **Found on the way: `/quality` had never been prerendered** — the generator imported `QUALITY_DOC` since Sept 11 and never emitted the route; linked from header + footer since launch; with real 404s it would have vanished. Now emitted, in the footer nav and the sitemap (72 → 73); the dist-copy allowlist gains its one negated "therapeutic" finding |
+| 2 | Post-deploy smoke chain | **VERIFIED (config; first run happens on the next production deploy)** | `.github/workflows/post-deploy.yml` on `deployment_status` success for the Production environment: `checkout-attestation-gate.spec.js` against `environment_url` (its requests are refused by the server with 401 / 403 / 400 before any write — read to confirm). Cannot be exercised from the sandbox; the workflow syntax is what CI will validate |
+| 3 | Rendered hygiene gate | **VERIFIED** | `scripts/test-dist-hygiene.mjs` (11 assertions) over 78→79 pages: 0 findings across ten patterns. The raw grep during RECON had shown `[object Object]` (2 pages), `NaN` (2), `TBD` (1), `{{` (20) — all inside scripts and class names; the gate reads what a person reads |
+| 4 | Bytes & requests budget | **VERIFIED** | `scripts/test-bytes-budget.mjs` (15 assertions, E2E job). First calibration used the CI production build (`/` 262 KB / 19 req … PDP 288 / 33) and the first gate run failed on the PDP's request count (43 > 42): the E2E build — which the job actually serves — carries the Supabase client and makes the runtime data calls production makes, so it is the honest baseline: `/` 306 KB / 20 · `/shop` 324 / 33 · PDP 336 / 43 · `/test-results` 315 / 25 · `/faqs` 307 / 20. Budgets set with ~20 % headroom over those; no heavy lazy chunk on any first visit |
+| 5 | Overflow guard on the gated pages | **VERIFIED** | the sweep's authenticated pass records horizontal overflow as a serious finding; final gate: 0 across the six gated views |
+
+**Final gate on the finished tree:** build 79 routes / sitemap 73 / `404.html`
+· lint 0 errors · **62 suites, 1068 assertions** (+3 / +33) in 6 s ·
+**mobile 52/52** · `build:e2e` → **E2E 33 passed / 4 skipped** · axe 0
+critical / 0 serious / 0 landmark / 0 keyboard / 0 overflow across 24
+page-views · QR round trip 8/8 · bytes & requests 15/15 (after the
+recalibration above).
+
+### SCORECARD DELTA
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.6 | SEO | 8 | **9** | unknown paths 404; `/quality` real and in the sitemap; link depth still ≤ 2. Not 10: domain owner-gated |
+| 4.7 | Performance | 8 | 8 | budgets enforced; no shipped byte reduction |
+| 4.8 | UI/UX | 7 | 7 | hygiene enforced; no systematic per-route audit yet |
+| 4.10 | Mobile | 8 | **9** | gated pages guarded; 52/52 |
+| 4.12 | Observability | 7 | **8** | post-deploy chain wired; uptime target and backup dry run remain owner items |
+| others | — | — | unchanged |
+
+### GENERATOR YIELDS (cycle 8)
+
+Inversion 1 (+ the /quality find) · Ops dry run 1 · Cost/perf (bytes &
+requests, rewritten) 1 · Data honesty 1 · Accessibility sweep 1 · Regulator
+walk 0 (articles read, clean) · Buyer walk / Competitor delta / Failure
+injection not run.
+
+### ESCALATIONS (owner-only; ranked — #1 leads until cleared)
+
+Unchanged from cycle 7 (1: `verify:rls` on prod; 2: counsel items; 3: apply
+`0031`–`0035`; 4: repo private; 5: domain; 6: lab data; 7: legacy
+`products.js`; 8: webhook echo; 9: CSP font origins; 10: deploy hook; 11:
+review backlog re-scan). **Heads-up for the next production deploy:** the
+routing change makes mistyped product / category / article URLs return 404
+(correct) — every route the app declares is covered by the routing gate.
+
+### What I'd do differently
+
+Calibrate a budget on the build the gate will actually run against — the
+bytes ceilings were set on the CI production build and tripped on the E2E
+build's PDP the first time the chain ran (the E2E build is also the more
+honest number: it carries the runtime data calls). Run the routing
+enumeration in cycle 2, when the crawl-depth claim was
+first computed: `/quality` sat unlinked-in-the-graph for six cycles because
+the graph only knew prerendered pages, and the footer link to it lived in
+React, not the static nav. A page the app declares and the site links is a
+claim (H-008) until a test proves it is served.
+
+### PR DRAFT (open only on approval)
+
+**Title:** Optimization cycle 8 — real 404s (and the never-prerendered /quality page), post-deploy smoke chain, bytes budget, hygiene gate
+
+**Summary.** Five verified items on top of PR #39: (1) unknown paths are
+real 404s — `vercel.json` rewrites only the client-side routes, the
+generator emits `dist/404.html`, the local server follows the same rule,
+and a routing gate proves every declared route is served; on the way the
+Quality & Batch Standards page, linked since launch, turned out never to
+have been prerendered — it is now a real page in the sitemap; (2) a post-
+deploy workflow runs the server-gate specs against every successful
+production deployment; (3) per-route bytes and request budgets in CI; (4) a
+rendered-hygiene gate (no leaked `undefined` / `NaN` / placeholder text);
+(5) a horizontal-overflow guard on the gated pages. +3 unit suites, +2
+E2E-job steps, +1 workflow.
+
+**Risks.** Routing: a path that is neither prerendered nor in the rewrite
+list now returns 404 instead of the app shell — the gate enumerates every
+`<Route>` in `src/App.jsx`; batch-history pages (`/test-results/:slug`) are
+rewritten so they keep working on a build without database env. The post-
+deploy workflow's first run is the next production deploy. No migrations,
+no data, no payment / RLS / CSP files touched.
+
+**Rollback.** Revert the branch.
