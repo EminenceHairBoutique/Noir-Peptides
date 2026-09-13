@@ -11,8 +11,21 @@ import React, { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
 import { fetchPaymentRails } from "../../lib/paymentRails";
 import FulfillmentStatements from "../FulfillmentStatements";
+import { REDEEM_INCREMENT, redeemDollars } from "../../utils/loyalty";
 
-export default function StepPayment({ onBack, onPay, submitting, error, selectedRail, setSelectedRail }) {
+// Opt cycle 11 (4.14): the promo / points spend path lives on the routed
+// checkout again. Both values are OPTIONAL hints the server validates from its
+// own tables (lib/pricing.js computeAdjustments) — the client never posts a
+// dollar amount, and the conversion shown here comes from the shared loyalty
+// config, not a local number.
+export default function StepPayment({
+  onBack, onPay, submitting, error, selectedRail, setSelectedRail,
+  promoCode = "", setPromoCode, redeemPoints = 0, setRedeemPoints, pointsBalance = 0,
+}) {
+  const redeemOptions = Array.from(
+    { length: Math.floor(Number(pointsBalance || 0) / REDEEM_INCREMENT) },
+    (_, i) => (i + 1) * REDEEM_INCREMENT
+  );
   const [rails, setRails] = useState(null); // null = still loading
   const [degraded, setDegraded] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
@@ -82,6 +95,54 @@ export default function StepPayment({ onBack, onPay, submitting, error, selected
         )}
       </fieldset>
 
+      {setPromoCode && (
+        <div>
+          <label htmlFor="promo" className="text-[10px] font-accent uppercase tracking-[0.2em] text-se-steel block mb-2">
+            Promo code (optional)
+          </label>
+          <input
+            id="promo"
+            type="text"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck="false"
+            maxLength={32}
+            disabled={submitting}
+            className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent tracking-[0.12em] placeholder:text-se-steel focus:outline-none focus:border-se-gold transition disabled:opacity-50"
+          />
+          <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
+            Validated by the server at payment. Bundles and kits are excluded.
+          </p>
+        </div>
+      )}
+
+      {setRedeemPoints && redeemOptions.length > 0 && (
+        <div>
+          <label htmlFor="redeem" className="text-[10px] font-accent uppercase tracking-[0.2em] text-se-steel block mb-2">
+            Redeem rewards · {Number(pointsBalance).toLocaleString()} pts available
+          </label>
+          <select
+            id="redeem"
+            value={redeemPoints}
+            onChange={(e) => setRedeemPoints(Number(e.target.value))}
+            disabled={submitting}
+            className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent focus:outline-none focus:border-se-gold transition disabled:opacity-50"
+          >
+            <option value={0}>Do not redeem points</option>
+            {redeemOptions.map((p) => (
+              <option key={p} value={p}>
+                {p.toLocaleString()} pts — ${redeemDollars(p).toLocaleString()} off
+              </option>
+            ))}
+          </select>
+          <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
+            {REDEEM_INCREMENT} pts = ${redeemDollars(REDEEM_INCREMENT)}. Checked against your balance at payment.
+          </p>
+        </div>
+      )}
+
       {/* Task 5: packaging and billing-descriptor facts belong here, at the
           moment the charge is authorised — an unrecognised descriptor is what
           becomes a chargeback. Renders nothing until the config is set. */}
@@ -93,7 +154,7 @@ export default function StepPayment({ onBack, onPay, submitting, error, selected
         <button type="button" onClick={onBack} disabled={submitting} className="btn-outline flex-1 disabled:opacity-50">
           Back
         </button>
-        <button type="button" onClick={() => onPay(rails?.find((r) => r.id === selectedRail))}
+        <button type="button" onClick={() => onPay(rails?.find((r) => r.id === selectedRail), { discountCode: promoCode, redeemPoints })}
           disabled={submitting || !selectedRail || !rails?.length}
           className="btn-primary flex-[2] disabled:opacity-50">
           {submitting ? "Redirecting…" : "Complete payment"}
