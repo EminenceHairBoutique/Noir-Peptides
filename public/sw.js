@@ -25,8 +25,6 @@ const RUNTIME = `np-runtime-${NP.version}`;
 const SHELL = "/index.html";
 const NAV_TIMEOUT_MS = 4000;
 
-const FONT_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
-
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -104,13 +102,8 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // Cross-origin: only the font CDN is cacheable; everything else untouched.
-  if (url.origin !== self.location.origin) {
-    if (FONT_HOSTS.has(url.hostname)) {
-      event.respondWith(staleWhileRevalidate(request));
-    }
-    return;
-  }
+  // Cross-origin: untouched (fonts are self-hosted since opt cycle 2).
+  if (url.origin !== self.location.origin) return;
 
   // Same-origin exclusions: API and the worker itself.
   if (url.pathname.startsWith("/api/") || url.pathname === "/sw.js") return;
