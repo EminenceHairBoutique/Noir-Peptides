@@ -602,3 +602,219 @@ deleted after the prerender step. No migrations, no data, no payment / RLS /
 CSP files touched.
 
 **Rollback.** Revert the branch.
+
+---
+
+## Cycle 4 — 2026-09-13
+
+**HEAD before:** `5b5553a` (main, Merge PR #35). **Branch:** `claude/opt-cycle-4-20260913`.
+
+### RECON
+
+Numeric diff first (H-007): nothing landed on `main` since the cycle-3 merge
+(PR #35 merged 06:39 UTC by the owner). Build 78 routes / sitemap 72 / 75
+pages with route preloads; `test:unit` 49 suites / 902 ✓; lint 0 errors (the
+same 3 `react-hooks` warnings); `npm audit` 0; latest migration `0034`. Live
+site still unreachable from the sandbox → live checks stay `?`.
+
+**Acting on cycle 3's "what I'd do differently":** every measurement this
+cycle goes through the gzip test server; experiment scripts run from the
+repo root; perf pairs run back to back at least twice with the LCP candidate
+sequence recorded; the a11y sweep covers `/` and `/login` (routes outside
+the shell's chrome) as before.
+
+**Findings (VERIFIED by a command unless marked):**
+- **4.1 — the physical label is outside every gate.** `renderLabelSvg.js`
+  renders fixed copy onto every printed label ("FOR RESEARCH USE ONLY — NOT
+  FOR HUMAN OR VETERINARY USE", storage line, and a post-reconstitution
+  storage note from `storage.js`). No test scans the rendered label text;
+  labeling is the artifact FDA letters quote first. Grep of the label engine
+  for dosing / injection / solvent / volume language: nothing beyond the
+  storage note, which names no solvent, volume or schedule. SUSPECTED (for
+  the attorney, not the engine): whether "After reconstitution: storage
+  conditions must be determined by the validated research protocol" should
+  stay on a label at all.
+- **4.7 — Hy-005 confirmed:** `MediaGallery` statically imports
+  `LabelPreview` (13.1 KB gz) which pulls the QR library's browser build
+  (`browser-*.js`, 10.0 KB gz); both ship on every product page's first load
+  although the label slides render only when an APPROVED label exists for the
+  variant (none do until the owner approves one). 23 KB of the PDP's 43 KB
+  static closure is label-studio code.
+- **4.7 — Hy-007 mechanism, on reading:** `Page` in `src/App.jsx` fades every
+  route from `opacity: 0`, including the FIRST route — whose content is
+  already painted from the prerendered HTML. React replaces the static body
+  with an invisible tree and fades it back in: a 300 ms flash on every first
+  load, and the LCP candidate that follows the fade is the one that landed
+  late when the chunk was resident. `MotionConfig reducedMotion="user"` is
+  set, so reduced-motion users already skip it.
+- **4.9 — the cart drawer takes no focus.** Opening it (Add to cart) leaves
+  focus on the trigger behind the overlay; Escape closes it but nothing
+  restores focus; no keyboard walk of the public commerce path exists in
+  E2E. Global `:focus-visible` outline is defined (`index.css:386`).
+- **4.1 / 4.6 — stale state (rewritten failure-injection generator, first
+  run):** flipping `soft_launch_hidden` in the Control Room changes the DB
+  and the runtime, but the prerendered category and product pages stay on
+  the CDN — indexable — until someone redeploys. The attorney-driven flip is
+  the case that matters, and nothing in the admin screen or the checklist
+  says "then redeploy". No deploy hook exists in the tree.
+- **4.5 — competitor mechanics (rewritten generator, first run):** the cart
+  re-prices by bundle tier (`unitPriceForQuantity`, items carry `tiers`) but
+  never tells the buyer how far they are from the next tier; the PDP does.
+- **4.11 — order-status emails** exist for every status with a per-status
+  phrase; fine as-is.
+- Remaining axe findings at cycle-3 end: none at any impact level.
+
+### SCORE (before this cycle's work)
+
+| # | Scorecard | Score | Evidence |
+| --- | --- | --- | --- |
+| 4.1 | Legal | 9 | rendered pages gated; label text ungated |
+| 4.2 | Security | 8 | unchanged |
+| 4.3 | Data integrity | 7 | unchanged |
+| 4.4 | Trust | 7 | unchanged |
+| 4.5 | Commerce | 7 | no next-tier feedback in cart |
+| 4.6 | SEO | 8 | hidden-category flip leaves stale indexable pages until redeploy |
+| 4.7 | Performance | 8 | Hy-005 (23 KB label code on PDP), Hy-007 (first-route fade) |
+| 4.8 | UI/UX | ? | first-load flash from the fade (SUSPECTED until measured) |
+| 4.9 | Accessibility | 8 | drawer focus management missing; no keyboard walk |
+| 4.10 | Mobile | 8 | unchanged |
+| 4.11 | Admin | 7 | visibility flip has no redeploy path |
+| 4.12 | Observability | 6 | unchanged |
+| 4.13 | Hygiene | 8 | unchanged |
+
+### PLAN (written before execution; ranked impact × confidence / effort, legal first)
+
+1. **[4.1] Label copy gate.** `scripts/test-label-copy.mjs`: render the front
+   and full-wrap labels through the real `renderLabelSvg` for a sample
+   config, extract the text, scan it with the compliance scanner against an
+   exact allowlist (negations only), and additionally forbid solvent /
+   volume / schedule / route-of-administration patterns on any label. Also
+   scans the engine's fixed strings (`storage.js`, templates, presets).
+   Escalate the reconstitution storage note to the attorney. Generator:
+   regulator walk (H-010).
+2. **[4.7 / 4.8] First-route fade.** `Page` skips `initial: {opacity: 0}` on
+   the first route mounted (the prerendered content is already on screen);
+   later route changes keep the fade. Measure `/`, `/shop`, PDP back to back
+   ×2 (LCP candidate sequence); then re-map `/` in `ROUTE_PAGE_SOURCES` and
+   measure again — keep the mapping only if `/` no longer regresses (Hy-007).
+   Generator: cost/perf.
+3. **[4.7] Lazy label slides.** `MediaGallery` lazy-loads `LabelPreview`
+   (Suspense inside the fixed-size slide, no layout shift); the PDP preload
+   guard also forbids `LabelPreview-*` and the QR browser chunk; PDP
+   transfer KB measured before/after (Hy-005). Generator: cost/perf.
+4. **[4.9] Cart drawer focus + keyboard commerce walk.** On open, focus moves
+   into the drawer (close button); on close, focus returns to the trigger;
+   `tests/e2e/keyboard-commerce.spec.js` walks /shop → product → Add to cart
+   → drawer → Escape with the keyboard only and asserts a visible focus
+   indicator at every stop. Generator: accessibility sweep.
+5. **[4.1 / 4.6 / 4.11] Visibility flip → rebuild.** `api/admin/catalog.js`
+   PATCH on `soft_launch_hidden` POSTs the Vercel deploy hook when
+   `VERCEL_DEPLOY_HOOK_URL` is set and reports `rebuild: triggered |
+   not_configured | failed`; the Control Room says which, and the checklist
+   + `.env.example` document the hook. Test with a stubbed `fetch`.
+   Generator: failure injection (stale state).
+6. **[4.5] Next-tier nudge in the cart.** Pure helper `nextTierFor(basePrice,
+   tiers, qty)` + unit test; the drawer line shows "Add N more for $X each"
+   when a higher tier exists. Display only — server pricing is untouched.
+   Generator: competitor delta (mechanics).
+
+Not this cycle: an authenticated E2E fixture (Hy-006) — the E2E build has no
+Supabase env, so a mock would need a build-time URL and a route-mocked auth
+API; noted as the first step of a future cycle.
+
+### EXECUTION — results
+
+| # | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| 1 | Label copy gate | **VERIFIED** | `scripts/test-label-copy.mjs` (7 assertions): 4 templates × 2 presets × 4 configs = 32 labels rendered through the real engine; findings = exactly one accepted negation per full-wrap label ("NOT FOR DIAGNOSTIC, THERAPEUTIC, …"); no volume / solvent / route / dose / schedule / reconstitution-instruction pattern on any label; 78 engine strings clean. Second method: every rendered label's text read in the `--dump` output. Escalated to counsel: the post-reconstitution storage note |
+| 2 | First-route fade | **VERIFIED — for a different reason than planned** | Hy-007 refuted (H-012): with the fade gone the `/` LCP candidate sequence is unchanged (main [1008,1884,2176] / branch [1024,1864,2204]; slow mode ≈3.0 s in 1 of 3 runs on BOTH builds; `/` with its chunk preloaded still bimodal 2 of 3) → `/` stays unmapped, Hy-008 opened. What the change does fix, measured by a computed-opacity trace at 60 fps on both builds: on main the routed page sits at opacity 0 from React mount and fades over **420–460 ms** (17 frames on `/`, 7 on `/shop`), hiding content the prerender painted at ~0.95 s; on the branch it is at opacity 1 from the first frame. Route changes after the first keep the fade |
+| 3 | Lazy label slides | **VERIFIED** | `LabelPreview` lazy in both importers (`MediaGallery`, `VialPreview`); PDP preload list drops `LabelPreview-*` and the QR `browser-*` chunk (guard extended in `test-pdp-preload.mjs`); A/B against main, 3 runs: PDP transfer **306 → 285 KB** median, FCP/LCP unchanged (the prerendered text is the largest paint). Side effect worth knowing: splitting `tiers.js` out let Rollup lift `catalog` + `tier1Catalog` out of the main bundle (index 20.1 → 17.1 KB gz; the two new chunks total 3.7 KB and are preloaded where used) |
+| 4 | Drawer focus + keyboard walk | **VERIFIED** | `CartDrawer` is `role="dialog"`, takes focus on the close control, restores focus to the opener on close. `tests/e2e/keyboard-commerce.spec.js` green in the run before the final gate (E2E 30 passed / 4 skipped): skip link → product card → product page → Add to Cart → dialog (focus inside, close control) → Tab stays inside → Escape → focus back on Add to Cart, with a visible focus indicator at every stop. Screenshots `c4-drawer-{320,1280}.png`; probe log: focus after open "Close cart", after Escape "Add to Cart — $44" at both widths |
+| 5 | Visibility flip → rebuild | **VERIFIED** | `scripts/test-rebuild-hook.mjs` (20 assertions), real PATCH handler: flip → one POST to the hook, `rebuild: "triggered"`, audit row `catalog.rebuild`; same value → nothing; no env → `not_configured`; hook 5xx / throw → `failed`, flip still succeeds; non-Vercel URL refused; product edit → nothing; Control Room renders the three sentences; `.env.example` + `docs/MIGRATIONS_0034.md` + checklist updated. Hardening found while testing: the flip is decided BEFORE the write (the stub aliased `existing`; a real client would not, but the code no longer depends on it) |
+| 6 | Next-tier nudge | **VERIFIED** | `src/lib/tiers.js` (pure; `catalog.js` re-exports), `scripts/test-next-tier.mjs` (17 assertions) — cheapest-next tier only, never a dearer one, never one already reached; drawer renders "Add 1 more for $42 each" for BPC-157 at qty 1 (screenshot). `test-cart-pricing.mjs` mirror check re-pointed at the new module |
+| 7 | (found by the item-4 screenshot) drawer copy | **VERIFIED** | "Encrypted checkout via Stripe" promised a processor the server-derived rails may not offer (BTCPay-first, card test-only) → "Encrypted checkout · payment options shown at checkout"; the keyboard spec asserts the dialog names no processor. Also a stray leading "·" on cart line metadata when an item has no size |
+
+Landmark sweep on the branch: 0 critical / 0 serious / 0 landmark / 0
+keyboard failures (drawer changes touched no landmark).
+
+**Final gate on the finished tree:** build 78 routes / sitemap 72 / 75 pages
+with route preloads · lint 0 errors · **52 suites, 950 assertions** (+3 / +48)
+· **E2E 30 passed / 4 skipped** (the four `E2E_API_URL` gate specs) ·
+**mobile 52/52** · axe 0 critical / 0 serious / 0 landmark / 0 keyboard on 9
+routes × 2 widths.
+
+**Cut / not attempted:** authenticated E2E fixture (Hy-006); re-mapping `/`
+(measured, not justified); the `labelsApi`/`adminApi` sliver (~1 KB).
+
+### SCORECARD DELTA
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.1 | Legal | 9 | 9 | labels now gated (32 rendered + 78 strings); still 9 because the reconstitution note and Hy-003 await counsel |
+| 4.2 | Security | 8 | 8 | unchanged |
+| 4.3 | Data integrity | 7 | 7 | unchanged |
+| 4.4 | Trust | 7 | **8** | the drawer no longer promises a processor the rails may not offer |
+| 4.5 | Commerce | 7 | **8** | next-tier feedback in the cart; free-ship nudge already there. Not higher: live rail, guest posture — owner |
+| 4.6 | SEO | 8 | 8 | rebuild hook closes the stale-page window once the owner sets the env |
+| 4.7 | Performance | 8 | 8 | −21 KB per PDP, main bundle −3 KB, no opacity-0 window; Hy-008 (bimodal `/` LCP) open, so not 9 |
+| 4.8 | UI/UX | ? | **7** | first load no longer flashes; two drawer nits fixed; no systematic per-route audit yet |
+| 4.9 | Accessibility | 8 | 8 | dialog focus + keyboard walk to the auth wall; keyboard-only CHECKOUT still unasserted (Hy-006) |
+| 4.10 | Mobile | 8 | 8 | 52/52 |
+| 4.11 | Admin | 7 | **8** | a visibility flip now finishes itself (or says why not) |
+| 4.12 | Observability | 6 | 6 | unchanged |
+| 4.13 | Hygiene | 8 | 8 | +4 suites |
+
+### GENERATOR YIELDS (cycle 4)
+
+Regulator walk 1 · Cost/perf 2 (+ the A/B tool) · Accessibility sweep 1 ·
+Failure injection (stale state) 1 — first hit since the rewrite · Competitor
+delta (mechanics) 1 — first hit since the rewrite · Ops dry run 0 (status
+emails checked) · Data honesty 1 (found via the item-4 screenshot: the
+processor promise) · Buyer walk / Inversion not run.
+
+### ESCALATIONS (owner-only; ranked — #1 leads until cleared)
+
+1. **`npm run verify:rls` on prod** — unconfirmed since `0030`.
+2. Attorney: category posture → `soft_launch_hidden`; Hy-003 category descriptions;
+   **new (low):** the label's "After reconstitution: storage conditions must be
+   determined by the validated research protocol." — no solvent/volume/schedule,
+   gate accepts it; whether a label should say "reconstitution" at all is counsel's call.
+3. Apply `0031`–`0034`; decide `0027`. 4. Repo private. 5. Domain + `VITE_SITE_URL`.
+6. Enter labs + lookup codes. 7. Delete legacy `src/data/products.js` + audit script + CI step.
+8. `api/stripe-webhook.js` signature-error echo (ask-before).
+9. Remove `fonts.googleapis.com` / `fonts.gstatic.com` from the CSP (ask-before block).
+10. **New:** set `VERCEL_DEPLOY_HOOK_URL` (Vercel → Project → Settings → Git →
+    Deploy Hooks) so a visibility flip rebuilds the static pages by itself.
+
+### What I'd do differently
+
+Test the mechanism before the number: Hy-007 would have been refuted in ten
+minutes by removing the fade and reading the candidate sequence, instead of
+after building a variant harness around the preload. Grep every importer
+before lazy-loading anything (a second static importer kept the chunk in the
+closure on the first try). Take the screenshots early — the drawer shot
+found two copy defects the code reads never would have. And read every exit
+code in a chained run: the unit suite had failed on a mirror check while I
+was looking at the E2E line under it.
+
+### PR DRAFT (open only on approval)
+
+**Title:** Optimization cycle 4 — label copy gate, cart dialog focus, rebuild-on-hide, lazy label renderer, next-tier nudge
+
+**Summary.** Seven verified items on top of PR #35: (1) the printed label is
+gated — real renders scanned, use-language patterns banned; (2) the first
+route no longer fades in from invisible over already-painted content
+(420–460 ms opacity-0 window measured and removed); (3) the flat-label
+renderer + QR library are lazy: −21 KB on every product page; (4) the cart
+drawer is a dialog that takes and returns focus, with a keyboard-only
+commerce walk in E2E; (5) hiding a category triggers the Vercel deploy hook
+when configured and says so when not; (6) cart lines say "Add N more for $X
+each" when a cheaper tier is within reach; (7) the drawer no longer promises
+a specific processor. +4 unit suites, +1 E2E spec, `npm run perf:compare`.
+
+**Risks.** `catalog`/`tier1Catalog` now ship as shared chunks instead of
+inside the main bundle (preloaded where used; main −3 KB). The rebuild hook
+is inert until `VERCEL_DEPLOY_HOOK_URL` is set. No migrations, no data, no
+payment / RLS / CSP files touched; server pricing untouched.
+
+**Rollback.** Revert the branch.

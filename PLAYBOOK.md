@@ -56,7 +56,9 @@ wins and the conflict is logged here so the prompt can be revised.
   self-hosting item downloaded near-duplicates of them. — evidence:
   `git ls-files public/fonts` (5 files since `4a0a29a`); duplicates deleted,
   one set of files now serves both the page and the labels. — yield: 1
-  (and ~117 KB of repo weight avoided)
+  (and ~117 KB of repo weight avoided). Cycle 4 corollary: before lazy-loading
+  a module, grep EVERY importer — `LabelPreview` had a second static importer
+  (`VialPreview`) that would have kept it in the closure.
 
 - **H-010** [added cycle 3] Gate the artifact the buyer receives, not only
   the inputs it is built from. — evidence: the home page's FAQPage JSON-LD
@@ -72,19 +74,30 @@ wins and the conflict is logged here so the prompt can be revised.
   (a serialized route-chunk hop) was visible in the waterfall, not in the
   headline number. — yield: 1 (gzip in `serve-dist.mjs` + the preload item)
 
+- **H-012** [added cycle 4] A timing hypothesis is tested by removing the
+  suspected cause and re-reading the candidate SEQUENCE; if the sequence does
+  not move, the mechanism is wrong even when the headline number improves.
+  — evidence: Hy-007 blamed the route fade for the landing page's late third
+  LCP candidate; with the first-route fade removed the candidate sits at the
+  same ~2.2 s (main [1008,1884,2176] vs branch [1024,1864,2204]) and the
+  slow mode still appears with and without the preload. The −132 ms median
+  was noise at n=3. What the change DID fix was measured separately: a
+  420–460 ms opacity-0 window over already-painted content. — yield: 1
+  (the fix kept for the verified reason, the hypothesis rewritten)
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
-| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 2 | 1 | cycle 2 (link-depth gate + footer nav fix) — not run cycle 3 |
-| Regulator walk | 3 | 3 | cycle 3 (rendered-output gate: 78 pages, meta + JSON-LD + attributes) |
-| Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 3 | 1 | cycle 1 (lab-linkage screen) — cycles 2–3: 0 |
-| Data honesty sweep | 3 | 3 | cycle 2 — cycle 3: no numeric claim in any static body (checked, 0 yield) |
-| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 3 | 1 | cycle 1 (public contact leak) — cycles 2–3: 0 (SW update path verified sound) |
-| Cost/perf profile | 3 | 4 | cycle 3 (route-chunk modulepreload; throttled-mobile perf script) |
-| Ops dry run | 3 | 2 | cycle 3 (attestation record on the order screen) |
-| Inversion | 3 | 2 | cycle 3 ("what makes a deploy fail silently?" → env-example gate, 7 undocumented names) |
-| Accessibility sweep (axe) — added cycle 2 | 2 | 2 | cycle 3 (one main landmark, skip link, landmark budget + keyboard check in the sweep) |
+| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 2 | 1 | cycle 2 — not run cycles 3–4 (the link-depth gate runs every build) |
+| Regulator walk | 4 | 4 | cycle 4 (label copy gate: 32 rendered labels + 78 engine strings) |
+| Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 4 | 2 | cycle 4 (cart next-tier nudge — first hit since the rewrite) |
+| Data honesty sweep | 3 | 3 | cycle 2 — cycle 3: 0 yield — not run cycle 4 |
+| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 4 | 2 | cycle 4 (category hidden between build and runtime → rebuild hook — first hit since the rewrite) |
+| Cost/perf profile | 4 | 6 | cycle 4 (lazy label renderer −21 KB on every PDP; first-route fade; A/B compare script) |
+| Ops dry run | 4 | 2 | cycle 3 — cycle 4: status emails checked, 0 yield |
+| Inversion | 3 | 2 | cycle 3 — not run cycle 4 |
+| Accessibility sweep (axe) — added cycle 2 | 3 | 3 | cycle 4 (cart drawer takes and returns focus; keyboard-only commerce walk in E2E) |
 
 ## Retired
 
@@ -120,18 +133,31 @@ wins and the conflict is logged here so the prompt can be revised.
 - **Hy-005** The product page's static import closure (20 chunks, including
   `LabelPreview`, `VialPreview`, `labelsApi`, `adminApi`) carries label-studio
   and admin code a buyer never runs; lazy-loading the label-preview path from
-  the PDP would cut first-load JS without changing what renders. — test:
-  PDP transferred KB and chunk count before/after (`npm run perf`), PDP guard
-  green. — status: OPEN (cycle 4).
+  the PDP would cut first-load JS without changing what renders. — status:
+  **RESOLVED cycle 4** — `LabelPreview` (13.1 KB gz) and the QR library it
+  pulls (10.0 KB gz) are lazy in both importers; PDP transfer 306 → 285 KB
+  (median of 3, A/B against main); the PDP guard now forbids both chunks.
+  Not pursued: `labelsApi`/`adminApi` (≈1 KB together) — not worth a seam.
 - **Hy-007** Preloading the landing page's route chunk makes its largest
-  paint ~900 ms LATER on throttled mobile (2.0 s → 2.9 s, 5 of 6 runs) because
-  the route fade-in (`Page` in `src/App.jsx`) runs while initial script work
-  is still saturating the main thread; without the preload the chunk arrives
-  after that work and the fade runs on an idle thread. — test: disable the
-  fade for the first route (or respect `prefers-reduced-motion` and measure
-  with it on), re-map `/` in `ROUTE_PAGE_SOURCES`, compare the LCP candidate
-  sequence over ≥3 back-to-back runs. — status: OPEN (cycle 4). `/` stays
-  unmapped until then.
+  paint ~900 ms later because the route fade-in runs while initial script
+  work saturates the main thread. — status: **REFUTED as stated, cycle 4.**
+  With the first-route fade removed the LCP candidate sequence on `/` is
+  unchanged (third candidate ≈ 2.2 s on both builds), and the ~+900 ms slow
+  mode still appears with AND without the preload (1 of 3 main runs, 1 of 3
+  branch runs, 2 of 3 mapped runs). The fade was not the mechanism. What the
+  fade removal verifiably fixed is a different defect: after React mounted,
+  the routed page sat at opacity 0 and faded in over 420–460 ms on throttled
+  mobile, hiding content the prerender had painted at ~0.95 s (computed-
+  opacity trace, main vs branch, `/` and `/shop`, 2 runs each). `/` stays
+  unmapped. Superseded by Hy-008.
+- **Hy-008** The landing page's largest paint is bimodal (≈2.2 s or ≈3.0 s
+  on throttled mobile, ~1 run in 3) independent of the route preload, the
+  service worker (blocked in every run) and the fade; the third candidate is
+  the hero paragraph re-rendered at a larger size after React mounts. —
+  test: record `longtask` entries and `document.fonts` load events alongside
+  the LCP sequence over ≥6 runs; check whether the slow runs coincide with a
+  long task between candidates 2 and 3 or with a late font swap. — status:
+  OPEN (cycle 5).
 - **Hy-006** Keyboard-only checkout cannot be asserted until an authenticated
   E2E fixture exists (no spec signs a user in today). — test: a Playwright
   fixture that seeds a session against a stubbed/real Supabase, then a Tab-
@@ -186,6 +212,27 @@ wins and the conflict is logged here so the prompt can be revised.
   documented; no documented name is dead; no value has a credential shape)
   — cycle 3.
 
+- 4.1: "Zero mechanism/outcome sentences on … labels" is now enforced by
+  `scripts/test-label-copy.mjs` — 4 templates × 2 presets × 4 configs
+  rendered through the real engine, exact allowlist of negations, and a
+  hard ban on volumes, solvents, routes, doses, schedules and reconstitution
+  instructions on any label; the engine's 78 fixed strings scanned the same
+  way — cycle 4.
+- 4.5: bundle-tier feedback in the cart ("Add N more for $X each") is
+  enforced by `scripts/test-next-tier.mjs` against the real pure function —
+  cycle 4.
+- 4.6 / 4.11: a category visibility flip is complete only when the CDN
+  follows — `scripts/test-rebuild-hook.mjs` (real PATCH handler, stubbed
+  fetch: triggered / not_configured / failed, never silent, never fails the
+  flip; non-Vercel hook URLs refused) — cycle 4.
+- 4.9: keyboard-only commerce path enforced by
+  `tests/e2e/keyboard-commerce.spec.js` (shop → product → Add to Cart →
+  drawer takes focus → Escape returns it; a visible focus indicator at every
+  stop) — cycle 4.
+- 4.7: `npm run perf:compare <urlA> <urlB> [runs] [routes]` prints per-run
+  FCP / LCP / candidate sequence / KB and medians for two servers back to
+  back — the standard for any perf claim from cycle 4 on.
+
 ## Change log
 
 - **2026-09-13 (cycle 1)** — added H-001…H-005 (seeded, each re-verified or
@@ -206,3 +253,11 @@ wins and the conflict is logged here so the prompt can be revised.
   and Failure injection rewritten after two cycles at 0 yield. Hy-004
   resolved by measurement (407 → 0, with a correction). Hy-005 and Hy-006
   and Hy-007 opened. Scorecards 4.1, 4.7, 4.9, 4.11, 4.13 sharpened.
+- **2026-09-13 (cycle 4)** — added H-012 (test a timing hypothesis by
+  removing the cause and re-reading the candidate sequence; evidence: Hy-007
+  refuted while the change's real benefit — a 420–460 ms opacity-0 window —
+  was found by a second measurement). H-009 gained the every-importer
+  corollary. Both rewritten generators (Competitor delta, Failure injection)
+  yielded on their first run. Hy-005 resolved (−21 KB per PDP), Hy-007
+  refuted and superseded by Hy-008. Scorecards 4.1, 4.5, 4.6/4.11, 4.7, 4.9
+  sharpened.
