@@ -60,6 +60,14 @@ function stripNoise(src) {
       continue;
     }
     if (c === '"' || c === "'" || c === "`") {
+      // Hy-009 (opt cycle 10): a quote directly after a word character or a
+      // closing bracket is prose (JSX text, a contraction in a comment that
+      // survived, `it's`) — not a string opener. Real string literals follow
+      // an operator, a bracket, a comma, a colon, whitespace-after-keyword…
+      const prev = out.replace(/\s+$/, "").slice(-1);
+      const word = out.match(/([A-Za-z_$][\w$]*)\s*$/)?.[1] || "";
+      const KEYWORD = /^(return|case|typeof|in|of|new|throw|else|do|yield|await|delete|void|instanceof|export|default|import|from)$/;
+      if (c !== "`" && /[\w$)\]]/.test(prev) && !KEYWORD.test(word)) { out += c; i++; continue; }
       const quote = c;
       i++;
       while (i < n && src[i] !== quote) {

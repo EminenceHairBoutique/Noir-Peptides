@@ -58,6 +58,7 @@ and all RLS policies.
 | 0034 | `category_soft_launch_hidden` | Category soft-launch visibility flag |
 | 0035 | `server_errors` | Server error ledger |
 | 0036 | `products_code_name` | optional storefront display name on `products` (`code_name`, nullable, set on nothing; shop/PDP/cart/checkout show it, certificates keep the name) — opt cycle 9 C7 |
+| 0037 | `coa_files` | private `coa-files` storage bucket + `coas.file_path` (certificate uploads served via signed URL) — opt cycle 10 C8 |
 
 ## Tables by domain (29)
 

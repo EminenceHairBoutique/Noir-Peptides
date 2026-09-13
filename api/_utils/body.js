@@ -31,6 +31,27 @@ export async function readJsonBody(req) {
   }
 }
 
+/**
+ * Raw request body as a Buffer, capped. Handles the same shapes as
+ * readJsonBody (Buffer, string, unread stream). Above `maxBytes` reading
+ * stops and { tooLarge: true } is returned — the caller answers 413 and
+ * nothing is buffered beyond the cap. (opt cycle 10, C8: COA file upload)
+ */
+export async function readRawBody(req, { maxBytes = 4 * 1024 * 1024 } = {}) {
+  const raw = req.body;
+  if (Buffer.isBuffer(raw)) return raw.length > maxBytes ? { buffer: null, tooLarge: true } : { buffer: raw, tooLarge: false };
+  if (typeof raw === "string") { const b = Buffer.from(raw); return b.length > maxBytes ? { buffer: null, tooLarge: true } : { buffer: b, tooLarge: false }; }
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of req) {
+    const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += b.length;
+    if (total > maxBytes) return { buffer: null, tooLarge: true };
+    chunks.push(b);
+  }
+  return { buffer: Buffer.concat(chunks), tooLarge: false };
+}
+
 export function jsonResponse(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");

@@ -9,6 +9,7 @@
 export const FIXTURES = { coas: [], labs: [], audit_logs: [] };
 export const FAULTS = { missingColumnsOnce: false, missingTable: false };
 export const LOG = []; // every write, for assertions
+export const STORAGE = {}; // bucket → { path: byteLength } (opt cycle 10: COA uploads)
 
 let nextId = 100;
 function builder(table) {
@@ -58,4 +59,22 @@ function builder(table) {
   };
   return api;
 }
-export const supabaseServer = { from: (table) => builder(table) };
+// Storage stand-in (opt cycle 10): upload() records the object, createSignedUrl()
+// signs only objects that exist, remove() forgets them.
+function storageBucket(bucket) {
+  const objects = (STORAGE[bucket] ||= {});
+  return {
+    async upload(path, body, opts = {}) {
+      if (objects[path] && !opts.upsert) return { data: null, error: { message: "The resource already exists", statusCode: "409" } };
+      objects[path] = Buffer.isBuffer(body) ? body.length : String(body).length;
+      LOG.push({ table: `storage:${bucket}`, op: "upload", path, bytes: objects[path], contentType: opts.contentType || null });
+      return { data: { path }, error: null };
+    },
+    async createSignedUrl(path, ttl) {
+      if (!objects[path]) return { data: null, error: { message: "Object not found", statusCode: "404" } };
+      return { data: { signedUrl: `https://stub.supabase.co/storage/v1/object/sign/${bucket}/${path}?token=stub-${ttl}` }, error: null };
+    },
+    async remove(paths) { for (const p of paths) delete objects[p]; return { data: paths.map((p) => ({ name: p })), error: null }; },
+  };
+}
+export const supabaseServer = { from: (table) => builder(table), storage: { from: (bucket) => storageBucket(bucket) } };

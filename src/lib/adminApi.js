@@ -34,3 +34,17 @@ export async function adminSend(path, method, body) {
   });
   return parse(res);
 }
+
+/**
+ * Raw-body upload (opt cycle 10, C8: certificate files). The file goes as
+ * the request body with its own Content-Type; the server sniffs the bytes
+ * anyway. `extraHeaders` carries the target, e.g. { "x-coa-id": "12" }.
+ */
+export async function adminUpload(path, file, extraHeaders = {}) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: await authHeaders({ "Content-Type": file?.type || "application/octet-stream", ...extraHeaders }),
+    body: file,
+  });
+  return parse(res);
+}
