@@ -66,9 +66,9 @@ export default function CookieBanner() {
     <div
       role="region"
       aria-label="Cookie notice"
-      className="fixed left-4 right-4 z-50 max-w-4xl mx-auto"
-      style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      className="fixed left-4 right-4 z-50 max-w-4xl mx-auto bottom-[max(1rem,env(safe-area-inset-bottom))] max-md:bottom-[calc(52px+1rem+env(safe-area-inset-bottom))]"
     >
+      {/* Below md the sheet clears the 52 px bottom nav instead of covering it (F2). */}
       {/* Opt cycle 11 (4.8 F2): a bottom sheet already; at phone widths it
           covered 39 % of the viewport (331 px of 844 at 390). Tighter padding
           and the two actions side by side keep the page behind it usable. */}

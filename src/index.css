@@ -86,6 +86,55 @@
   --color-noir-danger: var(--noir-danger);
 }
 
+/* ─── Pre-hydration shell (opt cycle 11, 4.7 / 4.8) ─────────────────────
+   With the paint-first loader the prerendered <main> inside #root is on
+   screen until React mounts (≈0.4 s locally, longer on slow devices). Style
+   it as a quiet branded frame instead of a raw document: nothing is hidden
+   (crawlers see the same text and links), the paragraph sizes set inline
+   by the generator (shell parity) are untouched, so the LCP candidate is
+   unchanged. React never renders a <main> as a direct child of #root, so
+   these rules cannot reach the hydrated app. */
+#root > main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 6.5rem 1.25rem 3rem;
+  font-family: var(--font-mono);
+  color: var(--noir-text);
+  line-height: 1.6;
+}
+#root > main h1 {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  margin: 0 0 1rem;
+}
+#root > main h2 {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--noir-accent);
+  margin: 1.5rem 0 0.5rem;
+}
+#root > main p { margin: 0 0 0.9rem; }
+#root > main a { color: var(--noir-muted); text-decoration: none; }
+#root > main ul,
+#root > main ol {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  font-size: 0.8rem;
+  color: var(--noir-muted);
+}
+#root > main nav { margin-top: 1.5rem; border-top: 1px solid var(--noir-border); padding-top: 1rem; }
+#root > main table { font-size: 0.8rem; border-collapse: collapse; margin: 0 0 1rem; }
+#root > main th, #root > main td { text-align: left; padding: 0.25rem 0.75rem 0.25rem 0; }
+
 /* ─── Base Styles ────────────────────────────────────────────────────── */
 body {
   background-color: var(--noir-bg);
