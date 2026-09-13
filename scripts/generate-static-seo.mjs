@@ -1520,6 +1520,15 @@ async function main() {
     await fs.mkdir(path.dirname(outFile), { recursive: true });
     await fs.writeFile(outFile, finalHtml, "utf8");
   }
+  // Opt c8 (4.6): Vercel serves dist/404.html with a REAL 404 status for any
+  // path no file and no rewrite matches (vercel.json rewrites only the
+  // client-side routes). Same document as /404/index.html.
+  try {
+    await fs.copyFile(path.join(DIST_DIR, "404", "index.html"), path.join(DIST_DIR, "404.html"));
+    console.log("[seo] wrote 404.html (served with a 404 status for unknown paths)");
+  } catch (e) {
+    console.warn(`[seo] 404.html not written: ${e?.message || e}`);
+  }
   if (viteManifest) {
     console.log(`[seo] route-chunk modulepreload injected into ${preloadedRoutes} pages`);
     // The manifest is a build-time input, not a deliverable.

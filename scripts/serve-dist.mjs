@@ -24,6 +24,23 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
 const PORT = Number(process.argv[2] || 4180);
 
+// The client-route rewrites, read from vercel.json so the two never drift
+// (scripts/test-routing.mjs asserts this). path-to-regexp subset: `:name`
+// = one segment, `:name*` = zero or more segments.
+export function rewriteToRegex(source) {
+  const re = source
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\/:([A-Za-z0-9_]+)\*/g, "(?:/[^?#]*)?")
+    .replace(/:([A-Za-z0-9_]+)/g, "[^/]+");
+  return new RegExp(`^${re}/?$`);
+}
+const CLIENT_ROUTES = (() => {
+  try {
+    const v = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "vercel.json"), "utf8"));
+    return (v.rewrites || []).filter((r) => r.destination === "/index.html").map((r) => rewriteToRegex(r.source));
+  } catch { return []; }
+})();
+
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -56,7 +73,10 @@ function send(res, status, body, type) {
   res.end(body);
 }
 
-http
+// Importable without side effects (scripts/test-routing.mjs imports the
+// matcher); the server starts only when this file is the entry point.
+const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].split(/[\\/]/).pop());
+if (isMain) http
   .createServer((req, res) => {
     currentReq = req;
     const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
@@ -74,12 +94,18 @@ http
     if (fs.existsSync(idx)) {
       return send(res, 200, fs.readFileSync(idx), TYPES[".html"]);
     }
-    // 3. Prerendered /404 page when present, served with a REAL 404 status.
+    // 3. Client-side routes (opt c8): exactly the vercel.json rewrites — the
+    //    SPA shell with a 200 — so this server and Vercel agree on which
+    //    paths are pages and which are not.
+    if (CLIENT_ROUTES.some((re) => re.test(safe))) {
+      return send(res, 200, fs.readFileSync(path.join(ROOT, "index.html")), TYPES[".html"]);
+    }
+    // 4. Everything else: the prerendered 404 page with a REAL 404 status
+    //    (Vercel serves dist/404.html the same way).
     const custom404 = path.join(ROOT, "404", "index.html");
     if (fs.existsSync(custom404)) {
       return send(res, 404, fs.readFileSync(custom404), TYPES[".html"]);
     }
-    // 4. SPA fallback (what Vercel's rewrite does) — note Vercel returns 200.
-    return send(res, 200, fs.readFileSync(path.join(ROOT, "index.html")), TYPES[".html"]);
+    return send(res, 404, "Not found", TYPES[".txt"]);
   })
   .listen(PORT, () => console.log(`[serve-dist] http://localhost:${PORT} (Vercel-style filesystem-first routing)`));
