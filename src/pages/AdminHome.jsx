@@ -23,9 +23,9 @@ import {
   ChevronDown,
   ChevronRight,
   Percent,
-} from "lucide-react";
+ ToggleLeft, ListChecks } from "lucide-react";
 import SEO from "../components/SEO";
-import { adminGet, adminSend } from "../lib/adminApi";
+import { adminGet, adminSend, adminUpload } from "../lib/adminApi";
 import { getProducts } from "../lib/catalog";
 import { scanCopy } from "../lib/complianceScan";
 
@@ -42,6 +42,8 @@ const TABS = [
   { id: "coa", label: "COA Manager", icon: FileCheck2 },
   { id: "discounts", label: "Discounts", icon: Percent },
   { id: "flags", label: "AI Flags", icon: Flag },
+  { id: "features", label: "Feature flags", icon: ToggleLeft },
+  { id: "sprint", label: "Owner Sprint", icon: ListChecks },
   { id: "errors", label: "Errors", icon: Bug },
   { id: "scanner", label: "Compliance Scanner", icon: ShieldAlert },
 ];
@@ -195,6 +197,123 @@ function LabsForm({ onCreated, onError }) {
   );
 }
 
+/* ── Certificate file (migration 0037, opt cycle 10 C8) ─────────────────────
+   Upload the PDF or JPEG of a certificate. The server checks the bytes (not
+   the name), caps the size at 4 MB, stores the file in a private bucket and
+   points the row at /api/coa-file/<id>.<ext>, which serves a 10-minute signed
+   link for PUBLISHED certificates only. External links keep working. */
+function CoaFileRow({ coa, onSaved, onError }) {
+  const [busy, setBusy] = useState(false);
+  const onPick = async (e) => {
+    const input = e.target;
+    const file = input.files && input.files[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      const r = await adminUpload("/api/admin/coa-upload", file, { "x-coa-id": String(coa.id) });
+      onSaved(r.coa);
+    } catch (err) { onError(err.message); }
+    finally { setBusy(false); input.value = ""; }
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-3 text-[11px] text-se-steel" data-testid="coa-file-row">
+      <span>File:</span>
+      {coa.file_url ? (
+        <a href={coa.file_url} target="_blank" rel="noopener noreferrer" className="text-se-gold hover:underline">
+          {coa.file_path ? "stored privately (signed link)" : "external link"}
+        </a>
+      ) : (
+        <span>none</span>
+      )}
+      <label className="cursor-pointer text-se-gold hover:underline">
+        {busy ? "Uploading…" : "Upload PDF / JPG"}
+        <input type="file" accept="application/pdf,image/jpeg" className="sr-only" onChange={onPick} disabled={busy} />
+      </label>
+    </div>
+  );
+}
+
+/* ── Feature flags (opt cycle 10 C8) — READ-ONLY ───────────────────────────
+   Shows each flag by name with its state. Flags stay environment-controlled
+   (default off); nothing here can switch one on. */
+function FeatureFlags() {
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+  const load = () => adminGet("/api/admin/flags").then((d) => { setData(d); setErr(null); }).catch((e) => setErr(e.message));
+  useEffect(() => { load(); }, []);
+  return (
+    <div className="space-y-4" data-testid="feature-flags">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-accent uppercase tracking-[0.16em] text-se-steel">Feature flags (read-only)</p>
+        <button onClick={load} className="inline-flex items-center gap-1.5 text-[12px] text-se-steel hover:text-se-gold"><RefreshCw size={13} /> Refresh</button>
+      </div>
+      {err && <p className="text-red-300 text-sm">{err}</p>}
+      {!data && !err && <p className="text-se-steel text-sm">Loading…</p>}
+      {data && (
+        <>
+          <div className="glass-panel divide-y divide-white/5">
+            {data.flags.map((f) => (
+              <div key={f.env} className="flex flex-wrap items-center gap-3 p-4">
+                <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] uppercase tracking-wide ${f.on ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-white/15 bg-white/5 text-se-steel"}`}>
+                  {f.on ? "on" : "off"}
+                </span>
+                <span className="font-mono text-[12.5px] text-se-bone">{f.env}</span>
+                <span className="text-[12px] text-se-bone/60 font-accent">{f.surface}</span>
+                <span className="ml-auto text-[11px] text-se-steel">{f.scope} · {f.set ? "set" : "not set (default off)"}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[12px] text-se-bone/55 font-accent">
+            {data.note} <a href={data.docs} target="_blank" rel="noopener noreferrer" className="text-se-gold hover:underline">Vercel environment variables</a>
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Owner Sprint (opt cycle 10 C8) — the path from 9 to 10 ───────────────
+   Mirrors §D of the Path-to-Ten addendum: one row per owner step, with the
+   status the SERVER can derive from data (green / partial) and grey where
+   only the owner can know. Every row carries the exact screen or command. */
+const SPRINT_CHIP = {
+  green: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  partial: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  grey: "border-white/15 bg-white/5 text-se-steel",
+};
+function OwnerSprint() {
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+  const load = () => adminGet("/api/admin/owner-sprint").then((d) => { setData(d); setErr(null); }).catch((e) => setErr(e.message));
+  useEffect(() => { load(); }, []);
+  const rows = data?.rows || [];
+  const done = rows.filter((r) => r.status === "green").length;
+  return (
+    <div className="space-y-4" data-testid="owner-sprint">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-accent uppercase tracking-[0.16em] text-se-steel">Owner Sprint · {done}/{rows.length || 12} proven from data</p>
+        <button onClick={load} className="inline-flex items-center gap-1.5 text-[12px] text-se-steel hover:text-se-gold"><RefreshCw size={13} /> Refresh</button>
+      </div>
+      <p className="text-[12px] text-se-bone/55 font-accent">
+        Green = the database proves it. Amber = partly there. Grey = only you can know (a GitHub setting, a dry-run, a rotation) — do the step, then record it in LAUNCH_READINESS.md.
+      </p>
+      {err && <p className="text-red-300 text-sm">{err}</p>}
+      {!data && !err && <p className="text-se-steel text-sm">Loading…</p>}
+      {rows.map((r) => (
+        <div key={r.id} className="glass-panel p-4 space-y-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] uppercase tracking-wide ${SPRINT_CHIP[r.status] || SPRINT_CHIP.grey}`}>{r.status}</span>
+            <span className="font-mono text-[12px] text-se-steel">{r.id}</span>
+            <span className="text-[14px] text-se-bone">{r.title}</span>
+          </div>
+          <p className="text-[12.5px] text-se-bone/70">{r.detail}</p>
+          <p className="text-[12px] text-se-steel font-accent">How: {r.how}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CoaManager() {
   const [coas, setCoas] = useState([]);
   const [labs, setLabs] = useState([]);
@@ -322,6 +441,7 @@ function CoaManager() {
                   {labsSupported && (
                     <LabLinkRow coa={c} labs={labs} onSaved={onCoaSaved} onError={(t) => setMsg({ type: "err", text: t })} />
                   )}
+                  <CoaFileRow coa={c} onSaved={onCoaSaved} onError={(t) => setMsg({ type: "err", text: t })} />
                 </div>
                 <button
                   onClick={() => togglePublish(c)}
@@ -1583,6 +1703,8 @@ export default function AdminHome() {
           {tab === "coa" && <CoaManager />}
           {tab === "discounts" && <DiscountsManager />}
           {tab === "flags" && <AiFlags />}
+          {tab === "features" && <FeatureFlags />}
+          {tab === "sprint" && <OwnerSprint />}
           {tab === "errors" && (<><ClientErrors /><ServerErrors /></>)}
           {tab === "scanner" && <ComplianceScanner />}
         </div>

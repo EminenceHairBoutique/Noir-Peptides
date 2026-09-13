@@ -13,3 +13,5 @@ export { default as discountsHandler } from "../api/admin/discounts.js";
 export { default as coaUploadHandler } from "../api/admin/coa-upload.js";
 export { default as coaFileHandler } from "../api/coa-file/[name].js";
 export { readRawBody } from "../api/_utils/body.js";
+export { default as flagsHandler, flagStates, FLAG_INVENTORY } from "../api/admin/flags.js";
+export { default as ownerSprintHandler, deriveOwnerSprint } from "../api/admin/owner-sprint.js";

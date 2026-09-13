@@ -7,14 +7,19 @@
 //                               with 42703 (pre-migration database);
 //   FAULTS.missingTable       — selects on `labs` fail like a missing table.
 export const FIXTURES = { coas: [], labs: [], audit_logs: [] };
-export const FAULTS = { missingColumnsOnce: false, missingTable: false };
+export const FAULTS = {
+  missingColumnsOnce: false, missingTable: false,
+  // opt cycle 10 (Owner Sprint probes): "table.column" names that read as
+  // 42703 and table names that read as 42P01 — a pre-migration database.
+  missingColumns: [], missingTables: [],
+};
 export const LOG = []; // every write, for assertions
 export const STORAGE = {}; // bucket → { path: byteLength } (opt cycle 10: COA uploads)
 
 let nextId = 100;
 function builder(table) {
   const filters = [];
-  let mode = "select", payload = null, cols = "*", limit = null;
+  let mode = "select", payload = null, cols = "*", limit = null, wantCount = false;
   const rows = () => (FIXTURES[table] || []).filter((r) => filters.every((f) => f(r)));
   const run = () => {
     if (table === "labs" && FAULTS.missingTable) {
@@ -42,12 +47,19 @@ function builder(table) {
       LOG.push({ table, op: "update", payload, count: hit.length });
       return { data: hit, error: null };
     }
+    if (FAULTS.missingTables.includes(table)) return { data: null, error: { code: "42P01", message: `relation "public.${table}" does not exist` } };
+    if (mode === "select" && cols !== "*") {
+      const gone = cols.split(",").map((c) => c.trim()).find((c) => FAULTS.missingColumns.includes(`${table}.${c}`));
+      if (gone) return { data: null, error: { code: "42703", message: `column ${table}.${gone} does not exist` } };
+    }
     let out = rows();
     if (limit != null) out = out.slice(0, limit);
-    return { data: out, error: null };
+    return { data: wantCount ? null : out, error: null, count: wantCount ? rows().length : undefined };
   };
   const api = {
-    select(c) { if (c) cols = c; return api; },
+    select(c, opts) { if (c) cols = c; if (opts && opts.count) wantCount = true; return api; },
+    not(col, op, val) { if (op === "is" && val === null) filters.push((r) => r[col] != null); return api; },
+    is(col, val) { if (val === null) filters.push((r) => r[col] == null); return api; },
     insert(p) { mode = "insert"; payload = p; return api; },
     upsert(p) { mode = "upsert"; payload = p; return api; },
     update(p) { mode = "update"; payload = p; return api; },
