@@ -87,9 +87,7 @@ export default function CartDrawer() {
                   <p className="text-[13px] text-se-bone font-accent truncate">{item.name}</p>
 
                   <p className="text-[11px] text-se-steel mt-1">
-                    {item.size && `Size ${item.size}`}
-                    {item.colorway && ` · ${item.colorway}`}
-                    {` · Qty ${item.quantity}`}
+                    {[item.size && `Size ${item.size}`, item.colorway, `Qty ${item.quantity}`].filter(Boolean).join(" · ")}
                   </p>
 
                   {item.isPreorder && (
@@ -164,7 +162,7 @@ export default function CartDrawer() {
 
             <div className="flex items-center justify-center gap-2 text-[10px] text-se-steel font-accent">
               <Lock className="w-3 h-3" />
-              Encrypted checkout via Stripe
+              Encrypted checkout · payment options shown at checkout
             </div>
           </div>
         )}
