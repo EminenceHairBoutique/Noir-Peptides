@@ -58,19 +58,33 @@ wins and the conflict is logged here so the prompt can be revised.
   one set of files now serves both the page and the labels. — yield: 1
   (and ~117 KB of repo weight avoided)
 
+- **H-010** [added cycle 3] Gate the artifact the buyer receives, not only
+  the inputs it is built from. — evidence: the home page's FAQPage JSON-LD
+  (`HOME_FAQ`, defined inside the prerender generator) and every meta / OG
+  description were outside every gate; the rendered-output scan
+  (`test-dist-copy.mjs`) found 3 findings on `/` that no corpus entry covered
+  (all negations, now allowlisted) and 71 across 11 pages in total — the
+  corpus gate had seen 11 of them. — yield: 1
+- **H-011** [added cycle 3] Measure through the production transport, or the
+  number is about the harness. — evidence: the RECON perf profile over the
+  uncompressed test server reported LCP 5.0 s on `/`; the same build over the
+  same server with gzip reported 2.2 s. The finding that survived the fix
+  (a serialized route-chunk hop) was visible in the waterfall, not in the
+  headline number. — yield: 1 (gzip in `serve-dist.mjs` + the preload item)
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
-| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 2 | 1 | cycle 2 (link-depth gate + footer nav fix) |
-| Regulator walk | 2 | 2 | cycle 1 (consumable naming; "mechanisms" removed) — cycle 2: corpus gate green, nothing new |
-| Competitor delta | 2 | 1 | cycle 1 (lab-linkage screen) — cycle 2: 0 |
-| Data honesty sweep | 2 | 3 | cycle 2 (attestation user agent on the order record) |
-| Failure injection | 2 | 1 | cycle 1 (public contact leak) — cycle 2: 0 |
-| Cost/perf profile | 2 | 3 | cycle 2 (self-hosted fonts; SW precache budget) |
-| Ops dry run | 2 | 1 | cycle 1 (lab linkage without SQL) — cycle 2: 0 |
-| Inversion | 2 | 1 | cycle 2 ("what puts a key in a log line?" → scrubber shapes) |
-| Accessibility sweep (axe) — added cycle 2 | 1 | 1 | cycle 2 (contrast tokens, link underline, heading order) |
+| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 2 | 1 | cycle 2 (link-depth gate + footer nav fix) — not run cycle 3 |
+| Regulator walk | 3 | 3 | cycle 3 (rendered-output gate: 78 pages, meta + JSON-LD + attributes) |
+| Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 3 | 1 | cycle 1 (lab-linkage screen) — cycles 2–3: 0 |
+| Data honesty sweep | 3 | 3 | cycle 2 — cycle 3: no numeric claim in any static body (checked, 0 yield) |
+| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 3 | 1 | cycle 1 (public contact leak) — cycles 2–3: 0 (SW update path verified sound) |
+| Cost/perf profile | 3 | 4 | cycle 3 (route-chunk modulepreload; throttled-mobile perf script) |
+| Ops dry run | 3 | 2 | cycle 3 (attestation record on the order screen) |
+| Inversion | 3 | 2 | cycle 3 ("what makes a deploy fail silently?" → env-example gate, 7 undocumented names) |
+| Accessibility sweep (axe) — added cycle 2 | 2 | 2 | cycle 3 (one main landmark, skip link, landmark budget + keyboard check in the sweep) |
 
 ## Retired
 
@@ -96,7 +110,33 @@ wins and the conflict is logged here so the prompt can be revised.
   `<main>` elements (TestResults, Documents, …) to `<div>`, keeping the
   prerendered `<main>` untouched. — test: axe re-sweep shows 0 `region`
   nodes; prerender coverage test still sees `<main>` in every static body. —
-  status: PLANNED (cycle 3; touches ~6 pages, needs its own screenshots).
+  status: **RESOLVED cycle 3** — one `<main id="main">` in the app shell,
+  seven page/layout `<main>`s demoted to `<div>`, cookie banner a named
+  region: `region` 407 → 0 and every landmark rule 0 across 18 page-views.
+  Correction to the hypothesis: the landing and auth layouts had to be
+  demoted too (the shell wraps every route), or axe reports a duplicate
+  main — the "prerendered `<main>` untouched" part held (static bodies keep
+  theirs; React replaces the root).
+- **Hy-005** The product page's static import closure (20 chunks, including
+  `LabelPreview`, `VialPreview`, `labelsApi`, `adminApi`) carries label-studio
+  and admin code a buyer never runs; lazy-loading the label-preview path from
+  the PDP would cut first-load JS without changing what renders. — test:
+  PDP transferred KB and chunk count before/after (`npm run perf`), PDP guard
+  green. — status: OPEN (cycle 4).
+- **Hy-007** Preloading the landing page's route chunk makes its largest
+  paint ~900 ms LATER on throttled mobile (2.0 s → 2.9 s, 5 of 6 runs) because
+  the route fade-in (`Page` in `src/App.jsx`) runs while initial script work
+  is still saturating the main thread; without the preload the chunk arrives
+  after that work and the fade runs on an idle thread. — test: disable the
+  fade for the first route (or respect `prefers-reduced-motion` and measure
+  with it on), re-map `/` in `ROUTE_PAGE_SOURCES`, compare the LCP candidate
+  sequence over ≥3 back-to-back runs. — status: OPEN (cycle 4). `/` stays
+  unmapped until then.
+- **Hy-006** Keyboard-only checkout cannot be asserted until an authenticated
+  E2E fixture exists (no spec signs a user in today). — test: a Playwright
+  fixture that seeds a session against a stubbed/real Supabase, then a Tab-
+  walk through `/cart → /checkout` with focus-visible assertions. — status:
+  OPEN (cycle 4; fixture first).
 - **Hy-003** The category descriptions containing "signaling"/"pathway"
   ("GH-Secretagogue… signaling research", "mitochondrial and metabolic-pathway
   research") are quotable as intended-use evidence even though each is framed
@@ -124,6 +164,28 @@ wins and the conflict is logged here so the prompt can be revised.
   `scripts/test-error-envelopes.mjs` (cycle 1), with one documented exception
   (`api/stripe-webhook.js` signature failures — file is ask-before).
 
+- 4.1: "Compliance scanner green on `dist/`" is now enforced by
+  `scripts/test-dist-copy.mjs` — visible text, meta / OG descriptions,
+  JSON-LD strings and alt / aria-label / title attributes of every prerendered
+  page, exact per-page allowlist of negations, catalog + article pages must
+  be allowlist-free — cycle 3.
+- 4.7: route-chunk `modulepreload` on every mapped route enforced by
+  `scripts/test-route-preload.mjs` (never the 3D / PDF / QR vendors; bounded
+  list); `npm run perf` reports TTFB / FCP / LCP / CLS / bytes on throttled
+  mobile over a gzip test server — cycle 3.
+- 4.9: the a11y sweep now also fails on ANY landmark-structure finding
+  (`region`, `landmark-one-main`, `landmark-no-duplicate-main`,
+  `landmark-main-is-top-level`, `landmark-unique`, `page-has-heading-one`)
+  and on a broken skip link (first Tab → "Skip to content"; Enter → focus
+  inside `#main`) — cycle 3.
+- 4.11: "find the attestation record from the Control Room without SQL" is
+  now enforced by `scripts/test-admin-orders.mjs` (real handler, stubbed DB;
+  honest null when none is on file) — cycle 3.
+- 4.13: "`.env.example` complete and secret-free" is now enforced by
+  `scripts/test-env-example.mjs` (every name read by api/lib/src/scripts is
+  documented; no documented name is dead; no value has a credential shape)
+  — cycle 3.
+
 ## Change log
 
 - **2026-09-13 (cycle 1)** — added H-001…H-005 (seeded, each re-verified or
@@ -137,3 +199,10 @@ wins and the conflict is logged here so the prompt can be revised.
   rewritten as a static graph walk after 0 yield in cycle 1 (it then yielded
   the link-depth item). Accessibility sweep added as a generator. Hy-002
   resolved by measurement; Hy-004 opened. Scorecards 4.6, 4.7, 4.9 sharpened.
+- **2026-09-13 (cycle 3)** — added H-010 (gate the rendered artifact;
+  evidence: 3 findings on `/` from JSON-LD no corpus entry covered) and H-011
+  (measure through the production transport; evidence: 5.0 s vs 2.2 s LCP for
+  the same build with and without gzip on the test server). Competitor delta
+  and Failure injection rewritten after two cycles at 0 yield. Hy-004
+  resolved by measurement (407 → 0, with a correction). Hy-005 and Hy-006
+  and Hy-007 opened. Scorecards 4.1, 4.7, 4.9, 4.11, 4.13 sharpened.
