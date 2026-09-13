@@ -60,7 +60,10 @@ jobs:
           set -e
           supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
           supabase status -o env > /tmp/sb/status.env
-          grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=' /tmp/sb/status.env | sed 's/^/SB_/' >> "$GITHUB_ENV"
+          # `supabase status -o env` quotes its values; strip the quotes or the
+          # URL reaches fetch() as "http://…" (first run failed exactly there).
+          sed -nE 's/^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)="?([^"]*)"?$/SB_\1=\2/p' /tmp/sb/status.env >> "$GITHUB_ENV"
+          grep -c '^SB_' "$GITHUB_ENV"
 
       - name: npm run verify:rls (unchanged script, fresh stack)
         env:

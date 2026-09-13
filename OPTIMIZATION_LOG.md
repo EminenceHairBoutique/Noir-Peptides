@@ -1695,11 +1695,26 @@ routes** (CLS, TBT within budget). Runtime budget recorded (4.13): unit ≈
 ### EVIDENCE PROVENANCE (§F)
 
 Everything scored this cycle came from **sandbox runs dated 2026-09-13**
-(this branch, Chromium 1194, the E2E build served Vercel-style). **No CI
-artifact yet** — the `Evidence` and `DB gates` workflows run for the first
-time on this PR; **no live record** — the probe runs from `main` after
-merge (or by dispatch). `node scripts/evidence-latest.mjs` will read both
-next cycle.
+(this branch, Chromium 1194, the E2E build served Vercel-style). **No live
+record** — the probe runs from `main` after merge (or by dispatch).
+
+**First CI artifacts (added after PR #41's first runs, same day):**
+- `Evidence` run 34758093351 on `7303688`: 308 screenshots in 184 s, axe **0
+  findings on every route**, link-depth + hygiene pass, 336-file artifact,
+  `ci/latest.json` pushed to the new `evidence` branch (read back through the
+  API). Verdict **red on Lighthouse only** — medians `/` 3141 ms · `/shop`
+  3637 ms + TBT 332 ms · PDP 2586 ms (runs 3490 / 2586 / 2291, the Hy-008
+  bimodality) · `/test-results` 3305 ms; CLS 0. CI-verified scores: 4.9
+  stays 9 (axe green on every route in CI), 4.7 stays 7, 4.8 stays 7.
+- `DB gates` run 34758093345: the Supabase stack started and applied
+  `0001 → 0036` (visible in the failure log), then every probe errored on a
+  URL that carried quotes — `supabase status -o env` quotes its values and
+  the workflow forwarded them (`Failed to parse URL from
+  "http://127.0.0.1:54321"/rest/v1/profiles…`). Nothing was verified; a
+  one-line `sed` fix follows on this branch. 4.2 / 4.3 move on that run's
+  result, not on this one.
+- `CI` run 34758093318: green (lint 0/0 enforced, 1123 assertions, E2E,
+  migration hygiene).
 
 ### GENERATOR YIELDS (cycle 9)
 
