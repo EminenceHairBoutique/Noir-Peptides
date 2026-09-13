@@ -41,8 +41,21 @@ function normalize(row) {
 // mirrored seed — the same published certificates the database holds — is
 // shown rather than nothing. An EMPTY answer from a reachable database stays
 // empty: the database is the record.
-const seedAll = () => COA_SEED.filter((r) => r.is_published);
+const seedAll = () => COA_SEED.filter((r) => r.is_published).map(normalize);
 const seedFor = (productId) => seedAll().filter((r) => r.product_id === productId);
+
+/**
+ * Synchronous first paint for the trust pages: the mirrored published
+ * certificates, normalised like a database row. Pages seed their state with
+ * this so the hydrated view matches the prerendered rows (no layout shift
+ * while the database answers), then replace it with the live answer.
+ */
+export function getSeedCoas() {
+  return seedAll();
+}
+export function getSeedCoasForProduct(productId) {
+  return seedFor(productId);
+}
 
 export async function getAllCoas() {
   if (!supabase) return seedAll();
