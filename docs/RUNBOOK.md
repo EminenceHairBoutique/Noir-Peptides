@@ -108,6 +108,40 @@ preview `/**`, `http://localhost:3000/**`.
 - `audit_logs` table records every admin catalog/label/discount change with
   before/after values.
 
+### Category visibility → rebuild (opt cycle 4)
+
+Hiding a category in the Control Room changes the database and the running
+app at once, but the prerendered (indexable) pages stay on the CDN until the
+site is rebuilt. Set `VERCEL_DEPLOY_HOOK_URL` (Vercel → Project → Settings →
+Git → Deploy Hooks) and the flip triggers the rebuild itself; the row says
+"Rebuild triggered", "Static pages update on the next deploy" or "Rebuild
+request failed" — never nothing. See `docs/MIGRATIONS_0034.md`.
+
+### Errors tab — client and server (opt cycles 4–6)
+
+- **Client** (migration 0025): browser errors, grouped by signature.
+- **Server** (migration 0035): every API failure that goes through
+  `failSafely()` lands here with its request id, code, context, status and a
+  scrubbed message — no stack, no body. Until 0035 is applied the panel says
+  "Apply migration 0035". A support email that quotes a `requestId` can be
+  matched here directly.
+
+### E2E build (opt cycle 5)
+
+`npm run build:e2e` gives ONLY the Vite step a fake `*.supabase.co` URL so
+the gated cart → checkout path can be exercised by Playwright with a routed
+session (`tests/e2e/fixtures/auth.js`); the prerender / precache / CSP steps
+run without env exactly as `npm run build`. Never deploy its output. CI's
+E2E job uses it; `npm run build` remains the production build.
+
+### Copy gates (opt cycles 1–7)
+
+Anything that reaches a buyer, a crawler or a printed label is scanned:
+data files (`test-copy-corpus`), rendered pages (`test-dist-copy`), rendered
+labels (`test-label-copy`), and at the door for admin-entered text — label
+configs, discount descriptions, lab names — and buyer reviews. A 400 from
+those endpoints names the field and the reason; that is the gate working.
+
 ## 4. Hard-learned invariants (do not relearn these)
 
 - **Schema drift is the house failure mode.** Symptoms like "Could not load
