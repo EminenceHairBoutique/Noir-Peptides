@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "kind": "ci",
+  "sha": "7303688c6bac1d691f9dec918f2510a87ef1cd0c",
+  "ref": "claude/opt-cycle-9-20260913",
+  "run_url": "https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34758093351",
+  "generated_at": "2026-09-13T13:01:42.256Z",
+  "build": {
+    "mode": "e2e",
+    "dbEnvPresent": false,
+    "note": "CI build has no DB env: the trust pages are the documented shells; the live probe is the source for those"
+  },
+  "gates": {
+    "screens": true,
+    "axe": true,
+    "lighthouse": false,
+    "links": true,
+    "hygiene": true
+  },
+  "verdict": "red",
+  "failing": [
+    "lighthouse"
+  ],
+  "missing": [],
+  "screens": {
+    "views": 308,
+    "routes": 73,
+    "widths": [
+      320,
+      390,
+      768,
+      1280
+    ],
+    "failing": [],
+    "overflow": [],
+    "consoleErrors": [],
+    "skipped": [],
+    "seconds": 184,
+    "pass": true
+  },
+  "axe": {
+    "findings": 0,
+    "byImpact": {},
+    "seriousOrCritical": 0,
+    "blockingRules": [],
+    "pass": true
+  },
+  "lighthouse": {
+    "budget": {
+      "lcp": 2500,
+      "cls": 0.1,
+      "tbt": 200
+    },
+    "aggregation": "median",
+    "routes": {
+      "/": {
+        "runs": 3,
+        "lcpMs": 3141,
+        "cls": 0,
+        "tbtMs": 82,
+        "perf": 93,
+        "pass": false
+      },
+      "/shop": {
+        "runs": 3,
+        "lcpMs": 3637,
+        "cls": 0,
+        "tbtMs": 332,
+        "perf": 81,
+        "pass": false
+      },
+      "/product/bpc-157": {
+        "runs": 3,
+        "lcpMs": 2586,
+        "cls": 0,
+        "tbtMs": 91,
+        "perf": 96,
+        "pass": false
+      },
+      "/test-results": {
+        "runs": 3,
+        "lcpMs": 3305,
+        "cls": 0,
+        "tbtMs": 98,
+        "perf": 91,
+        "pass": false
+      }
+    },
+    "pass": false
+  },
+  "links": {
+    "exit": 0,
+    "pass": true,
+    "tail": [
+      "  ✓ no page links to a hidden category or a 404-body route ([])",
+      "",
+      "All link-depth checks passed."
+    ]
+  },
+  "hygiene": {
+    "exit": 0,
+    "pass": true,
+    "tail": [
+      "  ✓ 79 pages scanned",
+      "",
+      "All rendered-hygiene assertions passed"
+    ]
+  }
+}
