@@ -113,12 +113,92 @@ function Overview() {
 /* ── COA Manager ──────────────────────────────────────────────────────── */
 const EMPTY_COA = {
   product_id: "", lot_number: "", lab_name: "", tested_at: "",
-  hplc: "", purity_percent: "", mass_spec: "", ms_confirmed: false, cas_number: "",
-  file_url: "", is_published: true,
+  hplc: "", purity_percent: "", purity_operator: "", mass_spec: "", ms_confirmed: false, cas_number: "",
+  lab_id: "", lab_lookup_code: "", file_url: "", is_published: true,
 };
+
+/* ── Lab linkage (opt cycle 1, H-003) ──────────────────────────────────────
+   The two-factor verification key: which laboratory issued this certificate
+   and the code that resolves it on the LAB'S OWN public lookup. Until now the
+   only way to set these was SQL, so 0 of 19 certificates carried one. Inline,
+   per row; explicit clear supported. Hidden until migration 0032 is applied. */
+function LabLinkRow({ coa, labs, onSaved, onError }) {
+  const [labId, setLabId] = useState(coa.lab_id ?? "");
+  const [code, setCode] = useState(coa.lab_lookup_code ?? "");
+  const [busy, setBusy] = useState(false);
+  const lab = labs.find((l) => String(l.id) === String(labId));
+  const dirty = String(labId) !== String(coa.lab_id ?? "") || code !== (coa.lab_lookup_code ?? "");
+  const ready = Boolean(lab?.public_lookup_url_template && code.trim());
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await adminSend("/api/admin/coa", "PATCH", {
+        id: coa.id,
+        lab_id: labId === "" ? null : Number(labId),
+        lab_lookup_code: code.trim() === "" ? null : code.trim(),
+      });
+      onSaved(r.coa);
+    } catch (e) { onError(e.message); }
+    finally { setBusy(false); }
+  };
+  const inp = "rounded-lg border border-white/12 bg-white/[0.03] px-2 py-1 text-se-bone text-[12px] focus:border-se-gold focus:outline-none";
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="lab-link-row">
+      <select className={`${inp} bg-[#0a0e16]`} value={labId} onChange={(e) => setLabId(e.target.value)} aria-label="Issuing laboratory">
+        <option value="">No lab linked</option>
+        {labs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+      </select>
+      <input className={`${inp} w-40`} placeholder="Lab lookup code" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Lab lookup code" />
+      <button type="button" onClick={save} disabled={!dirty || busy}
+        className="text-[11px] rounded border border-se-gold/40 text-se-gold px-3 py-1 hover:bg-se-gold/10 disabled:opacity-30">
+        {busy ? "Saving…" : "Save"}
+      </button>
+      <span className={`text-[10px] uppercase tracking-wide ${ready ? "text-emerald-300" : "text-se-steel"}`}
+        title={ready ? "This certificate will render a verify-at-lab link" : "Needs a lab with a public lookup template AND a lookup code"}>
+        {ready ? "verify link ready" : lab && !lab.public_lookup_url_template ? "lab has no public lookup" : "no verify link"}
+      </span>
+    </div>
+  );
+}
+
+const EMPTY_LAB = { name: "", accreditation_body: "", accreditation_number: "", public_lookup_url_template: "" };
+function LabsForm({ onCreated, onError }) {
+  const [form, setForm] = useState(EMPTY_LAB);
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const field = "w-full rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-se-bone text-sm focus:border-se-gold focus:outline-none";
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const r = await adminSend("/api/admin/labs", "POST", form);
+      setForm(EMPTY_LAB);
+      onCreated(r.lab);
+    } catch (err) { onError(err.message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <form onSubmit={submit} className="glass-panel p-5 space-y-3" data-testid="labs-form">
+      <h3 className="font-display text-[16px]">Add a testing laboratory</h3>
+      <p className="text-[12px] text-se-bone/45 font-accent">
+        Real accreditation details only. The lookup template must be https and contain the literal
+        <code className="mx-1 text-se-gold">{"{code}"}</code>where the lab's report code goes — otherwise no verify link is rendered.
+      </p>
+      <input className={field} placeholder="Laboratory name *" value={form.name} onChange={(e) => set("name", e.target.value)} required />
+      <div className="grid grid-cols-2 gap-3">
+        <input className={field} placeholder="Accreditation body (e.g. ISO/IEC 17025 registrar)" value={form.accreditation_body} onChange={(e) => set("accreditation_body", e.target.value)} />
+        <input className={field} placeholder="Accreditation number" value={form.accreditation_number} onChange={(e) => set("accreditation_number", e.target.value)} />
+      </div>
+      <input className={field} placeholder="Public lookup URL template, e.g. https://lab.example/reports?id={code}" value={form.public_lookup_url_template} onChange={(e) => set("public_lookup_url_template", e.target.value)} />
+      <button type="submit" disabled={busy} className="btn-outline w-full justify-center disabled:opacity-50">{busy ? "Saving…" : "Save laboratory"}</button>
+    </form>
+  );
+}
 
 function CoaManager() {
   const [coas, setCoas] = useState([]);
+  const [labs, setLabs] = useState([]);
+  const [labsSupported, setLabsSupported] = useState(false);
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState(EMPTY_COA);
   const [busy, setBusy] = useState(false);
@@ -128,14 +208,19 @@ function CoaManager() {
   const load = () => {
     setLoading(true);
     adminGet("/api/admin/coa")
-      .then((d) => setCoas(d.coas || []))
+      .then((d) => { setCoas(d.coas || []); setLabsSupported(d.labFieldsSupported !== false); })
       .catch((e) => setMsg({ type: "err", text: e.message }))
       .finally(() => setLoading(false));
+    // Labs: [] + migrationPending until 0032 is applied → lab controls hidden.
+    adminGet("/api/admin/labs")
+      .then((d) => { setLabs(d.labs || []); if (d.migrationPending) setLabsSupported(false); })
+      .catch(() => {});
   };
   useEffect(() => {
     load();
     getProducts().then(setProducts).catch(() => {});
   }, []);
+  const onCoaSaved = (updated) => setCoas((cs) => cs.map((c) => (c.id === updated?.id ? { ...c, ...updated } : c)));
 
   const nameById = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -188,6 +273,20 @@ function CoaManager() {
               rejects malformed input with a 400; leave blank when unknown. */}
           <input className={field} placeholder="CAS number (optional, NNNNNNN-NN-N)" value={form.cas_number} onChange={(e) => set("cas_number", e.target.value)} />
         </div>
+        {labsSupported && (
+          <div className="grid grid-cols-3 gap-3" data-testid="coa-create-lab-fields">
+            <select className={field} value={form.lab_id} onChange={(e) => set("lab_id", e.target.value)} aria-label="Issuing laboratory">
+              <option value="">Issuing lab (optional)</option>
+              {labs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+            <input className={field} placeholder="Lab lookup code" value={form.lab_lookup_code} onChange={(e) => set("lab_lookup_code", e.target.value)} />
+            <select className={field} value={form.purity_operator} onChange={(e) => set("purity_operator", e.target.value)} aria-label="Purity qualifier">
+              <option value="">Purity is exact</option>
+              <option value=">=">Purity is ≥ (at least)</option>
+              <option value="<=">Purity is ≤ (at most)</option>
+            </select>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <input className={field} type="number" step="0.01" placeholder="Purity % (number)" value={form.purity_percent} onChange={(e) => set("purity_percent", e.target.value)} />
           <input className={field} placeholder="Mass-spec note" value={form.mass_spec} onChange={(e) => set("mass_spec", e.target.value)} />
@@ -220,6 +319,9 @@ function CoaManager() {
                     Lot <span className="font-mono">{c.lot_number || c.batch_number || "—"}</span>
                     {c.lab_name ? ` · ${c.lab_name}` : ""}{c.hplc ? ` · ${c.hplc}` : ""}
                   </p>
+                  {labsSupported && (
+                    <LabLinkRow coa={c} labs={labs} onSaved={onCoaSaved} onError={(t) => setMsg({ type: "err", text: t })} />
+                  )}
                 </div>
                 <button
                   onClick={() => togglePublish(c)}
@@ -231,6 +333,11 @@ function CoaManager() {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+        {labsSupported && (
+          <div className="mt-6">
+            <LabsForm onCreated={(lab) => setLabs((ls) => [...ls, lab].sort((a, b) => String(a.name).localeCompare(String(b.name))))} onError={(t) => setMsg({ type: "err", text: t })} />
           </div>
         )}
       </div>
