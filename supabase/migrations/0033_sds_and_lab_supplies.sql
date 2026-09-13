@@ -5,9 +5,10 @@
 -- required item in high-risk merchant underwriting packets, which is why this
 -- is a launch dependency rather than a nicety.
 --
--- Task 8: `lab_supply` marks consumables (bacteriostatic water, syringes,
--- alcohol prep pads) so they can be surfaced as attach items WITHOUT any
--- usage or reconstitution guidance — they are sold as laboratory consumables.
+-- Task 8: `lab_supply` marks general laboratory consumables so they can be
+-- listed as catalogue items WITHOUT any usage guidance. No consumable is
+-- seeded or implied by this migration; what (if anything) is listed is an
+-- owner decision.
 --
 -- STRICTLY ADDITIVE: two nullable columns and one defaulted column. No column
 -- is dropped, renamed or retyped; no row is written or deleted. NO SDS FILE

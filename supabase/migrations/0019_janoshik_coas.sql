@@ -7,7 +7,7 @@
 -- lot key so /verify-lot resolves to the exact report).
 --
 -- COMPLIANCE: nothing is invented. Products absent from the catalog
--- (Tirzepatide, Retatrutide) and bacteriostatic water — 6 certificates in the
+-- (Tirzepatide, Retatrutide) and non-catalog items — 6 certificates in the
 -- package — are intentionally NOT seeded; they have no listing to attach to.
 -- Blend certificates report per-component content (no single purity %), so
 -- purity_percent is left null and identity confirmation carries the result.

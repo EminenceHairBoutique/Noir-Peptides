@@ -276,7 +276,7 @@ export async function getAllVariants() {
 
 /**
  * Laboratory consumables (products.product_type = 'lab_supply', migration
- * 0033) — bacteriostatic water, syringes, alcohol prep pads and the like.
+ * 0033) — general laboratory consumables the owner chooses to list.
  *
  * These are catalogue items in their own right, listed so a laboratory can
  * order what it needs in one go. They are NOT presented as a step in any
