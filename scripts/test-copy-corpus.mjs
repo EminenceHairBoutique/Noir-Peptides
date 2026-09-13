@@ -79,6 +79,7 @@ const ACCEPTED = {
   "faq:3": { reason: "negation", terms: ["administration:cycle", "administration:injection", "administration:stacking", "dosing:dosing", "dosing:dosing"] },
   "pageCopy:ABOUT_COPY": { reason: "negation", terms: ["dosing:dosing", "therapeutic-benefit:therapeutic", "therapeutic-benefit:treatment"] },
   "pageCopy:CONTACT_COPY": { reason: "negation", terms: ["administration:injection", "dosing:dosing", "therapeutic-benefit:treatment"] },
+  "pageCopy:PARTNERS_COPY": { reason: "negation", terms: ["dosing:dosing"] },
   "ai:concierge": { reason: "negation", terms: ["dosing:dosing", "therapeutic-benefit:therapeutic"] },
   "ai:literature-summarizer": { reason: "negation", terms: ["dosing:dosing", "therapeutic-benefit:therapeutic"] },
   "ai:coa-analyzer": { reason: "negation", terms: ["dosing:dosing"] },

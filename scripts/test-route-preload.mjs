@@ -33,7 +33,7 @@ const EXPECT = [
   ["/", "PublicLanding"], ["/shop", "Shop"], ["/product/bpc-157", "ProductDetail"], ["/test-results", "TestResults"],
   ["/documents", "Documents"], ["/verify-lot", "VerifyLot"],
   ["/research", "Research"], ["/legal/terms", "Terms"], ["/legal/shipping", "ShippingRefunds"], ["/faqs", "Faqs"],
-  ["/about", "About"], ["/contact", "Contact"], ["/deals", "Deals"], ["/coa-policy", "CoaPolicy"], ["/login", "Login"],
+  ["/about", "About"], ["/contact", "Contact"], ["/partners", "Partners"], ["/deals", "Deals"], ["/coa-policy", "CoaPolicy"], ["/login", "Login"],
 ];
 for (const [route, chunk] of EXPECT) {
   const page = pages.find(([p]) => p === route);

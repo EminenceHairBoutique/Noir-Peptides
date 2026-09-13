@@ -64,6 +64,7 @@ const Success = lazy(() => import("./pages/Success"));
 const Cancel = lazy(() => import("./pages/Cancel"));
 const Account = lazy(() => import("./pages/Account"));
 const Contact = lazy(() => import("./pages/Contact"));
+const Partners = lazy(() => import("./pages/Partners"));
 const Faqs = lazy(() => import("./pages/Faqs"));
 const CoaPolicy = lazy(() => import("./pages/CoaPolicy"));
 const Quality = lazy(() => import("./pages/Quality"));
@@ -235,6 +236,7 @@ export default function App() {
               <Route path="/faq" element={<Page><Faqs /></Page>} />
               <Route path="/faqs" element={<Page><Faqs /></Page>} />
               <Route path="/contact" element={<Page><Contact /></Page>} />
+              <Route path="/partners" element={<Page><Partners /></Page>} />
 
               {/* ── GATED (auth + attestation) ── */}
               <Route path="/home" element={<Page><RequireAuth><ResearcherConsole /></RequireAuth></Page>} />

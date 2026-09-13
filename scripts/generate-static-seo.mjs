@@ -53,7 +53,9 @@ import {
   DEALS_SHELL,
   TEST_RESULTS_SHELL,
   HOME_COPY,
- SHOP_COPY } from "../src/data/pageCopy.js";
+  SHOP_COPY,
+  PARTNERS_COPY,
+} from "../src/data/pageCopy.js";
 import {
   RESEARCH_USE_POLICY_DOC,
   FDA_DISCLAIMER_DOC,
@@ -175,7 +177,7 @@ function sourceFileForRoute(pathname) {
   if (pathname.startsWith("/research")) return "src/data/research.js";
   if (pathname.startsWith("/legal/")) return "src/config/legalCopy.js";
   if (pathname === "/faqs") return "src/data/faqs.js";
-  if (pathname === "/about" || pathname === "/contact") return "src/data/pageCopy.js";
+  if (pathname === "/about" || pathname === "/contact" || pathname === "/partners") return "src/data/pageCopy.js";
   if (pathname === "/deals") return "src/pages/Deals.jsx";
   if (pathname === "/test-results") return "src/pages/TestResults.jsx";
   if (pathname.startsWith("/test-results/")) return "src/data/coaSeed.js";
@@ -238,6 +240,7 @@ const ROUTE_PAGE_SOURCES = [
   [/^\/faqs$/, "Faqs"],
   [/^\/about$/, "About"],
   [/^\/contact$/, "Contact"],
+  [/^\/partners$/, "Partners"],
   [/^\/deals$/, "Deals"],
   [/^\/coa-policy$/, "CoaPolicy"],
   [/^\/quality$/, "Quality"],
@@ -627,6 +630,7 @@ const FOOTER_NAV = [
   { href: "/quality", label: "Quality & Batch Standards" },
   { href: "/faqs", label: "FAQ" },
   { href: "/contact", label: "Contact" },
+  { href: "/partners", label: "Wholesale & Institutional Supply" },
   { href: "/legal/research-use-policy", label: "Research-Use Policy" },
   { href: "/legal/ruo-agreement", label: "Research-Use Agreement" },
   { href: "/legal/fda-disclaimer", label: "FDA Disclaimer" },
@@ -764,6 +768,27 @@ function renderContactBody() {
     `<p>${escapeHtml(CONTACT_COPY.intro)}</p>`,
     `<p>${escapeHtml(CONTACT_COPY.noGuidance)}</p>`,
     lists,
+  ]);
+}
+
+// Opt cycle 11 (4.14b): /partners — the wholesale / institutional request
+// page. Static copy only; the form hydrates client-side.
+function renderPartnersBody() {
+  const lists = PARTNERS_COPY.lists
+    .map(
+      (l) =>
+        `<h2>${escapeHtml(l.heading)}</h2><ul>${l.items
+          .map((i) => `<li>${escapeHtml(i)}</li>`)
+          .join("")}</ul>`
+    )
+    .join("");
+  return wrapBody([
+    `<h1>${escapeHtml(PARTNERS_COPY.heading)}</h1>`,
+    `<p>${escapeHtml(PARTNERS_COPY.intro)}</p>`,
+    `<p>${escapeHtml(PARTNERS_COPY.eligibility)}</p>`,
+    `<p>${escapeHtml(PARTNERS_COPY.noGuidance)}</p>`,
+    lists,
+    `<p>${escapeHtml(PARTNERS_COPY.formNote)} Questions first? <a href="/contact">Contact</a>.</p>`,
   ]);
 }
 
@@ -1220,6 +1245,13 @@ async function main() {
       description:
         "Safety Data Sheets (GHS 16-section), batch certificates of analysis, lot verification and policy documents for Noir Peptides research reference materials. For research use only.",
       bodyHtml: renderDocumentsBody(sdsRows),
+    },
+    {
+      pathname: "/partners",
+      title: "Wholesale & Institutional Supply | Noir Peptides",
+      description:
+        "Recurring reference-material supply for laboratories, contract research organisations and academic groups. Volume pricing quoted per account after review. For research use only. Not for human or veterinary use.",
+      bodyHtml: renderPartnersBody(),
     },
     {
       pathname: "/contact",

@@ -2,3 +2,4 @@
 export async function requireAdmin() { return { id: "admin-test", email: "admin@example.test" }; }
 export async function requireUser() { return { id: "user-test" }; }
 export async function requirePartner() { return { id: "partner-test" }; }
+export async function getUserFromReq() { return null; }

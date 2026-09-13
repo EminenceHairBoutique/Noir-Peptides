@@ -45,6 +45,7 @@ export const ACCEPTED = {
   "/legal/returns": ["human-use:for human consumption","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic"],
   "/legal/ruo-agreement": ["disease-claim:prevent any disease","dosing:dosing","human-use:for human consumption","therapeutic-benefit:cure","therapeutic-benefit:therapeutic","therapeutic-benefit:treat","therapeutic-benefit:treatment"],
   "/legal/shipping": ["human-use:for human consumption","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic"],
+  "/partners": ["dosing:dosing"],
   "/quality": ["therapeutic-benefit:therapeutic"],
   // Opt cycle 11: the catalog shell carries the RUO banner sentence React
   // renders above the grid ("Not approved by the FDA for … therapeutic …").
