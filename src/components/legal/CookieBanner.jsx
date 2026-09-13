@@ -79,11 +79,11 @@ export default function CookieBanner() {
 
           <p className="text-[11px] text-se-steel font-accent">
             Learn more in our{" "}
-            <Link to="/privacy" className="text-se-bone/50 underline underline-offset-2 hover:text-se-bone">
+            <Link to="/privacy" className="inline-block py-[5px] text-se-bone/50 underline underline-offset-2 hover:text-se-bone">
               Privacy Policy
             </Link>
             {" "}or manage preferences in{" "}
-            <Link to="/privacy-choices" className="text-se-bone/50 underline underline-offset-2 hover:text-se-bone">
+            <Link to="/privacy-choices" className="inline-block py-[5px] text-se-bone/50 underline underline-offset-2 hover:text-se-bone">
               Your Privacy Choices
             </Link>
             .

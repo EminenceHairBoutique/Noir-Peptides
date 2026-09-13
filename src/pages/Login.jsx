@@ -74,8 +74,8 @@ export default function Login() {
         </button>
 
         <div className="flex items-center justify-between pt-2 text-[11px] font-accent text-se-steel">
-          <Link to="/forgot-password" className="hover:text-se-gold transition">Forgot password?</Link>
-          <Link to="/register" className="hover:text-se-gold transition">Create account</Link>
+          <Link to="/forgot-password" className="inline-flex items-center min-h-[44px] hover:text-se-gold transition">Forgot password?</Link>
+          <Link to="/register" className="inline-flex items-center min-h-[44px] hover:text-se-gold transition">Create account</Link>
         </div>
       </form>
 

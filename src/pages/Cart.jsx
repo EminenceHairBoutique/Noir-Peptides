@@ -79,7 +79,7 @@ export default function Cart() {
                     <div className="flex-1 min-w-0">
                       <Link
                         to={`/products/${item.slug || item.id}`}
-                        className="text-[14px] font-display text-se-bone hover:text-se-gold transition"
+                        className="inline-block py-1 text-[14px] font-display text-se-bone hover:text-se-gold transition"
                       >
                         {item.name}
                       </Link>

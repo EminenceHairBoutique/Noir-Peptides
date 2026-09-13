@@ -470,6 +470,12 @@ body::after {
     min-height: 44px;
     min-width: 44px;
   }
+  /* Opt cycle 10 (4.10): text inputs and selects are tap targets too. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  select,
+  textarea {
+    min-height: 44px;
+  }
   .tap-compact,
   .tap-compact * {
     min-height: unset;
@@ -648,4 +654,19 @@ table {
   top: calc(env(safe-area-inset-top) + 0.75rem);
   outline: 2px solid #05080f;
   outline-offset: 2px;
+}
+
+/* Opt cycle 10 (4.10): every decorative keyframe animation honours the
+   user's reduced-motion setting. framer-motion already does (MotionConfig
+   reducedMotion="user"); these CSS classes did not. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-dropdown-in,
+  .animate-image-reveal,
+  .animate-line-grow,
+  .animate-subtle-pulse,
+  .animate-glow-pulse,
+  .animate-mega-drop {
+    animation: none !important;
+  }
 }

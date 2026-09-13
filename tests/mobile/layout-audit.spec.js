@@ -60,36 +60,40 @@ for (const width of WIDTHS) {
         expect(report.bad, `elements exceed viewport width`).toEqual([]);
       });
 
-      test(`${route} — tap targets ≥ ${MIN_TAP}px`, async ({ page }) => {
+      test(`${route} — tap targets ≥ ${MIN_TAP}px (inline text links ≥ 24px)`, async ({ page }) => {
         await seed(page);
         await page.goto(route, { waitUntil: "domcontentloaded" });
         await page.waitForTimeout(1500);
-        const small = await page.evaluate((min) => {
+        // Opt cycle 10 (4.10): a GATE. Controls (buttons, inputs, selects,
+        // navigation and stand-alone links) must be ≥ 44 × 44 CSS px; a link
+        // inside running text (a <p>/<li> that carries other words) is held
+        // to WCAG 2.5.8's 24 px height instead. The skip link is off-screen
+        // until focused and is exempt. `.tap-compact` is the documented
+        // opt-out for intentionally small desktop-style controls.
+        const bad = await page.evaluate((min) => {
           const out = [];
-          for (const el of document.querySelectorAll("a, button, select, input[type=checkbox], input[type=radio], [role=button]")) {
+          for (const el of document.querySelectorAll("a, button, select, input, textarea, [role=button]")) {
+            if (el.matches(".skip-link, .tap-compact, .tap-compact *, input[type=hidden]")) continue;
             const r = el.getBoundingClientRect();
             if (r.width === 0 || r.height === 0) continue; // hidden
             const style = getComputedStyle(el);
             if (style.visibility === "hidden" || style.display === "none") continue;
-            // Effective target may be padded by a parent label; check the label too.
             const label = el.closest("label");
             const lr = label ? label.getBoundingClientRect() : r;
             const h = Math.max(r.height, lr.height), w = Math.max(r.width, lr.width);
-            if (h < min || w < min) {
-              out.push(`${el.tagName}.${(el.className || "").toString().split(" ")[0]} ${Math.round(w)}x${Math.round(h)}`);
+            const parent = el.parentElement;
+            const inlineText = el.tagName === "A" && parent && /^(P|LI|SPAN|SMALL|DD|TD)$/.test(parent.tagName) &&
+              (parent.textContent || "").trim().length > (el.textContent || "").trim().length + 2;
+            const need = inlineText ? 24 : min;
+            // half a pixel of tolerance: a 44 px box measures 43.98 in subpixel layout
+            if (h < need - 0.5 || (!inlineText && w < need - 0.5)) {
+              out.push(`${el.tagName}${el.getAttribute("href") ? `[${el.getAttribute("href")}]` : ""} "${(el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 24)}" ${Math.round(w)}x${Math.round(h)} (need ${inlineText ? "24 tall" : `${min}`})`);
             }
           }
           return [...new Set(out)];
         }, MIN_TAP);
-        // REPORTER, not a gate. The brief asks to *report* sub-44px targets;
-        // the site has many small controls (category tabs, icon buttons, facet
-        // chips) whose remediation is tracked in MOBILE_AUDIT.md rather than
-        // blocking here. The count + list are attached to the test so a
-        // regression (a NEW undersized control) is visible in the report, and
-        // logged for a plain-text run.
-        const desc = `${small.length} undersized: ${small.slice(0, 20).join(" · ")}`;
-        test.info().annotations.push({ type: "small-tap-targets", description: desc });
-        console.log(`[tap-targets] ${route} @${width}px → ${desc}`);
+        test.info().annotations.push({ type: "small-tap-targets", description: `${bad.length}: ${bad.slice(0, 20).join(" · ")}` });
+        expect(bad, "undersized tap targets").toEqual([]);
       });
     }
   });

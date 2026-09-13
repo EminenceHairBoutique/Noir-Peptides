@@ -273,7 +273,7 @@ export default function Shop() {
             {/* Category tabs. py+negative-my expands each link's hit box to
                 44px without changing the strip's visual height. */}
             <div className="flex items-center gap-6 overflow-x-auto pb-3 scrollbar-hide">
-              <Link to="/shop" className={`inline-flex items-center py-[14px] -my-[14px] text-[11px] font-accent uppercase tracking-[0.18em] whitespace-nowrap transition ${!activeCategory ? "text-se-gold" : "text-se-steel hover:text-se-bone"}`}>All</Link>
+              <Link to="/shop" className={`inline-flex items-center justify-center min-w-[44px] py-[14px] -my-[14px] text-[11px] font-accent uppercase tracking-[0.18em] whitespace-nowrap transition ${!activeCategory ? "text-se-gold" : "text-se-steel hover:text-se-bone"}`}>All</Link>
               {categories.map((cat) => (
                 <Link key={cat.slug} to={`/shop/${cat.slug}`} className={`inline-flex items-center py-[14px] -my-[14px] text-[11px] font-accent uppercase tracking-[0.18em] whitespace-nowrap transition ${activeCategory?.slug === cat.slug ? "text-se-gold" : "text-se-steel hover:text-se-bone"}`}>{cat.name}</Link>
               ))}
