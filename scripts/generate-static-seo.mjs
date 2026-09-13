@@ -478,7 +478,13 @@ function renderHomeBody(categories) {
 // public page is <=2 clicks from every other (crawl depth). Links only — no
 // copy, nothing fabricated.
 const FOOTER_NAV = [
+  // Opt cycle 2 (4.6): the crawl-depth claim "≤2 clicks from any page" was
+  // false without these — /deals and /legal/returns were orphans and no page
+  // linked Home or a category. Categories are appended per build from the
+  // VISIBLE set so a soft-launch-hidden category is never linked.
+  { href: "/", label: "Home" },
   { href: "/shop", label: "Research Catalog" },
+  { href: "/deals", label: "Deals & Bundle Pricing" },
   { href: "/research", label: "Research & Education" },
   { href: "/test-results", label: "Test Results (COA Library)" },
   { href: "/verify-lot", label: "Verify a Lot" },
@@ -495,10 +501,13 @@ const FOOTER_NAV = [
 ];
 
 function renderFooterNav() {
-  const links = FOOTER_NAV.map(
-    (l) => `<li><a href="${escapeHtml(l.href)}">${escapeHtml(l.label)}</a></li>`
-  ).join("");
-  return `<nav aria-label="Site"><ul>${links}</ul></nav>`;
+  const li = (l) => `<li><a href="${escapeHtml(l.href)}">${escapeHtml(l.label)}</a></li>`;
+  const links = FOOTER_NAV.map(li).join("");
+  const cats = getVisibleCategories()
+    .map((c) => li({ href: `/shop/${c.slug}`, label: c.name }))
+    .join("");
+  return `<nav aria-label="Site"><ul>${links}</ul></nav>` +
+    `<nav aria-label="Research categories"><ul>${cats}</ul></nav>`;
 }
 
 /** Wrap page blocks in <main> with the RUO line + footer nav on every page. */
@@ -1120,6 +1129,10 @@ async function main() {
       bodyHtml: renderLegalDocBody(RUO_AGREEMENT_DOC),
     },
     {
+      // Opt cycle 2: an ALIAS of /legal/shipping with an identical body. Kept
+      // reachable for old links (/returns redirects here) but noindex, so it
+      // is neither duplicate content nor an orphan in the indexable graph.
+      noindex: true,
       pathname: "/legal/returns",
       title: "Shipping & Refunds Policy",
       description:

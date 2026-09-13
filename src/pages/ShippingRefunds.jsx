@@ -10,7 +10,9 @@ import {
 } from "../config/business";
 import FulfillmentStatements from "../components/FulfillmentStatements";
 
-export default function ShippingRefunds() {
+// `alias` — rendered at /legal/returns, a noindex alias of /legal/shipping
+// (opt cycle 2), so the hydrated head agrees with the prerendered one.
+export default function ShippingRefunds({ alias = false }) {
   // Satisfaction guarantee is surfaced from the SAME config the footer/contact
   // use (src/config/business.js) — single source of truth. Renders nothing when
   // guaranteeDays is unset (default), so this page is unchanged until launch.
@@ -40,6 +42,7 @@ export default function ShippingRefunds() {
       seoDescription="Noir Peptides shipping and refunds policy. Research use only. All sales final once shipped."
       content={SHIPPING_REFUNDS_DOC}
       prelude={prelude}
+      noindex={alias}
     />
   );
 }

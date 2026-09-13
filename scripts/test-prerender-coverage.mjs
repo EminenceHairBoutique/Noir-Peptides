@@ -133,7 +133,8 @@ ok(noindexInSitemap.length === 0, `no noindex route appears in sitemap.xml (foun
     `/shop/${slug}`,
     ...staticProductsInCategory(slug).map((p) => `/product/${p.slug}`),
   ]);
-  const EXPECTED_NOINDEX = ["/404", "/login", "/register", "/verify-lot", ...(calcOn ? [] : ["/calculator"]), ...hiddenNoindex].sort();
+  // /legal/returns: noindex alias of /legal/shipping (opt cycle 2).
+  const EXPECTED_NOINDEX = ["/404", "/login", "/register", "/verify-lot", "/legal/returns", ...(calcOn ? [] : ["/calculator"]), ...hiddenNoindex].sort();
   ok(
     JSON.stringify([...noindexed].sort()) === JSON.stringify(EXPECTED_NOINDEX),
     `noindex set is exactly ${JSON.stringify(EXPECTED_NOINDEX)} (got ${JSON.stringify([...noindexed].sort())})`
