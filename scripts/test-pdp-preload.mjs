@@ -27,16 +27,22 @@ if (!existsSync(PRODUCTS)) {
   process.exit(0);
 }
 const HEAVY = /vendor-three|vendor-pdf|jsQR/;
+// Opt cycle 4 (Hy-005): the flat-label renderer and the QR library it pulls are
+// label-studio code; they ride the PDP only when an approved label exists.
+const LABEL_STUDIO = /LabelPreview-|\bbrowser-/;
 const pages = readdirSync(PRODUCTS).map((slug) => path.join(PRODUCTS, slug, "index.html")).filter(existsSync);
 console.log(`PDP first-paint budget — ${pages.length} product pages:`);
 const offenders = [];
+const labelStudio = [];
 for (const f of pages) {
   const html = readFileSync(f, "utf8");
   const tags = [...html.matchAll(/<(?:link[^>]*rel="modulepreload"|script)[^>]*>/g)].map((m) => m[0]);
   if (tags.some((t) => HEAVY.test(t))) offenders.push(path.relative(DIST, f));
+  if (tags.some((t) => LABEL_STUDIO.test(t))) labelStudio.push(path.relative(DIST, f));
 }
 ok(pages.length >= 40, `at least 40 product pages were emitted (${pages.length})`);
 ok(offenders.length === 0, `no PDP preloads or scripts vendor-three / vendor-pdf / jsQR (offenders: ${JSON.stringify(offenders.slice(0, 5))})`);
+ok(labelStudio.length === 0, `no PDP preloads the flat-label renderer or the QR library (Hy-005; offenders: ${JSON.stringify(labelStudio.slice(0, 5))})`);
 {
   const sample = readFileSync(pages[0], "utf8");
   const preloads = [...sample.matchAll(/rel="modulepreload"[^>]*href="([^"]+)"/g)].map((m) => m[1]);
