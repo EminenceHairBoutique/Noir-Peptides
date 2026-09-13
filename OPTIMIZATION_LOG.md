@@ -1863,3 +1863,137 @@ Generators: Cost/perf (bytes & requests) leads with four deterministic
 levers; Ops dry run (C8 ×3, mobile in CI); Failure injection (upload sniff,
 double submit); Regulator walk (attestation receipt copy); Accessibility
 sweep (tap targets, reduced motion).
+
+### EXECUTION — results
+
+| # | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| 1 | [4.7] LCP through the LHCI lane | **MEASURED, 0 shipped** | `scripts/perf-lhci.mjs` (same config + server as the CI gate). Baseline reproduced within 30 ms (`/` 3107 → 3097, `/shop` 3310 → 3313, PDP 3167 → 3140, `/test-results` 3279 → 3264; 3 vs 5 runs). Levers, each its own build: **A** Supabase client behind a dynamic import (+11 ms), **A2** + the cart context's static path cut so the entry no longer preloads `vendor-supabase` (+74 / +150 / +94 / +51), **A3** + import deferred to `load` (+81 / +151 / +84 / +36, 5 runs); **B** no entrance animation on first paint (+131 / +117 / +110 / −1); **C** Latin subsets: 34.6 → 32.3 KB and 36.1 → 34.3 KB for the variable faces, 9.8 → 8.4 KB per mono face — not a lever, dropped with its dependency; **E1** stylesheet hoisted to the top of `<head>` (+12 / −10 / −4 / +3); **E2** the three mono faces preloaded (+10 / **+130 / +291** / +27). Diagnosis (observed, unthrottled): the page is loaded by 89 ms; the largest paint lands at 469 ms on `/` (React's hero paragraph, after the age-gate paragraph at 180 ms) and at 165 ms on the PDP (prerendered text); a real CPU profile shows < 60 ms of script (Lighthouse's own tracing inflated `bootup-time`). Simulated LCP on `/` equals TTI in every run; the simulator charges every request started before the observed paint — the whole parse-time first wave — and credits nothing after it. The path to 2.5 s is structural (paint-first loader with a hashed inline script, shell parity, then the boot-closure diet) — Hy-008 carries the model; cycle 11 leads with it |
+| 2 | [4.11 C8a] COA file upload | **VERIFIED** | migration `0037` (private `coa-files` bucket + `coas.file_path`); `api/admin/coa-upload.js` — rate-limited (first admin route to be), 4 MB cap enforced before buffering (413), magic-byte sniff (415 for text named `.pdf`; JPEG bytes sent as `application/pdf` are stored as a JPEG — the bytes decide), content-addressed path, row gets the stable `/api/coa-file/<id>.<ext>`; `api/coa-file/[name].js` — published only → 302 to a 10-minute signed URL, private/no-store, else 404. Control Room row per certificate. `scripts/test-coa-upload.mjs` 24 ✓ against a Storage stand-in |
+| 3 | [4.11 C8b] Feature-flag screen | **VERIFIED** | `api/admin/flags.js` GET only: the three flags by name + on/off, never a value; tab "Feature flags"; `test-feature-flags` unchanged and green |
+| 4 | [4.11 C8c] Owner Sprint panel | **VERIFIED** | `api/admin/owner-sprint.js`: D1–D12; D2 proven per migration by its column (7/7 on a migrated database, "missing: 0031 (coas.cas_number), …" on a pre-migration one), D5 by lab-linked / CAS / file counts on published certificates + labs with a template, D6 by code names + hidden categories, D4 / D8 / D9 by env presence (no value ever in the response — asserted); the rest grey with the command. `scripts/test-admin-screens.mjs` 20 ✓ pre- and post-migration |
+| 5 | [4.11] Emails | **VERIFIED** | `orderStatusHtml` pure + tested (https-only tracking link, `javascript:` refused, escaping, RUO line); `attestationReceiptHtml` / `sendAttestationReceiptEmail` (version, timestamp, statements; no product names — asserted) sent best-effort from `api/attestation.js`; +13 assertions; corpus gate unchanged |
+| 6 | [4.5] Duplicate submit | **VERIFIED** | ref guard + disabled/`aria-busy` Continue; `checkout-double-submit.spec.js`: two synchronous clicks → exactly one `POST /api/checkout-compliance`; busy state observable while the response is held. `api/payments/rails.js` deleted (grep: nothing called it). **Escalated:** BTCPay invoice creation passes no idempotency key (ask-before file) |
+| 7 | [4.10] Mobile in CI, tap targets, reduced motion | **VERIFIED** | `npm run test:mobile` + E2E-job step (the suite had never run in CI); the tap-target reporter is a gate (44 px controls, 24 px inline text links, skip link exempt) — first run found **13 undersized links** across `/`, `/shop`, PDP, `/cart` → `/login` (footer columns 32 px, footer bar 33 px wide, landing legal links 17 px, shop "All" chip 26 px wide, PDP inline links 15 px, cookie-banner links 14 px, cart item link 18 px, login links 17 px, auth wordmark 18 px) — all fixed; text inputs/selects get the 44 px floor; seven keyframe classes disabled under `prefers-reduced-motion`; `reduced-motion.spec.js` (needed `page.emulateMedia` — a context-level `test.use` did not apply under the device profile). Mobile suite **56 / 56** |
+| 8 | [4.11] RUNBOOK §6 → Owner Sprint; `LAUNCH_READINESS.md` | **VERIFIED** | D1–D12 with the screen or command; the tab named as the live source |
+| — | Hy-009 (JSX gate stripper) | **RESOLVED** | a quote after a word character is prose; the gate still resolves every component |
+
+**Final gate on the finished tree:** lint 0 / 0 · build 79 routes / sitemap
+73 · unit **1181 assertions** (+58; +2 suites) · `build:e2e` → **E2E 35 passed /
+4 skipped** (+2) · **mobile 56 / 56** (+4, now in CI) · axe 0 / 0 / 0 / 0 · QR 8/8
+· bytes 15/15 · LHCI local medians unchanged (`/` 3.1 s · `/shop` 3.3 · PDP 3.1
+· `/test-results` 3.3 — the gate stays red).
+
+### SCORECARD DELTA (H-014)
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.2 | Security | 9 | 9 | **`verify:rls` now proven in CI** on a fresh stack (DB gates run #2 green on `32fe4c7`, PR #41); still not 10: prod run, repo public |
+| 4.3 | Data | 8 | **9** | `db:verify` + the static↔DB shape diff green in CI on the full migration chain (0001 → 0036) |
+| 4.4 | Trust | 9 | 9 | COA upload path exists; batch-history permalinks in the sitemap are cycle 11; 10 is owner data (D5) |
+| 4.5 | Commerce | 9 | 9 | duplicate-submit proven; BTCPay idempotency escalated; 10 = live smoke (D8) |
+| 4.7 | Performance | 7 | 7 | measured, not moved; the model is now known (Hy-008); gate red |
+| 4.8 | UI/UX | 7 | 7 | 308 screenshots exist; per-route review is cycle 11 |
+| 4.9 | Accessibility | 9 | 9 | axe green on every route in CI; reduced motion asserted |
+| 4.10 | Mobile | 9 | 9 | suite in CI; tap-target gate + 13 fixes; 10 = owner iPhone sign-off (D10) |
+| 4.11 | Admin | 9 | 9 | C8 ×3 + emails; 10 = owner order dry-run |
+| 4.12 | Observability | 8 | 8 | live probe still unrun (runs from `main` after PR #41 merges) |
+| 4.13 | Hygiene | 9 | 9 | — |
+| others | — | — | unchanged (4.1 9, 4.6 9, 4.14 unlocked) |
+
+### TEN-TRACKER (§F)
+
+| Card | Score | Blocks 9 (engine) | Blocks 10 (owner) | Evidence (path · date) |
+| --- | --- | --- | --- | --- |
+| 4.1 Legal | 9 | — | live scanner = 0 on the real host (D4); counsel (D6) | CI: `ci/latest.json` 7303688 · 2026-09-13 |
+| 4.2 Security | 9 | — | D1 · D3 · D12 | **CI: DB gates run 34774411540 green** · 2026-09-13 |
+| 4.3 Data | 9 | — | D2 (apply 0031–0037), `db:verify` on prod | CI: DB gates run 34774411540 · 2026-09-13 |
+| 4.4 Trust | 9 | batch permalinks in sitemap (c11) | D5 | local: `test-coa-upload` 24 ✓ · 2026-09-13 |
+| 4.5 Commerce | 9 | — | D8 (+ BTCPay idempotency key, ask-before) | local: `checkout-double-submit.spec` · 2026-09-13 |
+| 4.6 SEO | 9 | — | D4 | CI: `ci/latest.json` (links, hygiene) |
+| 4.7 Performance | 7 | **LCP ≤ 2.5 s on the LHCI gate** (paint-first loader + shell parity, c11) | live Lighthouse | local: `evidence/lhci-*` (7 builds) · CI 7303688 |
+| 4.8 UI/UX | 7 | per-route notes from `evidence/screens` (c11) | D10 | CI artifact 336 files |
+| 4.9 Accessibility | 9 | — | live axe (first probe) | CI: axe 0 on every route |
+| 4.10 Mobile | 9 | — | D10 | local: mobile 56/56 → CI on this PR |
+| 4.11 Admin | 9 | — | owner order dry-run | local: `test-admin-screens` 20 ✓ |
+| 4.12 Observability | 8 | first live-probe run | D11 | — (workflow on `main` after #41) |
+| 4.13 Hygiene | 9 | — (9 = 10) | — | lint 0/0 · 2026-09-13 |
+| 4.14 Growth | — | c11 foundations | first attributed repeat order | — |
+
+### OWNER SPRINT STATUS (§D)
+
+Unchanged from cycle 9: **D1–D12 all ⬜** — nothing evidenced yet. What
+changed: the **Control Room → Owner Sprint tab** now shows each step's live
+status (green / partial / grey) with its command or screen, so the next
+report can cite it instead of assuming. D2's list now ends at **0037**.
+
+### EVIDENCE PROVENANCE (§F)
+
+- **From CI (read through the `evidence` branch and the Actions API):**
+  `ci/latest.json` for `7303688` (Evidence run 34758093351: screens 308 /
+  184 s, axe 0, crawls green, Lighthouse red on LCP); **DB gates run
+  34774411540 green** on `32fe4c7` after the one-line quoting fix —
+  `verify:rls`, `db:verify` (44 / 8 / 96 / 480 / 96 + ledger) and the shape
+  diff on the full chain. These are the CI-verified facts behind 4.2, 4.3,
+  4.9 this cycle.
+- **From this sandbox (2026-09-13):** everything in the gate above, the
+  seven LHCI builds under `evidence/lhci-*` (ignored, not committed — the
+  medians are in the table and in Hy-008).
+- **Live:** none yet.
+
+### GENERATOR YIELDS (cycle 10)
+
+Ops dry run 4 (C8 ×3, mobile in CI) · Accessibility sweep 2 (tap-target
+gate → 13 fixes; reduced motion) · Failure injection 3 (upload sniff + cap,
+double submit) · Regulator walk 1 (attestation receipt) · Data honesty 2
+(Owner Sprint from data only; 4.7 measured rather than asserted) · Cost/perf
+measurement lane: 7 builds measured, **0 shipped** (the honest result) ·
+Buyer walk / Competitor delta not run.
+
+### ESCALATIONS (owner-only; ranked)
+
+1. **D1** `verify:rls` on prod — the CI twin is green; only the production
+   run remains.
+2. **D2** apply `0031`–`0037` (`docs/MIGRATIONS_0037.md` is new), decide `0027`.
+3. **D3** repo private → **D12** rotate.
+4. **D4** domain + `VITE_SITE_URL`; repo variables `PROD_URL`, `CANONICAL_HOST`.
+5. **Merge PR #41** (cycle 9) so the live probe starts running from `main`
+   — 4.12's next step depends on it; this cycle's PR is stacked on it.
+6. **BTCPay idempotency key** on invoice creation (`api/btcpay/create-invoice.js`,
+   ask-before): `checkoutIdempotencyKey({ rail: "btcpay", … })` exists;
+   without it a double submit on the crypto rail mints two invoices.
+7. **The Lighthouse LCP gate stays red** — the structural fix (paint-first
+   loader; a hashed inline script in the strict meta CSP) is cycle 11's lead
+   item; say if you would rather relax the gate meanwhile (the engine will not).
+8. D5 · D6 (also: should certificate pages carry code names?) · D7 · D8 · D9 ·
+   D10 · D11 · `VERCEL_DEPLOY_HOOK_URL`.
+
+### What I'd do differently
+
+Read the observed timeline before touching bytes: the first four levers
+were chosen from the waterfall's sizes; the fifth minute of looking at the
+observed LCP candidates and the simulated-equals-TTI pattern explained all
+of them. One diagnosis call before any experiment, every time. And keep
+test files free of hoisted imports of env-dependent modules — the unit
+chain crashed on a static import placed above the placeholders.
+
+### PR DRAFT (opened as a Draft per addendum C6, base = the cycle-9 branch)
+
+**Title:** Opt cycle 10 — ops to nine: COA upload, flag + Owner Sprint screens, emails, double-submit guard, mobile in CI; LCP measured (0 shipped)
+
+**Summary.** The addendum's "Cycle 3". Three Control Room screens
+(certificate file upload through a private bucket + signed redirect; a
+read-only feature-flag screen; an Owner Sprint tab whose statuses come only
+from data), the shipped email tested and an attestation receipt added, one
+compliance record per Continue (guard + E2E), the mobile suite in CI with a
+tap-target gate (13 links fixed) and reduced-motion proof, RUNBOOK §6 →
+Owner Sprint. Performance: five LCP levers measured through the Lighthouse
+gate, none shipped; the measurement lane (`scripts/perf-lhci.mjs`) and the
+model are in the log for cycle 11.
+
+**Honest state.** The `Evidence` check stays red on the LCP budget (by
+design — hard gate). `DB gates` is green on the cycle-9 head. No migration
+applied to live (0037 is additive and unapplied), no price / visibility /
+flag change, no pricing / shipping / checkout-session / btcpay file touched.
+
+**Rollback.** Revert the branch.

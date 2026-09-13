@@ -7,6 +7,33 @@ live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
 
+## ✅ Done (Sept-13 optimization cycle 10 — branch `claude/opt-cycle-10-20260913`, stacked on cycle 9, Draft PR)
+
+The addendum's "Cycle 3 — ops to nine" (`OPTIMIZATION_LOG.md`, cycle 10):
+
+- **Control Room, three screens:** certificate **file upload** (PDF / JPEG,
+  checked by content, 4 MB cap, private bucket, served through a 10-minute
+  signed link for published certificates only — migration `0037`);
+  **Feature flags** (read-only: names and on/off, never values; flags stay
+  environment-controlled); **Owner Sprint** (D1–D12 with a status the
+  database can prove and the exact screen or command per step).
+- **Emails:** the shipped email is tested; a research-use **attestation
+  receipt** is sent after every recorded attestation (best-effort).
+- **Commerce:** a double-click on Continue writes one compliance record
+  (guard + E2E proof); the unused second rails endpoint is gone.
+- **Mobile:** the mobile suite now runs in CI; tap targets are a gate
+  (44 px for controls, 24 px for inline text links) with the footer,
+  landing, shop, cart and product-page links fixed to meet it; every
+  decorative animation honours reduced motion (spec added).
+- **Performance, honestly:** five LCP levers were measured through the
+  Lighthouse gate (`scripts/perf-lhci.mjs`); none moved the median down, so
+  none shipped. The model is now understood (the whole first-wave request
+  graph is charged to the paint); the structural fix leads cycle 11.
+
+**Owner Sprint status:** still none complete — the Control Room's Owner
+Sprint tab now shows the live status. New this cycle for D2: migration
+`0037` (`docs/MIGRATIONS_0037.md`).
+
 ## ✅ Done (Sept-13 optimization cycle 9 — branch `claude/opt-cycle-9-20260913`, Draft PR)
 
 The owner's *Path to Ten* addendum, its "Cycle 2" (`OPTIMIZATION_LOG.md`, cycle 9):
