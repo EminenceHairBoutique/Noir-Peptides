@@ -627,3 +627,25 @@ table {
 .footer-watermark::before {
   content: attr(data-text);
 }
+
+/* Skip link (opt cycle 3, WCAG 2.4.1): visually hidden until it receives
+   keyboard focus, then pinned above the fixed header. */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -100vh;
+  z-index: 200;
+  padding: 0.6rem 0.9rem;
+  background: var(--se-gold, #c9a961);
+  color: #05080f;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 4px;
+}
+.skip-link:focus-visible {
+  top: calc(env(safe-area-inset-top) + 0.75rem);
+  outline: 2px solid #05080f;
+  outline-offset: 2px;
+}

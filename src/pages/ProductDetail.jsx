@@ -202,7 +202,7 @@ export default function ProductDetail() {
     // the real content arrived. Approximating the final height keeps the footer
     // roughly in place, so the shift never happens.
     return (
-      <main className="min-h-screen bg-se-black" aria-busy="true" aria-label="Loading material">
+      <div className="min-h-screen bg-se-black" aria-busy="true" aria-label="Loading material">
         <div className="content-wide pt-28 pb-4">
           <div className="h-4 w-32 glass-panel se-skeleton" aria-hidden="true" />
         </div>
@@ -231,7 +231,7 @@ export default function ProductDetail() {
             ))}
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -290,7 +290,7 @@ export default function ProductDetail() {
         }}
       />
 
-      <main className="min-h-screen bg-se-black">
+      <div className="min-h-screen bg-se-black">
         <div className="content-wide pt-28 pb-4">
           <Link
             to="/shop"
@@ -804,7 +804,7 @@ export default function ProductDetail() {
         )}
 
         <RecentlyViewed excludeSlug={product.slug} />
-      </main>
+      </div>
 
       <StickyBuyBar
         ctaRef={mainCtaRef}

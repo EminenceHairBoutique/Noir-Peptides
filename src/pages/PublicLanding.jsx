@@ -25,7 +25,7 @@ export default function PublicLanding() {
         description="Batch-documented peptide reference materials for qualified laboratory research. Account and research-use attestation required. For research use only — not for human or veterinary use."
       />
 
-      <main className="relative min-h-screen bg-se-black text-se-bone overflow-hidden flex flex-col">
+      <div className="relative min-h-screen bg-se-black text-se-bone overflow-hidden flex flex-col">
         {/* Atmosphere */}
         <div
           className="absolute inset-0 animate-glow-pulse"
@@ -102,7 +102,7 @@ export default function PublicLanding() {
             </p>
           </div>
         </div>
-      </main>
+      </div>
     </>
   );
 }

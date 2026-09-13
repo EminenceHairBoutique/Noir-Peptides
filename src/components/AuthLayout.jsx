@@ -8,7 +8,7 @@ export default function AuthLayout({ title, seoTitle, subtitle, children, wide =
   return (
     <>
       <SEO title={seoTitle || `${title} | Noir Peptides`} noindex />
-      <main className="relative min-h-screen bg-se-black text-se-bone overflow-hidden">
+      <div className="relative min-h-screen bg-se-black text-se-bone overflow-hidden">
         <div
           className="absolute inset-0 animate-glow-pulse"
           aria-hidden="true"
@@ -46,7 +46,7 @@ export default function AuthLayout({ title, seoTitle, subtitle, children, wide =
             {children}
           </div>
         </div>
-      </main>
+      </div>
     </>
   );
 }

@@ -79,6 +79,8 @@ export default function Navbar() {
 
   return (
     <>
+      {/* WCAG 2.4.1 bypass block — first focusable element on every shell page. */}
+      <a href="#main" className="skip-link">Skip to content</a>
       <header
         style={{ paddingTop: "env(safe-area-inset-top)" }}
         className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${

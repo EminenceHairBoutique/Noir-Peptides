@@ -50,7 +50,7 @@ export default function TestResultsProduct() {
         type="website"
       />
 
-      <main className="min-h-screen bg-se-black">
+      <div className="min-h-screen bg-se-black">
         <div className="content-wide pt-28 pb-16">
           <nav aria-label="Breadcrumb" className="text-[11px] font-accent uppercase tracking-[0.12em] text-se-steel">
             <Link to="/test-results" className="inline-flex items-center gap-1.5 py-[14px] -my-[14px] hover:text-se-gold transition-colors">
@@ -102,7 +102,7 @@ export default function TestResultsProduct() {
             For research use only. Not for human or veterinary use.
           </p>
         </div>
-      </main>
+      </div>
     </>
   );
 }

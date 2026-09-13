@@ -64,6 +64,8 @@ export default function CookieBanner() {
 
   return (
     <div
+      role="region"
+      aria-label="Cookie notice"
       className="fixed left-4 right-4 z-50 max-w-4xl mx-auto"
       style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
     >
