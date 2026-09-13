@@ -205,6 +205,8 @@ export function getAllProducts() {
         id: p.id,
         slug: p.id,
         name: p.name,
+        // Optional storefront code name (mirror of products.code_name); set on nothing.
+        codeName: p.codeName ?? null,
         blurb: p.blurb,
         description: `${p.blurb} ${RUO_SUFFIX}`,
         category_slug: c.slug,

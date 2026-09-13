@@ -23,6 +23,7 @@ import {
   hiddenCategorySlugs as staticHiddenSlugs,
 } from "../data/tier1Catalog";
 import { isHiddenCategory, hiddenCategorySlugs, visibleProducts } from "./catalogVisibility";
+import { displayNameOf } from "./displayName";
 
 // ── Static fallback adapters (shape-matched to the DB rows) ──────────────
 function staticProducts({ category } = {}) {
@@ -32,6 +33,9 @@ function staticProducts({ category } = {}) {
     id: p.id,
     slug: p.slug,
     name: p.name,
+    // Opt cycle 9 (C7): the static mirror of products.code_name (set on nothing).
+    code_name: p.codeName ?? null,
+    displayName: displayNameOf({ name: p.name, code_name: p.codeName }),
     category_slug: p.category_slug,
     price: p.price,
     purity_percent: 99,
@@ -83,6 +87,11 @@ function normalizeProduct(row) {
     ...row,
     images,
     isNew: row.isNew ?? row.is_new ?? false,
+    // Opt cycle 9 (C7): what the storefront shows as the name — the optional
+    // code_name when set, else the substance name. COA / SDS surfaces and
+    // order records read `name` directly.
+    code_name: row.code_name ?? null,
+    displayName: displayNameOf(row),
   };
 }
 
@@ -97,8 +106,11 @@ const PRODUCT_COLUMNS_BASE =
   "featured, is_new";
 
 // + migration 0033: Safety Data Sheet pointer and the peptide/lab_supply split.
-const PRODUCT_COLUMNS =
+const PRODUCT_COLUMNS_0033 =
   PRODUCT_COLUMNS_BASE + ", sds_file_url, sds_updated_at, product_type";
+
+// + migration 0036 (opt cycle 9, C7): the optional storefront code name.
+const PRODUCT_COLUMNS = PRODUCT_COLUMNS_0033 + ", code_name";
 
 /**
  * Fetch catalog products, optionally filtered by category slug.
@@ -114,6 +126,7 @@ export async function getProducts({ category } = {}) {
         return q;
       },
       PRODUCT_COLUMNS,
+      PRODUCT_COLUMNS_0033,
       PRODUCT_COLUMNS_BASE
     );
     if (error || !Array.isArray(data) || data.length === 0) return staticProducts({ category });
@@ -138,6 +151,7 @@ export async function getProduct(slugOrId) {
     const bySlug = await selectDegrading(
       (cols) => supabase.from("products").select(cols).eq("slug", slugOrId).maybeSingle(),
       PRODUCT_COLUMNS,
+      PRODUCT_COLUMNS_0033,
       PRODUCT_COLUMNS_BASE
     );
     const found = bySlug.data
@@ -146,6 +160,7 @@ export async function getProduct(slugOrId) {
           await selectDegrading(
             (cols) => supabase.from("products").select(cols).eq("id", slugOrId).maybeSingle(),
             PRODUCT_COLUMNS,
+            PRODUCT_COLUMNS_0033,
             PRODUCT_COLUMNS_BASE
           )
         ).data;
@@ -181,6 +196,7 @@ export async function getFeaturedProducts(limit = 8) {
           .neq("stock_status", "out_of_stock")
           .limit(limit),
       PRODUCT_COLUMNS,
+      PRODUCT_COLUMNS_0033,
       PRODUCT_COLUMNS_BASE
     );
     if (error || !Array.isArray(data) || data.length === 0) return staticFeatured(limit);
@@ -226,6 +242,7 @@ export async function getProductsAuthoritative() {
     const { data, error } = await selectDegrading(
       (cols) => supabase.from("products").select(cols).order("name", { ascending: true }),
       PRODUCT_COLUMNS,
+      PRODUCT_COLUMNS_0033,
       PRODUCT_COLUMNS_BASE
     );
     if (error) return { rows: [], error: error.message };
@@ -297,6 +314,7 @@ export async function getLabSupplies() {
           .eq("product_type", "lab_supply")
           .order("name", { ascending: true }),
       PRODUCT_COLUMNS,
+      PRODUCT_COLUMNS_0033,
       // Pre-0033 there is no product_type column at all, so there are no lab
       // supplies to find; the degraded query is filtered out below.
       PRODUCT_COLUMNS_BASE

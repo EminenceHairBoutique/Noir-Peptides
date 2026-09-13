@@ -64,7 +64,7 @@ export default function LabSuppliesCrossSell({ cartList = [] }) {
                 to={`/product/${product.slug}`}
                 className="block text-[13.5px] text-se-bone hover:text-se-gold transition truncate"
               >
-                {product.name}
+                {product.displayName || product.name}
               </Link>
               <span className="text-[12px] font-accent text-se-steel">
                 {variant.size_label || variant.sku}

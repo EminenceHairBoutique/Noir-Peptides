@@ -31,7 +31,7 @@ await build({
     b.onResolve({ filter: /_utils\/rateLimit\.js$/ }, () => ({ path: path.join(process.cwd(), "scripts/_stub-rate-limit.mjs") }));
   } }],
 });
-const { discountsHandler, labsHandler, FIXTURES, LOG } = await import(`file://${outfile}`);
+const { discountsHandler, labsHandler, catalogHandler, FIXTURES, LOG } = await import(`file://${outfile}`);
 fs.unlinkSync(outfile);
 function makeRes() { const r = { statusCode: null, payload: null, headers: {} }; r.setHeader = (k, v) => { r.headers[k] = v; }; r.end = (p) => { try { r.payload = JSON.parse(p); } catch { r.payload = p; } return r; }; return r; }
 const call = async (h, method, body, url) => { const r = makeRes(); await h({ method, url, headers: {}, body }, r); return r; };
@@ -67,4 +67,26 @@ r = await call(labsHandler, "PATCH", { id: labId, name: "Janoshik Analytics s.r.
 ok(r.statusCode === 200, `clean rename → 200 (${r.statusCode})`);
 
 console.log(failures ? `\n${failures} assertion(s) failed` : "\nAll copy-door assertions passed");
+
+// Opt cycle 9 (C7): the storefront code name is admin-entered PUBLIC text
+// (shop, PDP, cart, checkout) — same door, same 400, nothing written.
+console.log("\nCatalog code_name:");
+{
+  FIXTURES.products = [{ id: "bpc-157", slug: "bpc-157", name: "BPC-157", price: 44, stock_status: "in_stock", featured: false, is_new: false, code_name: null }];
+  const before = writes("products");
+  let r = await call(catalogHandler, "PATCH", { kind: "product", id: "bpc-157", code_name: "Weight loss compound for daily use" }, "/api/admin/catalog");
+  ok(r.statusCode === 400 && JSON.stringify(r.payload).includes("code_name"), `use language in code_name → 400 naming the field (got ${r.statusCode})`);
+  ok(writes("products") === before, "nothing written on rejection");
+  r = await call(catalogHandler, "PATCH", { kind: "product", id: "bpc-157", code_name: "x".repeat(81) }, "/api/admin/catalog");
+  ok(r.statusCode === 400 && /too long/.test(JSON.stringify(r.payload)), "81 characters → 400 (max 80)");
+  r = await call(catalogHandler, "PATCH", { kind: "product", id: "bpc-157", code_name: "<b>Compound</b>" }, "/api/admin/catalog");
+  ok(r.statusCode === 400 && /markup/.test(JSON.stringify(r.payload)), "markup → 400");
+  r = await call(catalogHandler, "PATCH", { kind: "product", id: "bpc-157", code_name: "  Compound   A-7 " }, "/api/admin/catalog");
+  const upd = LOG.filter((l) => l.table === "products" && l.op === "update").pop();
+  ok(r.statusCode === 200 && upd && upd.payload?.code_name === "Compound A-7", `clean code name → 200, written trimmed and single-spaced (got ${r.statusCode}, ${JSON.stringify(upd?.payload?.code_name)})`);
+  r = await call(catalogHandler, "PATCH", { kind: "product", id: "bpc-157", code_name: "" }, "/api/admin/catalog");
+  const upd2 = LOG.filter((l) => l.table === "products" && l.op === "update").pop();
+  ok(r.statusCode === 200 && upd2 && upd2.payload && "code_name" in upd2.payload && upd2.payload.code_name === null, `"" clears the code name (written as null)`);
+}
+
 process.exit(failures ? 1 : 0);

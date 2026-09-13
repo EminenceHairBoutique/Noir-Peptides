@@ -180,7 +180,7 @@ export default function ProductDetail() {
       {
         id: product.id,
         slug: product.slug,
-        name: product.name,
+        name: product.displayName || product.name,
         image: product.image_url || product.images?.[0] || null,
       },
       {
@@ -268,13 +268,13 @@ export default function ProductDetail() {
   return (
     <>
       <SEO
-        title={`${product.name} | COA-Documented Research Material | Noir Peptides`}
-        description={`${product.short_description || product.name}. For research use only. Not for human or veterinary use.`}
+        title={`${product.displayName || product.name} | COA-Documented Research Material | Noir Peptides`}
+        description={`${product.short_description || product.displayName || product.name}. For research use only. Not for human or veterinary use.`}
         type="product"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Product",
-          name: product.name,
+          name: product.displayName || product.name,
           description: `${product.description || product.short_description || product.name} For research use only. Not for human or veterinary use.`,
           sku: selectedVariant?.sku || product.id,
           category: categoryName,
@@ -321,7 +321,7 @@ export default function ProductDetail() {
                 ) : product.image_url || product.images?.[0] ? (
                   <img
                     src={product.image_url || product.images[0]}
-                    alt={`${product.name} research reference vial`}
+                    alt={`${product.displayName || product.name} research reference vial`}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -379,7 +379,7 @@ export default function ProductDetail() {
               </Link>
 
               <h1 className="font-display font-extrabold text-3xl md:text-4xl text-se-bone tracking-[0.01em] leading-tight">
-                {product.name}
+                {product.displayName || product.name}
               </h1>
               <p className="text-[13px] font-accent text-se-bone/50 mt-2">
                 {product.short_description}
@@ -808,7 +808,7 @@ export default function ProductDetail() {
 
       <StickyBuyBar
         ctaRef={mainCtaRef}
-        name={product.name}
+        name={product.displayName || product.name}
         sizeLabel={selectedVariant?.size_label || (selectedVariant?.vial_size_mg ? `${selectedVariant.vial_size_mg} mg` : "")}
         priceLabel={money(lineTotal)}
         isOut={isOut}

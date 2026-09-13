@@ -14,6 +14,8 @@ import { supabaseServer } from "../../lib/supabaseServer.js";
 import { sendBackInStockEmail } from "../../lib/email.js";
 import { deriveStockStatus } from "../../lib/inventory.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
+import { checkLabelText } from "../../lib/labelCopyRules.js";
+import { CODE_NAME_MAX } from "../../src/lib/displayName.js";
 
 const STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock"];
 const PRODUCT_TYPES = ["peptide", "lab_supply"];
@@ -38,7 +40,9 @@ const MAX_NOTIFY_PER_FLIP = 200;
 // not load catalog" until someone ran the SQL, with nothing saying why.
 const PRODUCT_COLUMNS_BASE =
   "id, slug, name, category_slug, price, stock_status, featured, is_new";
-const PRODUCT_COLUMNS = `${PRODUCT_COLUMNS_BASE}, sds_file_url, sds_updated_at, product_type`;
+const PRODUCT_COLUMNS_0033 = `${PRODUCT_COLUMNS_BASE}, sds_file_url, sds_updated_at, product_type`;
+// + migration 0036 (opt cycle 9, C7): the optional storefront code name.
+const PRODUCT_COLUMNS = `${PRODUCT_COLUMNS_0033}, code_name`;
 
 // Sept-11 T7: the soft-launch flag (migration 0034), with the same
 // pre-migration fallback so the tab keeps working before the SQL is run.
@@ -56,15 +60,19 @@ async function loadCategories() {
 }
 
 async function loadProducts() {
-  const full = await supabaseServer.from("products").select(PRODUCT_COLUMNS).order("name");
-  // 42703 = undefined_column. Any other error is returned as-is so the existing
-  // 500 path still fires for real failures.
-  const missingColumn =
-    full.error &&
-    (full.error.code === "42703" || /does not exist/i.test(String(full.error.message || "")));
-  if (!missingColumn) return full;
-  console.warn("[admin/catalog] products missing 0033 columns — migration pending; SDS fields hidden");
-  return supabaseServer.from("products").select(PRODUCT_COLUMNS_BASE).order("name");
+  // Newest column list first; 42703 = undefined_column means the migration
+  // that adds it is pending, so step down (0036 → 0033 → base). Any other
+  // error is returned as-is so the existing 500 path still fires.
+  let result = null;
+  for (const [cols, note] of [[PRODUCT_COLUMNS, null], [PRODUCT_COLUMNS_0033, "0036 column (code_name) — migration pending; code-name field hidden"], [PRODUCT_COLUMNS_BASE, "0033 columns — migration pending; SDS fields hidden"]]) {
+    if (note) console.warn(`[admin/catalog] products missing ${note}`);
+    result = await supabaseServer.from("products").select(cols).order("name");
+    const missingColumn =
+      result.error &&
+      (result.error.code === "42703" || /does not exist/i.test(String(result.error.message || "")));
+    if (!missingColumn) return result;
+  }
+  return result;
 }
 
 async function auditLog(req, actorId, action, entityId, metadata = {}) {
@@ -131,6 +139,24 @@ function pickFields(kind, body) {
     if (body.is_new !== undefined) {
       if (typeof body.is_new !== "boolean") errors.push("is_new must be boolean");
       else out.is_new = body.is_new;
+    }
+    // ── Storefront code name (migration 0036, opt cycle 9 C7) ──
+    // Replaces the substance name on the shop, product page, cart and checkout
+    // when set; certificates and order records keep the name. Admin-entered
+    // PUBLIC text, so it is held to the same copy rules as every other public
+    // field. Explicit null/"" clears it.
+    if ("code_name" in body) {
+      if (body.code_name === null || body.code_name === "") {
+        out.code_name = null;
+      } else if (typeof body.code_name !== "string") {
+        errors.push("code_name must be a string");
+      } else {
+        const clean = body.code_name.trim().replace(/\s+/g, " ");
+        if (clean.length > CODE_NAME_MAX) errors.push(`code_name is too long (max ${CODE_NAME_MAX})`);
+        else if (/[<>{}]/.test(clean)) errors.push("code_name may not contain markup");
+        else if (checkLabelText(clean).length) errors.push("code_name rejected — use language is not allowed in public copy");
+        else out.code_name = clean;
+      }
     }
   }
   if (kind === "category") {

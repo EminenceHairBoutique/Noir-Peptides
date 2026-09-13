@@ -137,7 +137,7 @@ export default function Shop() {
     if (q) {
       result = result.filter((p) => {
         const cat = categories.find((c) => c.slug === p.category_slug)?.name || "";
-        return [p.name, p.cas_number, p.batch_number, p.category_slug, cat, p.peptide_sequence, p.short_description]
+        return [p.name, p.displayName, p.cas_number, p.batch_number, p.category_slug, cat, p.peptide_sequence, p.short_description]
           .filter(Boolean)
           .some((v) => String(v).toLowerCase().includes(q));
       });
@@ -156,7 +156,7 @@ export default function Shop() {
       case "price-asc": result.sort((a, b) => a.price - b.price); break;
       case "price-desc": result.sort((a, b) => b.price - a.price); break;
       case "purity-desc": result.sort((a, b) => (b.purity_percent || 0) - (a.purity_percent || 0)); break;
-      case "name-asc": result.sort((a, b) => String(a.name).localeCompare(String(b.name))); break;
+      case "name-asc": result.sort((a, b) => String(a.displayName || a.name).localeCompare(String(b.displayName || b.name))); break;
       default: result.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
     }
     return result;
@@ -445,7 +445,7 @@ export default function Shop() {
                       <th className="text-left p-3 text-[11px] uppercase tracking-wide text-se-steel font-accent sticky left-0 bg-[#0a0e16]">Field</th>
                       {compareProducts.map((p) => (
                         <th key={p.id} className="text-left p-3 min-w-[140px]">
-                          <Link to={`/product/${p.slug}`} className="text-se-gold hover:underline font-display">{p.name}</Link>
+                          <Link to={`/product/${p.slug}`} className="text-se-gold hover:underline font-display">{p.displayName || p.name}</Link>
                         </th>
                       ))}
                     </tr>
