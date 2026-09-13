@@ -86,6 +86,7 @@ const ACCEPTED = {
   "/legal/returns": ["human-use:for human consumption","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic"],
   "/legal/ruo-agreement": ["disease-claim:prevent any disease","dosing:dosing","human-use:for human consumption","therapeutic-benefit:cure","therapeutic-benefit:therapeutic","therapeutic-benefit:treat","therapeutic-benefit:treatment"],
   "/legal/shipping": ["human-use:for human consumption","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic"],
+  "/quality": ["therapeutic-benefit:therapeutic"],
   "/legal/terms": ["administration:cycle","administration:injectable","administration:injection","administration:injection","administration:stacking","disease-claim:prevent disease","disease-claim:prevent disease","dosing:dosing","dosing:dosing","therapeutic-benefit:cure","therapeutic-benefit:cure","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic","therapeutic-benefit:treat","therapeutic-benefit:treat","therapeutic-benefit:treatment","therapeutic-benefit:treatment"],
 };
 

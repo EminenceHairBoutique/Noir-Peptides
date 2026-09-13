@@ -559,6 +559,7 @@ const FOOTER_NAV = [
   { href: "/verify-lot", label: "Verify a Lot" },
   { href: "/documents", label: "Document Library" },
   { href: "/about", label: "About" },
+  { href: "/quality", label: "Quality & Batch Standards" },
   { href: "/faqs", label: "FAQ" },
   { href: "/contact", label: "Contact" },
   { href: "/legal/research-use-policy", label: "Research-Use Policy" },
@@ -1186,6 +1187,17 @@ async function main() {
       description:
         "How Noir Peptides documents batch-specific Certificates of Analysis for research reference materials. For research use only.",
       bodyHtml: renderLegalDocBody(COA_POLICY_DOC),
+    },
+    {
+      // Opt c8 (4.6): linked from the header and footer since the launch
+      // pass, imported here since the Sept-11 pass — and never emitted. It
+      // was reachable only through the SPA fallback (a 200 with no static
+      // body, absent from the sitemap); with real 404s it would have vanished.
+      pathname: "/quality",
+      title: "Quality & Batch Standards | Noir Peptides",
+      description:
+        "Noir Peptides quality and batch standards: research-use transparency, batch documentation, and clear product metadata. For research use only.",
+      bodyHtml: renderLegalDocBody(QUALITY_DOC),
     },
     {
       // Standalone research-use agreement (its own linkable document, so an
