@@ -14,11 +14,17 @@ installErrorReporter();
 // server behavior is never cached; the worker itself excludes /api/* and all
 // non-font cross-origin traffic.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
+  const registerSw = () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {
       /* offline shell is progressive — registration failure is non-fatal */
     });
-  });
+  };
+  // Opt cycle 11: the paint-first loader (public/boot.js) runs this module
+  // after the first frame — on a fast load the window "load" event has
+  // already fired by then, and a listener alone would never register the
+  // worker (the PWA shell went missing under vite preview in CI).
+  if (document.readyState === "complete") registerSw();
+  else window.addEventListener("load", registerSw);
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(
