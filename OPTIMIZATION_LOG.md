@@ -1611,3 +1611,158 @@ Generators this cycle: Ops dry run (B1–B4), Failure injection (B3 on a fresh
 stack; C2), Data honesty (C7 mapping, shape diff), Inversion (C1: "what
 still imports a file nothing renders?"), Accessibility sweep (B1 every
 route), Cost/perf — measurement lane (Lighthouse in CI).
+
+### EXECUTION — results
+
+| # | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| 0 | Plan + H-014 + conflict log | **VERIFIED** | commit `24c786c`, written before any code |
+| 1 | B1 evidence workflow | **VERIFIED locally; CI run pending** | `scripts/evidence-screens.mjs`: **308 views** (73 sitemap routes + age gate + cart + checkout steps 1–2, × 320/390/768/1280) in 228 s, 0 failing, 0 overflow; `a11y-sweep` with `A11Y_ALL_ROUTES=1` (82 routes × 2 widths + 6 gated views) **found two defects the 9-route sweep had never reached** — `/contact`: six form controls with unassociated labels (axe `label` + `select-name`, critical); `/about`: h1 → h3 — both fixed, both routes now clean; LHCI (median of 3, mobile simulation): `/` LCP **3122 ms**, `/shop` **3347**, `/product/bpc-157` **3167**, `/test-results` **3276**; CLS 0.000 everywhere; TBT 65 / 118 / 68 / 73 ms — **the LCP gate is RED on all four routes** (see 4.7); `evidence-summary.mjs` folds screens + axe + LHCI + link-depth + hygiene into `summary.json`; `evidence-publish.mjs` proven against a local bare remote: orphan branch created, second run "nothing new", dry run. `@lhci/cli` runs pinned via `npx` — no devDependency, `npm audit` unchanged |
+| 2 | B2 live probe | **VERIFIED locally; prod run pending** | `scripts/live-probe.mjs` against the static server: **28 / 35** checks pass; the 7 misses are exactly the production-only checks (CSP/HSTS/nosniff headers, `dbEnvPresent`, `coaRowCount`, rendered COA rows, `/api/payment-rails`) — the script reports them honestly and exits 1; `--finalize` folds axe + Lighthouse and sets the verdict; the workflow keeps one "Live probe failing" issue (open / refresh / close). The scanner check uses the SAME extraction and negation allowlist as the dist gate (`scripts/_copy-scan.mjs`, shared) |
+| 3 | B3 DB gates | **shape diff VERIFIED; workflow SUSPECTED until CI** | `scripts/db-shape-diff.mjs` against a fake PostgREST fed from the static catalog: in sync → exit 0 (44 products / 96 variants / 480 tiers); a changed price + a ghost product → exit 1 naming both. The Supabase-CLI job cannot run here (no Docker daemon) — its first run is on this PR; `supabase start --help` confirmed the `-x` names; `supabase_migrations` exposed to PostgREST so `db:verify`'s ledger check runs for real |
+| 4 | B4 reader | **VERIFIED** | `scripts/evidence-latest.mjs`: branch absent → "none — score from local evidence only and say so"; branch present → verdict, date, age, sha, run URL, per-route Lighthouse, failing gates |
+| 5 | C1 legacy deletion | **VERIFIED** | grep over js/jsx/mjs/json/yml: only the audit script imported the file; build green; suite green without it (1071 ✓ at that point); CI step + npm script + six doc mentions removed |
+| 6 | C2 webhook envelope | **VERIFIED** | one statement changed; `test-error-envelopes` exception removed and replaced by an assertion |
+| 7 | C3 CSP font origins | **VERIFIED** | builder no longer emits the hosts; `vercel.json` regenerated (byte-equal per `test-csp`); dead SW font-CDN branch removed; `test-fonts-selfhosted` asserts both |
+| 8 | C7 `code_name` | **VERIFIED** | migration `0036` (nullable, 1–80 chars, writes nothing); `src/lib/displayName.js` is the one rule; three-step degrading selects (0036 → 0033 → base) in the client and the admin API; shop / cards / PDP / cross-sell / cart / checkout render the display name, certificate surfaces keep the substance name; prerender overlays code names at build (`codeNameCount` in `prerender-meta.json`, 0 here); Control Room row + copy door (real handler: use language → 400 naming `code_name`, nothing written; 81 chars → 400; markup → 400; clean → written trimmed; "" → null). `test-code-name.mjs` 32 ✓. Found on the way: `docs/SCHEMA.md`'s migration table had stopped at **0016** — completed through 0036 |
+| 9 | Lint 0 warnings | **VERIFIED** | 3 → 0 (`SEO.jsx` effect keys on serialized `images` / `jsonLd` via a ref; `UserContext` fetch memoized); `eslint . --max-warnings 0` |
+
+**Final gate on the finished tree:** build 79 routes / sitemap 73 / `404.html`
+· lint **0 errors / 0 warnings (enforced)** · unit suite **1123 assertions**
+(+55, +1 suite) · `build:e2e` → **E2E 33 passed / 4 skipped** · **mobile
+52/52** · axe 0 critical / 0 serious / 0 landmark / 0 keyboard / 0 overflow
+(default sweep, 24 page-views; all-routes sweep clean after the two fixes) ·
+QR 8/8 · bytes & requests 15/15 · Lighthouse **LCP over budget on 4 / 4
+routes** (CLS, TBT within budget). Runtime budget recorded (4.13): unit ≈
+8 s · E2E 33 s · mobile 60 s · default axe ≈ 60 s · screenshot matrix 228 s
+· LHCI 12 runs ≈ 4 min.
+
+### SCORECARD DELTA (H-014: 9 = every local/CI check VERIFIED green; 10 = production-verified)
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.1 | Legal | 9 | 9 | `code_name` is at the copy door; the live scanner check exists but has not run on prod |
+| 4.2 | Security | 9 | 9 | C2 + C3 shipped; `verify:rls` is CI-runnable but the run is pending; not 10: prod `verify:rls`, repo public |
+| 4.3 | Data | 7 | **8** | static↔DB shape diff written and proven; `db:verify` CI-runnable. 9 when `db-gates` is green on this PR |
+| 4.4 | Trust | 9 | 9 | — |
+| 4.5 | Commerce | 9 | 9 | — |
+| 4.6 | SEO | 9 | 9 | live canonical / sitemap / robots checks exist, not yet run on prod |
+| 4.7 | Performance | 8 | **7** | **corrected downward.** The first mobile-simulated Lighthouse run (4× CPU, slow-4G model) puts LCP at 3.1–3.4 s on all four gated routes; the earlier 8 rested on unthrottled local paint numbers. Nothing shipped for LCP this cycle — measurement only (H-013 lane) |
+| 4.8 | UI/UX | 7 | 7 | the screenshot matrix exists (308 views); per-route review is cycle 11's item |
+| 4.9 | Accessibility | 9 | 9 | axe now covers every route and found two real defects on routes the 9-route sweep never reached; both fixed; not 10: prod axe unproven |
+| 4.10 | Mobile | 9 | 9 | — |
+| 4.11 | Admin | 9 | 9 | code-name screen added; COA upload / flag screen / Owner Sprint panel are cycle 10 |
+| 4.12 | Observability | 8 | 8 | live probe written, not yet run; 9 after its first run writes `live/latest.json` |
+| 4.13 | Hygiene | 8 | **9** | lint 0 warnings enforced; legacy file gone; `.env.example` complete; runtime budget recorded; CI order build → unit → migrations → E2E → evidence → DB gates |
+| 4.14 | Growth | — | **unlocked** | 4.1–4.5 ≥ 8 is now true (4.3 = 8); work starts cycle 11 per the roadmap |
+
+### TEN-TRACKER (§F)
+
+| Card | Score | Blocks 9 (engine) | Blocks 10 (owner) | Evidence (path · date) |
+| --- | --- | --- | --- | --- |
+| 4.1 Legal | 9 | — | live probe scanner = 0 on prod (needs D4 for the real host); attorney sign-off (D6) | local: `test-dist-copy`, `test-admin-copy-doors` · 2026-09-13 |
+| 4.2 Security | 9 | first green `db-gates` run | D1 `verify:rls` on prod · D3 private · D12 rotate | local: `test-error-envelopes`, `test-csp` · 2026-09-13 |
+| 4.3 Data | 8 | first green `db-gates` run | D2 apply 0031–0036, decide 0027 · `db:verify` clean on prod | local: `db-shape-diff` vs fake PostgREST · 2026-09-13 |
+| 4.4 Trust | 9 | COA upload (c10), batch permalinks in sitemap (c11) | D5 labs / codes / PDFs | — |
+| 4.5 Commerce | 9 | duplicate-submit E2E (c10) | D8 BTCPay live smoke | — |
+| 4.6 SEO | 9 | — | D4 domain + `VITE_SITE_URL` + `CANONICAL_HOST`; Search Console | local: `test-link-depth`, `test-routing` · 2026-09-13 |
+| 4.7 Performance | 7 | **LCP ≤ 2.5 s on the LHCI gate (3.1–3.4 s now)** | live Lighthouse within budget | local: `evidence/lighthouse` (LHCI, median of 3) · 2026-09-13 |
+| 4.8 UI/UX | 7 | per-route notes from `evidence/screens` (c11) | D10 iPhone walk-through | local: 308 screenshots · 2026-09-13 |
+| 4.9 Accessibility | 9 | — | live axe clean (first live-probe run) | local: all-routes sweep · 2026-09-13 |
+| 4.10 Mobile | 9 | touch-target gate (c10) | D10 | local: mobile 52/52 · 2026-09-13 |
+| 4.11 Admin | 9 | C8 screens (c10) | owner order dry-run | — |
+| 4.12 Observability | 8 | first live-probe run | D11 backup/restore dry-run | — (workflow written; no run yet) |
+| 4.13 Hygiene | 9 | — (9 = 10) | — | local: `npm run lint` 0/0 · 2026-09-13 |
+| 4.14 Growth | — | unlocked; c11 foundations | first attributed repeat order | — |
+
+### OWNER SPRINT STATUS (§D — ✅ only with evidence; none yet)
+
+| # | Step | Status | How the engine will know |
+| --- | --- | --- | --- |
+| D1 | `npm run verify:rls` with prod keys (apply `0030` if unclean) | ⬜ | paste the output into the PR or `LAUNCH_READINESS.md`; the CI twin (`db-gates`) proves the script itself |
+| D2 | Apply `0031`–`0036`, decide `0027` | ⬜ | `docs/MIGRATIONS_0032_0033.md`, `_0034.md`, `_0036.md`; then `npm run db:verify` clean |
+| D3 | Repo private | ⬜ | GitHub → Settings → Danger zone |
+| D4 | Domain + `VITE_SITE_URL` + repo variables `PROD_URL`, `CANONICAL_HOST` | ⬜ | the live probe's canonical / sitemap / robots checks go green on the real host |
+| D5 | Labs → lookup codes + CAS per certificate; PDFs | ⬜ | Control Room → COAs (needs D2) |
+| D6 | Attorney decision (categories; code names — now a data entry) | ⬜ | Control Room → Catalog → `soft_launch_hidden` / Code name |
+| D7 | GLP-1 pricing | ⬜ | edit `tier1Catalog.js` → re-seed, or state the prices |
+| D8 | BTCPay live smoke | ⬜ | one real invoice; `docs/LAUNCH_CHECKLIST.md` |
+| D9 | Analytics posture (GA4-only or none) | ⬜ | Vercel env |
+| D10 | iPhone walk-through | ⬜ | screenshots → `owner/<date>/` on the `evidence` branch, or attached to an issue |
+| D11 | Backup / restore dry-run | ⬜ | date in `LAUNCH_READINESS.md` |
+| D12 | Rotate per `ROTATION_CHECKLIST.md` (after D3) | ⬜ | tick list in the file |
+
+### EVIDENCE PROVENANCE (§F)
+
+Everything scored this cycle came from **sandbox runs dated 2026-09-13**
+(this branch, Chromium 1194, the E2E build served Vercel-style). **No CI
+artifact yet** — the `Evidence` and `DB gates` workflows run for the first
+time on this PR; **no live record** — the probe runs from `main` after
+merge (or by dispatch). `node scripts/evidence-latest.mjs` will read both
+next cycle.
+
+### GENERATOR YIELDS (cycle 9)
+
+Ops dry run 4 (B1–B4) · Accessibility sweep 1 (all-routes → 2 defects
+fixed) · Data honesty 2 (`SCHEMA.md` migration table stale since 0016 —
+completed; 4.7 corrected from 8 to 7 once measured properly) · Failure
+injection 1 (shape-diff drift case; C2) · Inversion 1 (C1: "what still
+imports a file nothing renders?") · Cost/perf measurement lane 1 finding, 0
+shipped (LCP over budget) · Regulator walk 1 (code-name copy door) · Buyer
+walk 0 (308 screenshots taken, not yet reviewed — cycle 11) · Competitor
+delta not run.
+
+### ESCALATIONS (owner-only; ranked — #1 leads until cleared)
+
+1. **D1** `verify:rls` on prod (the CI twin now proves the script; only you
+   can run it against the live keys).
+2. **D2** apply `0031`–`0036` (`docs/MIGRATIONS_*.md`), decide `0027`.
+3. **D3** repo private → then **D12** rotate.
+4. **D4** domain + `VITE_SITE_URL`; set repository variables `PROD_URL` and
+   `CANONICAL_HOST` so the live probe targets the real host.
+5. **D6** counsel — categories; `code_name` is now a data entry per product.
+   Two follow-on decisions: should certificate pages (`/test-results`,
+   `/documents`) and **order records / emails** carry the code name? The
+   order path lives in `lib/pricing.js` (ask-before) and was not touched.
+6. **The Lighthouse LCP gate is red** (3.1–3.4 s vs 2.5 s, mobile
+   simulation, all four routes). You chose a hard gate, so the `Evidence`
+   check on this PR will show red until LCP moves. The engine's next cycle
+   leads with it (levers measured, none shipped yet — see Hy-008).
+7. D5 labs / codes / PDFs · D7 GLP-1 pricing · D8 BTCPay smoke · D9
+   analytics · D10 iPhone · D11 backup dry-run · `VERCEL_DEPLOY_HOOK_URL` ·
+   review backlog re-scan after `0035`.
+
+### What I'd do differently
+
+Measure under the production CLIENT's conditions, not only through the
+production transport (H-011 extended): the 4.7 "8" survived seven cycles
+because every local paint number was unthrottled; the first mobile-simulated
+run cut it to 7 in one afternoon. Run every new eye BEFORE re-scoring the
+card it looks at. And write new source with the gates' parsers in mind: an
+apostrophe inside a block comment derailed `test-jsx-undefined`'s naive
+string stripper for half an hour (Hy-009 opened to harden it).
+
+### PR DRAFT (opened as a Draft per addendum C6)
+
+**Title:** Opt cycle 9 — eyes for the engine (evidence, live probe, DB gates) + pre-authorized debt (C1–C3, code_name)
+
+**Summary.** Three workflows give the engine dated evidence it could never
+produce from the sandbox: `Evidence` (screenshot matrix, axe on every route,
+Lighthouse median-of-3 hard gate, crawls → `evidence` branch), `Live probe`
+(every 6 h against `PROD_URL`, one self-closing issue while red) and `DB
+gates` (the real `verify:rls` / `db:verify` / a new static↔DB shape diff on a
+fresh Supabase stack). Pre-authorized debt cleared: legacy `products.js`
+deleted, webhook 400 is a generic envelope, CSP drops the Google Fonts
+origins, `products.code_name` (migration 0036, set on nothing) renders on the
+shop surfaces with a Control Room field behind the copy door. Lint is at zero
+warnings and enforced. The all-routes axe sweep found and fixed two real
+defects (`/contact` labels, `/about` heading order).
+
+**Risks / honest state.** The `Evidence` check will be **red on this PR**:
+the Lighthouse LCP budget (2.5 s) is missed on all four routes under mobile
+simulation (3.1–3.4 s) — that is the gate doing its job; nothing was shipped
+for LCP yet. `DB gates` runs for the first time here (Supabase CLI in CI). No
+migration applied to live, no price / visibility / flag change, no
+pricing / shipping / checkout-session / btcpay file touched.
+
+**Rollback.** Revert the branch; migration 0036 is additive and unapplied.
