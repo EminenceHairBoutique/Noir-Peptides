@@ -114,7 +114,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run build
+      # Opt cycle 5: the E2E build carries a fake Supabase URL (routed by the
+      # Playwright auth fixture) so the gated cart → checkout path is
+      # exercised. Prerender / precache / CSP steps run without env, as in
+      # the production build above. See scripts/build-e2e.mjs.
+      - run: npm run build:e2e
       - run: npm run test:e2e
       # Accessibility sweep (opt cycle 2): axe-core over 9 routes at 390/1280
       # against the built dist. Exits 1 on serious/critical violations.
