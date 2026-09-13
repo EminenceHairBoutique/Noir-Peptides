@@ -1017,3 +1017,159 @@ the production build). The confirmation email's callers pass more fields
 no payment / RLS / CSP files touched.
 
 **Rollback.** Revert the branch.
+
+---
+
+## Cycle 6 — 2026-09-13
+
+**HEAD before:** `55cc78a` (main, Merge PR #37). **Branch:** `claude/opt-cycle-6-20260913`.
+
+### RECON
+
+Numeric diff first: nothing landed on `main` since the cycle-5 merge (PR #37
+merged 08:30 UTC by the owner). Build 78 routes / sitemap 72; `test:unit` 54
+suites / 988 ✓; `npm audit` 0. Live site still unreachable.
+
+**Acting on cycle 5's "what I'd do differently":** the paint experiments
+below ran as route-injected variants BEFORE any file was touched (H-013);
+Playwright route precedence is now stated in the fixture; comments stay out
+of scanner-scanned sources.
+
+**Findings (VERIFIED by a command unless marked):**
+- **4.1 — reviews are the only public copy a buyer writes, and they are
+  screened by a four-regex list, not the site's rules.** `api/reviews.js`
+  rejects a handful of phrasings ("I took…", "healed", "dose") and publishes
+  immediately (`status: "published"`, moderation is after the fact); the
+  compliance scanner and the use-language rules that gate labels are not
+  applied. "Noticeable therapeutic benefit within days" or "reconstitute
+  with 2 mL bacteriostatic water" would publish. Reads are limited by RLS to
+  attested users — a regulator can attest.
+- **Hy-008 — H-013 experiment, injected variants on `/`, 4 runs each:**
+  as-built FCP ≈1010 / LCP 2148–2196; the three mono faces at
+  `font-display: optional` → FCP 852–884 (**−130**) / LCP 2008–2076
+  (**−140**), all four runs; a preload of the mono 400 file on top →
+  LCP 2920–2976 in 3 of 4 (the slow mode). The mono files (30 KB) compete
+  with the render-blocking stylesheet for the 1.6 Mbps link before first
+  paint; `optional` takes them out of that race. Mechanism of the slow mode
+  still SUSPECTED (the late hero repaint), but the lever that avoids it is
+  measured.
+- **4.5 — checkout step 1 loses everything on reload.** Only the compliance
+  id is kept in `sessionStorage`; contact, ship-to, research use and method
+  are in React state. The scorecard says "state survives back-navigation
+  and reload" — back-navigation does (in-memory), reload does not. With the
+  cycle-5 fixture this is now assertable.
+- **4.12 — server errors have no ledger.** `failSafely` writes the scrubbed
+  detail to the function log only; the Control Room shows client errors
+  (`client_errors` + tab) but nothing from the API side. The scorecard asks
+  for "server error ledger populated and visible in admin".
+
+### SCORE (before this cycle's work)
+
+| # | Scorecard | Score | Evidence |
+| --- | --- | --- | --- |
+| 4.1 | Legal | 9 | review text screened by a short list, not the site's rules |
+| 4.5 | Commerce | 9 | reload loses step-1 state |
+| 4.7 | Performance | 8 | mono faces in the pre-paint bandwidth race |
+| 4.12 | Observability | 6 | no server error ledger |
+| others | — | as cycle 5 | unchanged |
+
+### PLAN (written before execution of items 2–4; item 1's screening rule and the font experiment ran during RECON)
+
+1. **[4.1] Reviews held to the site's rules.** `api/reviews.js` also applies
+   `checkLabelText` (scanner outside a negation + every use-language
+   pattern) before writing; `scripts/test-reviews-screen.mjs` executes the
+   real handler (accepted quality / COA / negated-RUO reviews; refused
+   outcome, dose, solvent, route, schedule, disease and benefit claims;
+   client cannot set status). Generator: regulator walk.
+2. **[4.7] Mono faces → `font-display: optional`.** Measured as a variant
+   (above); built and A/B'd against main on `/`, `/shop`, PDP with
+   `perf:compare` (4 runs). Trade-off stated in `src/fonts.css` and the
+   readiness file. Generator: cost/perf.
+3. **[4.5] Checkout draft survives reload.** Step-1 contact / ship-to /
+   research / method persist in `sessionStorage` (never the certifications,
+   never `localStorage`); cleared when payment starts. Asserted in
+   `checkout-keyboard.spec.js` with the auth fixture. Generator: buyer walk.
+4. **[4.12] Server error ledger.** Migration `0035_server_errors.sql` (file
+   only); `failSafely` best-effort inserts `{request_id, code, context,
+   status, message}` (scrubbed, no PII, never throws); `api/admin/server-
+   errors.js` GET/PATCH; Control Room tab beside client errors. Tested
+   against the stub. Generator: ops dry run.
+
+### EXECUTION — results
+
+| # | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| 1 | Reviews held to the site's rules | **VERIFIED** | `api/reviews.js` applies `checkLabelText` (shared rules) and a new outcome / body-part list on top of its own; `scripts/test-reviews-screen.mjs` (16 assertions) executes the real handler: quality / COA / shipping and negated-RUO reviews accepted; outcome, dose, solvent + reconstitution, route, schedule, disease and benefit claims → 400 with the guidance sentence and nothing written; `status` and `verified_purchase` come from the server whatever the body says. Found while testing: "Helped my tendon recover fast" passed the old list AND the scanner (no verb form of "recover") — the body-part list closes it. The stub gained `upsert` |
+| 2 | Mono faces → `font-display: optional` | **CUT — measured inversion** | Injected inline variant: FCP −130 / LCP −140 ms, 4 of 4 runs. Built into the stylesheet and A/B'd against main (4 runs): `/` LCP 2220 → **3052 (+832)**, `/shop` +0, PDP −12. Reverted (`git diff src/fonts.css` empty). H-013 amended: inject through the real delivery path. Hy-008 refined |
+| 3 | Checkout draft survives a reload | **VERIFIED** | `src/lib/checkoutDraft.js` (session storage only; contact / ship-to / billing / research / method; certifications never restored; cleared when payment starts); `checkout-keyboard.spec.js` gains "the step-1 draft survives a reload; the certifications do not" — values persist after `page.reload()`, the checked certification is unchecked again, nothing checkout-related in `localStorage`. Green in the final gate (E2E line below). Lesson while moving the helpers out of the page file (react-refresh rule): slice by function end, not first brace |
+| 4 | Server error ledger | **VERIFIED** | Migration `0035_server_errors.sql` (additive, RLS on, admin read only, no client writers); `failSafely` → `recordServerError` (detached promise, scrubbed detail capped at 1000 chars, no stack, no body, never throws); `api/admin/server-errors.js` GET (pre-0035 → `migrationPending`, never a broken tab) / PATCH; Control Room Errors tab mounts the server panel under the client one. `scripts/test-server-errors.mjs` (16 assertions): envelope unchanged, one insert with request id / code / context / status, `sk_live_…` redacted, PATCH resolves, 405 elsewhere, migration assertions |
+
+**Final gate on the finished tree:** build 78 routes / sitemap 72 · lint 0
+errors · **56 suites, 1019 assertions** (+2 / +31) · **mobile 52/52** ·
+`build:e2e` → **E2E 33 passed / 4 skipped** · axe 0 critical / 0 serious /
+0 landmark / 0 keyboard on the E2E build.
+
+**Cut / not attempted:** the mono `optional` change (above); Hy-008 (next test
+recorded); the reviews backlog re-scan (needs the database — owner can run
+the same `checkLabelText` over `product_reviews` once 0035 lands; not built).
+
+### SCORECARD DELTA
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.1 | Legal | 9 | 9 | the last public copy surface a buyer writes is now held to the site's rules; counsel items still open |
+| 4.5 | Commerce | 9 | 9 | reload no longer loses the draft (the scorecard's reload check now passes); no live rail |
+| 4.7 | Performance | 8 | 8 | no shipped change; two measured dead ends in two cycles |
+| 4.12 | Observability | 6 | **7** | server errors visible in admin once 0035 is applied; uptime target and backup dry run remain owner items |
+| others | — | — | unchanged |
+
+### GENERATOR YIELDS (cycle 6)
+
+Regulator walk 1 · Buyer walk 1 · Ops dry run 1 · Cost/perf 0 (second cycle
+at 0 → rewrite or retire next cycle) · Failure injection / Competitor delta /
+Data honesty / Inversion / Accessibility sweep not run.
+
+### ESCALATIONS (owner-only; ranked — #1 leads until cleared)
+
+1. **`npm run verify:rls` on prod** — unconfirmed since `0030`.
+2. Attorney: category posture → `soft_launch_hidden`; Hy-003; the label's
+   post-reconstitution storage note.
+3. Apply `0031`–**`0035`**; decide `0027`. 4. Repo private. 5. Domain + `VITE_SITE_URL`.
+6. Enter labs + lookup codes. 7. Delete legacy `src/data/products.js` + audit script + CI step.
+8. `api/stripe-webhook.js` signature-error echo (ask-before).
+9. Remove the Google Fonts origins from the CSP (ask-before block).
+10. Set `VERCEL_DEPLOY_HOOK_URL`.
+11. **New:** once 0035 is live, re-scan existing `product_reviews` with the
+    same rules (a one-off SQL export + `node -e` over `checkLabelText`) and
+    hide any that fail — the endpoint only screens new submissions.
+
+### What I'd do differently
+
+Inject a paint variant through the same delivery path as the change
+(external stylesheet vs inline) — the inline variant answered a different
+question, and the cost was a build, an A/B and a revert. Retire or rewrite
+the cost/perf generator next cycle rather than take a third run at Hy-008
+with the same method. When moving code out of a file with a script, cut at
+the function's closing brace, not the first `}` after its name.
+
+### PR DRAFT (open only on approval)
+
+**Title:** Optimization cycle 6 — reviews held to the site's rules, checkout draft survives reload, server error ledger
+
+**Summary.** Four verified items on top of PR #37 and one measured cut:
+(1) buyer reviews — the only public copy a buyer writes — are screened with
+the same use-language rules and scanner that gate printed labels, plus an
+outcome / body-part list; (2) the checkout step-1 draft survives a reload
+(session storage only; certifications re-affirmed every time), asserted in
+E2E; (3) every safely-failed API request is recorded in a new
+`server_errors` ledger (migration 0035, file only) and listed in the
+Control Room's Errors tab beside client errors; (4) the database stub grew
+`upsert` and a rate-limit stub so public handlers can be executed in tests.
+Cut: `font-display: optional` for the mono faces (inline variant won, built
+version lost +832 ms LCP on `/`, 4 of 4). +2 unit suites, +1 E2E test.
+
+**Risks.** `failSafely` now also fires a detached insert; it never throws
+and never delays the response (tested). Migration 0035 is not applied by
+this PR. No payment / RLS / CSP files touched.
+
+**Rollback.** Revert the branch.
