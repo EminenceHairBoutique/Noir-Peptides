@@ -7,6 +7,7 @@
 import { requireAdmin } from "../_utils/auth.js";
 import { supabaseServer } from "../../lib/supabaseServer.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
+import { checkLabelText } from "../../lib/labelCopyRules.js";
 
 const CODE_RE = /^[A-Z0-9][A-Z0-9-]{1,31}$/;
 
@@ -109,6 +110,10 @@ export default async function handler(req, res) {
     const body = await readJsonBody(req);
     const { fields, errors } = pickFields(body || {}, { requireCore: true });
     if (errors.length) return json(res, 400, { error: "Invalid request", details: errors });
+    // Opt c7 (4.1): the description renders on /deals for everyone.
+    if (fields.description && checkLabelText(fields.description).length) {
+      return json(res, 400, { error: "Description rejected — use language is not allowed in public copy", details: checkLabelText(fields.description).map((d) => ({ field: "description", ...d })) });
+    }
 
     const { data, error } = await supabaseServer
       .from("discounts")
@@ -131,6 +136,9 @@ export default async function handler(req, res) {
     const { fields, errors } = pickFields(body || {});
     if (errors.length) return json(res, 400, { error: "Invalid request", details: errors });
     if (!Object.keys(fields).length) return json(res, 400, { error: "No editable fields supplied" });
+    if (fields.description && checkLabelText(fields.description).length) {
+      return json(res, 400, { error: "Description rejected — use language is not allowed in public copy", details: checkLabelText(fields.description).map((d) => ({ field: "description", ...d })) });
+    }
 
     const { data: existing } = await supabaseServer.from("discounts").select("*").eq("id", id).maybeSingle();
     if (!existing) return json(res, 404, { error: "Not found" });
