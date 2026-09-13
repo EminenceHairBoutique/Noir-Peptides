@@ -67,6 +67,8 @@ src/output.css
 .pricing-test-*.mjs
 .coa-table-test-*.mjs
 .admin-labs-test-*.mjs
+.attestation-test-*.mjs
+.a11y-report.json
 .lh-run.mjs
 .seo-work/
 .ld2.cjs

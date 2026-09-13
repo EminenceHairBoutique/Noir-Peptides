@@ -119,7 +119,7 @@ export default function CatalogMatrix({ matrix, onRefresh, onSelectConfig, busyI
       <div className="max-h-[420px] overflow-y-auto rounded-lg border border-white/8">
         <table className="w-full text-[12.5px]">
           <thead className="sticky top-0 bg-se-charcoal/95 backdrop-blur">
-            <tr className="text-left text-[10.5px] font-accent uppercase tracking-wider text-se-bone/45">
+            <tr className="text-left text-[10.5px] font-accent uppercase tracking-wider text-se-bone/55">
               <th className="px-3 py-2">Product</th>
               <th className="px-3 py-2">Size</th>
               <th className="px-3 py-2">SKU</th>

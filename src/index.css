@@ -1,3 +1,4 @@
+@import "./fonts.css";
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -618,4 +619,11 @@ table {
 @media (prefers-reduced-motion: reduce) {
   .animate-\[slideUp_\.28s_cubic-bezier\(\.2\,\.8\,\.2\,1\)\],
   .animate-\[fadeIn_\.2s_ease\] { animation: none !important; }
+}
+
+/* Decorative footer watermark: the text lives in a data attribute and is
+   painted by the pseudo-element, so it is not text content (a11y: not read,
+   not contrast-checked). See src/components/Footer.jsx. */
+.footer-watermark::before {
+  content: attr(data-text);
 }

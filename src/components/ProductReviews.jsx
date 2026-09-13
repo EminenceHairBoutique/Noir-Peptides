@@ -167,7 +167,7 @@ export default function ProductReviews({ productId }) {
 
         {/* List */}
         {reviews.length === 0 ? (
-          <p className="text-[13px] text-se-bone/45 font-accent">
+          <p className="text-[13px] text-se-bone/55 font-accent">
             No reviews yet. Be the first to review the quality and documentation.
           </p>
         ) : (

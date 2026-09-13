@@ -44,18 +44,33 @@ wins and the conflict is logged here so the prompt can be revised.
   category count, canonical host, and the entire §5 backlog (already merged).
   — yield: 1 (the corrected plan)
 
+- **H-008** [added cycle 2] A structural claim about the site (crawl depth,
+  landmark coverage, contrast, preload set) is false until it has been
+  computed; write the graph/measurement test before believing the doc that
+  asserts it. — evidence: the Aug-28 "every public page ≤2 clicks from any
+  other" claim had never been computed; the first BFS found 315 pairs over
+  budget and two orphans (`/deals`, `/legal/returns`). — yield: 1
+- **H-009** [added cycle 2] Before adding any asset or helper, grep the repo
+  for an existing instance — the label engine already shipped all three font
+  families as variable woff2 under `public/fonts`, and the first draft of the
+  self-hosting item downloaded near-duplicates of them. — evidence:
+  `git ls-files public/fonts` (5 files since `4a0a29a`); duplicates deleted,
+  one set of files now serves both the page and the labels. — yield: 1
+  (and ~117 KB of repo weight avoided)
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
-| Buyer walk | 0 | 0 | — (live site unreachable from sandbox; needs egress or screenshots supplied) |
-| Regulator walk | 1 | 2 | cycle 1 (consumable naming scrub; "mechanisms" removed from AI instructions) |
-| Competitor delta | 1 | 1 | cycle 1 (Prime Peptides' clickable lab key → lab-linkage screen) |
-| Data honesty sweep | 1 | 2 | cycle 1 (seed-sync test; COA asset test) |
-| Failure injection | 1 | 1 | cycle 1 (public /api/contact leaked raw error text) |
-| Cost/perf profile | 1 | 1 | cycle 1 (PDP preload guard; fonts hop recorded) |
-| Ops dry run | 1 | 1 | cycle 1 (lab linkage impossible without SQL) |
-| Inversion | 1 | 0 | cycle 1 (produced the same items as failure injection; merged) |
+| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 2 | 1 | cycle 2 (link-depth gate + footer nav fix) |
+| Regulator walk | 2 | 2 | cycle 1 (consumable naming; "mechanisms" removed) — cycle 2: corpus gate green, nothing new |
+| Competitor delta | 2 | 1 | cycle 1 (lab-linkage screen) — cycle 2: 0 |
+| Data honesty sweep | 2 | 3 | cycle 2 (attestation user agent on the order record) |
+| Failure injection | 2 | 1 | cycle 1 (public contact leak) — cycle 2: 0 |
+| Cost/perf profile | 2 | 3 | cycle 2 (self-hosted fonts; SW precache budget) |
+| Ops dry run | 2 | 1 | cycle 1 (lab linkage without SQL) — cycle 2: 0 |
+| Inversion | 2 | 1 | cycle 2 ("what puts a key in a log line?" → scrubber shapes) |
+| Accessibility sweep (axe) — added cycle 2 | 1 | 1 | cycle 2 (contrast tokens, link underline, heading order) |
 
 ## Retired
 
@@ -69,9 +84,19 @@ wins and the conflict is logged here so the prompt can be revised.
   the live site and check `dbEnvPresent: true`. — status: UNTESTED (sandbox
   egress blocks vercel.app).
 - **Hy-002** Self-hosting the three Google Fonts families removes the only
-  third-party hop on first paint without a measurable layout change. — test:
-  fetch the woff2 files (needs egress), build, compare CLS at 390px. —
-  status: BLOCKED on egress.
+  third-party hop on first paint without a measurable layout change. —
+  status: **RESOLVED cycle 2** — fonts now served from `/fonts` (the label
+  engine's tracked variable files); measured in Chromium: 5 faces load from
+  our origin and the variable files honour every requested weight (Syne
+  600/700/800 → 648/701/1017 px; DM Sans 300/400/500/600 → 573/581/592/605 px
+  for the same string). No Google Fonts request remains
+  (`test-fonts-selfhosted.mjs`). CLS not measured (no Lighthouse run).
+- **Hy-004** The 405 "content not in a landmark" axe findings (moderate) all
+  resolve by giving the app shell ONE `<main>` and demoting the page-level
+  `<main>` elements (TestResults, Documents, …) to `<div>`, keeping the
+  prerendered `<main>` untouched. — test: axe re-sweep shows 0 `region`
+  nodes; prerender coverage test still sees `<main>` in every static body. —
+  status: PLANNED (cycle 3; touches ~6 pages, needs its own screenshots).
 - **Hy-003** The category descriptions containing "signaling"/"pathway"
   ("GH-Secretagogue… signaling research", "mitochondrial and metabolic-pathway
   research") are quotable as intended-use evidence even though each is framed
@@ -81,6 +106,15 @@ wins and the conflict is logged here so the prompt can be revised.
   unilaterally because it desyncs static from DB).
 
 ## Scorecard sharpenings (never loosenings)
+
+- 4.6: "every public page ≤2 clicks from any other" is now enforced by
+  `scripts/test-link-depth.mjs` (all-pairs BFS over the prerendered graph;
+  no orphans; no links to hidden or 404-body routes) — cycle 2.
+- 4.7: "no third-party font hop" enforced by `scripts/test-fonts-selfhosted.mjs`;
+  "SW precache ≤ budget" by `scripts/test-sw-budget.mjs` — cycle 2.
+- 4.9: `npm run a11y` (axe-core, WCAG 2.2 AA + best-practice) over 9 routes at
+  390/1280; findings-first, exits 1 on serious/critical — cycle 2. Becomes a
+  CI gate once the baseline is clean.
 
 - 4.1: "Compliance scanner green on `src/`" is now enforced by
   `scripts/test-copy-corpus.mjs` with an exact allowlist of accepted negative
@@ -97,3 +131,9 @@ wins and the conflict is logged here so the prompt can be revised.
   11 corpus flags were negations) and H-007 (stale CONTEXT; evidence: seven
   corrected facts). Nothing retired. Generator table seeded with cycle-1
   yields. Scorecard 4.1 and 4.2 sharpened (corpus gate; envelope gate).
+- **2026-09-13 (cycle 2)** — added H-008 (structural claims are false until
+  computed; evidence: 315 pairs over the crawl-depth budget) and H-009 (grep
+  before adding an asset; evidence: the fonts were already tracked). Buyer walk
+  rewritten as a static graph walk after 0 yield in cycle 1 (it then yielded
+  the link-depth item). Accessibility sweep added as a generator. Hy-002
+  resolved by measurement; Hy-004 opened. Scorecards 4.6, 4.7, 4.9 sharpened.

@@ -4,10 +4,10 @@ import SEO from "./SEO";
 import LegalDoc from "./LegalDoc";
 import DisclaimerBanner from "./DisclaimerBanner";
 
-export default function LegalPageLayout({ seoTitle, seoDescription, content, prelude }) {
+export default function LegalPageLayout({ seoTitle, seoDescription, content, prelude, noindex = false }) {
   return (
     <>
-      <SEO title={seoTitle} description={seoDescription} />
+      <SEO title={seoTitle} description={seoDescription} noindex={noindex} />
       <div className="bg-se-black text-se-bone min-h-screen">
         <section className="pt-32 pb-12 md:pt-40 border-b border-se-concrete">
           <div className="content-wrap max-w-3xl">

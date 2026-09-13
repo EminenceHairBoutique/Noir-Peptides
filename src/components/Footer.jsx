@@ -79,6 +79,7 @@ const Footer = () => {
               <Link to="/shop/gh-secretagogue-research" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">GH-Secretagogue Research</Link>
               <Link to="/shop/neuropeptide-research" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Neuropeptide Research</Link>
               <Link to="/shop/mitochondrial-metabolic-research" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Mitochondrial &amp; Metabolic Research</Link>
+              <Link to="/deals" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Deals &amp; Bundle Pricing</Link>
               <Link to="/test-results" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Test Results (COA Library)</Link>
             </div>
           </div>
@@ -129,9 +130,15 @@ const Footer = () => {
       {/* Brand statement */}
       <div className="border-t border-se-concrete">
         <div className="content-wide py-10 text-center">
-          <p className="font-display text-[clamp(1.1rem,3vw,1.8rem)] tracking-[0.16em] text-se-bone/[0.10] leading-tight">
-            PRECISION · PURITY · PERFORMANCE
-          </p>
+          {/* Decorative watermark. Rendered from a CSS pseudo-element (index.css
+              .footer-watermark) so it is not text content — screen readers and
+              the contrast rule both skip it. Tagline is the retired-"Performance"
+              form: Provenance (Aug-26 compliance audit). */}
+          <div
+            aria-hidden="true"
+            data-text="PRECISION · PURITY · PROVENANCE"
+            className="footer-watermark font-display text-[clamp(1.1rem,3vw,1.8rem)] tracking-[0.16em] text-se-bone/[0.10] leading-tight"
+          />
         </div>
       </div>
 

@@ -55,7 +55,7 @@ export default function Faqs() {
                 </React.Fragment>
               ))}
             </h1>
-            <p className="text-[15px] text-se-bone/45 max-w-2xl font-accent leading-relaxed">
+            <p className="text-[15px] text-se-bone/55 max-w-2xl font-accent leading-relaxed">
               {FAQ_INTRO}
             </p>
           </div>

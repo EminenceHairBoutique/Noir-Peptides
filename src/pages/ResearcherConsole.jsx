@@ -179,7 +179,7 @@ export default function ResearcherConsole() {
                   </div>
                   <div>
                     <p className="font-display text-[15px] tracking-[0.02em]">{a.title}</p>
-                    <p className="text-[12px] text-se-bone/45 font-accent mt-1 leading-relaxed">{a.desc}</p>
+                    <p className="text-[12px] text-se-bone/55 font-accent mt-1 leading-relaxed">{a.desc}</p>
                   </div>
                 </Link>
               ))}
@@ -251,7 +251,7 @@ export default function ResearcherConsole() {
                   <Sparkles className="w-5 h-5 text-se-gold shrink-0" strokeWidth={1.5} />
                   <div>
                     <p className="font-display text-[15px]">Research Concierge & COA tools</p>
-                    <p className="text-[12px] text-se-bone/45 font-accent mt-1">
+                    <p className="text-[12px] text-se-bone/55 font-accent mt-1">
                       Compound background, COA interpretation, and literature summaries — never dosing or use guidance.
                     </p>
                   </div>
@@ -264,7 +264,7 @@ export default function ResearcherConsole() {
                   {articles.map((a) => (
                     <Link key={a.slug} to={`/research/${a.slug}`} className="block p-4 hover:bg-white/[0.02] transition">
                       <p className="font-display text-[14px] text-se-bone leading-snug">{a.title}</p>
-                      <p className="text-[12px] text-se-bone/45 font-accent mt-1 line-clamp-2">{a.summary}</p>
+                      <p className="text-[12px] text-se-bone/55 font-accent mt-1 line-clamp-2">{a.summary}</p>
                     </Link>
                   ))}
                 </div>

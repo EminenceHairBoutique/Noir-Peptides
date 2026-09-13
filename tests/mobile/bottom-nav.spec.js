@@ -72,6 +72,10 @@ test.describe("bottom navigation", () => {
 
   test("footer is fully reachable above the bar", async ({ page }) => {
     await page.goto("/shop", { waitUntil: "domcontentloaded" });
+    // Fonts are self-hosted with font-display: swap (opt cycle 2); a swap that
+    // lands AFTER the scroll grows the page and reads as the footer sitting
+    // below the bar. Measure only once every face has loaded.
+    await page.evaluate(() => document.fonts.ready);
     // behavior:"instant" — the site sets smooth scrolling, and measuring
     // mid-animation reads the footer still below the bar.
     await page.evaluate(() =>

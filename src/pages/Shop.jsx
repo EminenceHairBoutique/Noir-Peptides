@@ -261,7 +261,7 @@ export default function Shop() {
             <h1 className="font-display font-extrabold text-[clamp(2rem,6vw,4rem)] leading-[0.95] tracking-[0.01em]">
               {pageTitle.toUpperCase()}
             </h1>
-            <p className="text-[14px] text-se-bone/45 mt-4 max-w-xl font-accent">
+            <p className="text-[14px] text-se-bone/55 mt-4 max-w-xl font-accent">
               {activeCategory ? activeCategory.description : "Batch-documented peptide reference materials for qualified laboratory research."}
             </p>
           </div>
@@ -383,6 +383,9 @@ export default function Shop() {
                 {Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[3/4] glass-panel se-skeleton" aria-hidden="true" />)}
               </div>
             ) : filtered.length > 0 ? (
+              <>
+                {/* a11y (opt cycle 2): the cards are <h3>; give the section its <h2> so heading levels do not skip. */}
+                <h2 className="sr-only">Products</h2>
               <div className="grid grid-cols-2 max-[359px]:grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {filtered.map((product, i) => {
                   const selected = compareIds.includes(product.id);
@@ -410,6 +413,7 @@ export default function Shop() {
                   );
                 })}
               </div>
+              </>
             ) : (
               <div className="text-center py-24">
                 <p className="font-display text-[20px] tracking-[0.04em] text-se-steel mb-4">NO RESEARCH MATERIALS FOUND</p>

@@ -127,6 +127,15 @@ for (const f of AI) {
   ok(!/mechanism|pathway|receptor|signal(l)?ing/i.test(txt), `${f}: no "mechanism/pathway/receptor/signaling" in its instructions or prompts`);
 }
 
+console.log("\nRetired tagline never reappears (Aug-26 audit: Performance → Provenance):");
+{
+  const { readdirSync, statSync } = await import("node:fs");
+  const walk = (d, out = []) => { for (const e of readdirSync(d)) { const p = `${d}/${e}`; if (statSync(p).isDirectory()) walk(p, out); else if (/\.(jsx?|mjs|css|html)$/.test(e)) out.push(p); } return out; };
+  const files = [...walk(new URL("../src", import.meta.url).pathname), new URL("../index.html", import.meta.url).pathname];
+  const hits = files.filter((f) => /purity\s*[·•-]\s*performance/i.test(readFileSync(f, "utf8")));
+  ok(hits.length === 0, `no source file carries "Purity · Performance" (found: ${JSON.stringify(hits.map((f) => f.split("/src/")[1] || f))})`);
+}
+
 console.log("\nCatalog + research carry no injection-consumable naming:");
 {
   const blob = corpus.map(([, t]) => t).join("\n");

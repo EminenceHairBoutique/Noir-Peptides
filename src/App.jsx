@@ -196,7 +196,7 @@ export default function App() {
               <Route path="/legal/fda-disclaimer" element={<Page><FdaDisclaimer /></Page>} />
               <Route path="/legal/ruo-agreement" element={<Page><RuoAgreement /></Page>} />
               <Route path="/legal/shipping" element={<Page><ShippingRefunds /></Page>} />
-              <Route path="/legal/returns" element={<Page><ShippingRefunds /></Page>} />
+              <Route path="/legal/returns" element={<Page><ShippingRefunds alias /></Page>} />
 
               {/* ── PUBLIC CATALOG (browse without login; purchase is gated) ──
                    Catalog reads are public at the data layer (migration 0013)

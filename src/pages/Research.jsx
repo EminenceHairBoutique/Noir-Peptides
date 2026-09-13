@@ -72,7 +72,7 @@ export default function Research() {
             <h2 className="font-display text-[clamp(1.4rem,3.5vw,2.2rem)] tracking-[0.02em] mb-4">
               ACCESS THE RESEARCH CATALOG
             </h2>
-            <p className="text-[14px] text-se-bone/45 max-w-xl mx-auto leading-relaxed font-accent mb-8">
+            <p className="text-[14px] text-se-bone/55 max-w-xl mx-auto leading-relaxed font-accent mb-8">
               The full batch-documented catalog and certificates of analysis are
               available to verified researchers after a brief research-use
               attestation.

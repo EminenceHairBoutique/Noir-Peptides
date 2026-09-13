@@ -10,6 +10,8 @@
 // once per session and memoized.)
 
 const FONT_FILES = [
+  // NOTE: these same files also serve the page fonts (src/fonts.css, opt
+  // cycle 2). Renaming or replacing one here changes the storefront too.
   { family: "Syne", file: "/fonts/syne-var.woff2", weight: "700 800" },
   { family: "DM Sans", file: "/fonts/dm-sans-var.woff2", weight: "400 600" },
   { family: "IBM Plex Mono", file: "/fonts/ibm-plex-mono-400.woff2", weight: "400" },
