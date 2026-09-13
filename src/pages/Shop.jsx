@@ -9,6 +9,8 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Search, SlidersHorizontal, X, GitCompare, Check } from "lucide-react";
 import { motion as Motion } from "framer-motion";
 
+const ANIMATED_CARDS = 8;
+
 import { getProducts, getCategories, getAllVariants } from "../lib/catalog";
 import { getAllCoas } from "../lib/coas";
 import { getApprovedProductLabels } from "../lib/labelsApi";
@@ -393,9 +395,14 @@ export default function Shop() {
                   return (
                     <Motion.div
                       key={product.id}
-                      initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
+                      // Opt cycle 11 (4.7 TBT): only the first eight cards (the fold on
+                      // any width) run the entrance animation; the other 36 mount static.
+                      // 44 simultaneous tweens put /shop over the 200 ms TBT budget in CI.
+                      initial={i < ANIMATED_CARDS ? { opacity: 0, y: 15 } : false} animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, delay: Math.min(i * 0.04, 0.4), ease: [0.2, 0, 0, 1] }}
-                      className="relative"
+                      // Lever B: cards below the fold skip layout/paint until scrolled near
+                      // (content-visibility); the intrinsic size keeps the scrollbar honest.
+                      className={i < ANIMATED_CARDS ? "relative" : "relative [content-visibility:auto] [contain-intrinsic-size:auto_380px]"}
                     >
                       {compareMode && (
                         <button
