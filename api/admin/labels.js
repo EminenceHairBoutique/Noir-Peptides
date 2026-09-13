@@ -20,6 +20,7 @@ import {
 } from "../../lib/labelConstants.js";
 import { seedFieldsForVariant } from "../../lib/labelSeed.js";
 import { failSafely } from "../../lib/apiError.js";
+import { checkLabelFields } from "../../lib/labelCopyRules.js";
 
 const COLS = "*";
 
@@ -181,6 +182,10 @@ export default async function handler(req, res) {
     if (!fields.display_name) return json(res, 400, { error: "display_name is required" });
     if (!fields.quantity_label) return json(res, 400, { error: "quantity_label is required" });
     if (!fields.sku) return json(res, 400, { error: "sku is required" });
+    // Opt cycle 5 (4.1): text that will print is held to the label copy rules
+    // at the door — the same rules the build gate renders real labels against.
+    const copyProblems = checkLabelFields(fields);
+    if (copyProblems.length) return json(res, 400, { error: "Label copy rejected — use language is not allowed on a label", details: copyProblems });
 
     // Validate the FK targets BEFORE inserting (service-role read = database
     // truth, regardless of RLS). A stale or fallback-fed picker must produce
@@ -242,6 +247,8 @@ export default async function handler(req, res) {
 
     const fields = pickWritable(body || {});
     delete fields.product_id; // no reparenting on edit
+    const copyProblems = checkLabelFields(fields);
+    if (copyProblems.length) return json(res, 400, { error: "Label copy rejected — use language is not allowed on a label", details: copyProblems });
 
     // Status transition (optional, validated against the shared map).
     let action = "updated";

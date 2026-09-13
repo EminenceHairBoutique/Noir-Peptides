@@ -19,6 +19,7 @@ import { scanCopy } from "../src/lib/complianceScan.js";
 import { renderLabelSvg, TEMPLATES } from "../src/lib/labels/renderLabelSvg.js";
 import { STORAGE_PRESETS, RECONSTITUTION_NOTE } from "../src/lib/labels/storage.js";
 import { RUO_PRIMARY_WARNING, RUO_SECONDARY_WARNING, STORAGE_UNVERIFIED_PLACEHOLDER, COMPOSITION_PENDING_PLACEHOLDER } from "../lib/labelConstants.js";
+import { LABEL_USE_PATTERNS, NEGATION } from "../lib/labelCopyRules.js";
 
 const DUMP = process.argv.includes("--dump");
 let failures = 0;
@@ -50,16 +51,9 @@ const configs = [
   ["no-lot", { ...base, lot_number: "", expiration_date: null }],
 ];
 
-// Anything that reads as preparing the material for use. A label may state
-// what the material IS and how to STORE it — never what to do with it.
-const FORBIDDEN = [
-  [/\b\d+(?:\.\d+)?\s?m[lL]\b/, "a liquid volume"],
-  [/\bbacteriostatic|\bBAC\b|sterile water|saline|solvent|diluent/i, "a solvent"],
-  [/\binject|syringe|needle|subcutaneous|intramuscular|intravenous|\boral\b|nasal|topical|sublingual/i, "a route of administration"],
-  [/\bdos(?:e|es|age|ing)\b|\bmg\/kg\b|\bmcg\b|µg\/kg/i, "a dose"],
-  [/\bdaily\b|\bweekly\b|per day|twice a|every \d+ (?:hours|days)|\bcycle\b/i, "a schedule"],
-  [/\breconstitute\s+(?:with|in|using)\b/i, "a reconstitution instruction"],
-];
+// The rule set is shared with api/admin/labels.js (lib/labelCopyRules.js), so
+// what an admin types is held to exactly what this gate renders against.
+const FORBIDDEN = LABEL_USE_PATTERNS;
 
 // route → sorted accepted "category:term" findings (negations only).
 const ACCEPTED = {
@@ -72,7 +66,6 @@ const ACCEPTED = {
   "neural-grid/front": [],
   "neural-grid/full_wrap": ["therapeutic-benefit:therapeutic"],
 };
-const NEGATION = /\b(not|never|no|nor|without)\b/i;
 
 console.log(`Label copy — ${Object.keys(TEMPLATES).length} templates × 2 presets × ${configs.length} configs:`);
 let rendered = 0, unexpected = 0, forbidden = 0, badNeg = 0;

@@ -7,6 +7,29 @@ live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
 
+## ✅ Done (Sept-13 optimization cycle 5 — branch `claude/opt-cycle-5-20260913`)
+
+Three verified items and one measured cut (`OPTIMIZATION_LOG.md`, cycle 5):
+
+- **Legal: what an admin types on a label is refused at the door.** Label
+  configs are checked at create and patch against the same rules the build
+  gate renders real labels against — use language (volume, solvent, route,
+  dose, schedule, reconstitution instruction) or an un-negated scanner
+  finding returns a 400 naming the field. Nothing can print past it.
+- **Commerce + accessibility: the gated checkout is exercised end to end.**
+  `npm run build:e2e` and an authenticated fixture (no database, no
+  production seam) let E2E walk /cart → checkout step 1 → step 2 with the
+  keyboard, assert a focus indicator at every stop, and prove that a stale
+  attestation bounces to the attestation step. CI's E2E job uses it.
+- **Ops: the confirmation email is a receipt.** Line items, quantities, unit
+  prices, total, ship-to snapshot, shipping method, the research-use line;
+  user text escaped; nothing fabricated when data is absent.
+- **Cut, with data:** a styled prerender shell (site typography for the
+  first-second view) made the home page's largest paint land 860 ms later in
+  4 of 4 runs against main. Reverted; the measurements refine Hy-008.
+
+**What didn't move (owner):** unchanged from cycle 4.
+
 ## ✅ Done (Sept-13 optimization cycle 4 — branch `claude/opt-cycle-4-20260913`)
 
 Six verified items (`OPTIMIZATION_LOG.md`, cycle 4):
