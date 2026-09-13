@@ -41,7 +41,9 @@ async function aiAugment(text) {
     const out = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("\n");
     return { available: true, findings: extractJsonArray(out) };
   } catch (err) {
-    return { available: true, error: err?.message || "AI scan failed", findings: [] };
+    // Admin-only, but provider error text still stays server-side.
+    console.error("[ai/compliance-scan] deep scan failed:", err?.message || err);
+    return { available: true, error: "AI scan failed", findings: [] };
   }
 }
 

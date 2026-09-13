@@ -4,6 +4,7 @@
  * Uses service-role to bypass RLS while still verifying identity server-side.
  */
 import { requirePartner } from "../_utils/auth.js";
+import { failSafely } from "../../lib/apiError.js";
 import { supabaseServer } from "../../lib/supabaseServer.js";
 
 function json(res, status, body) {
@@ -78,7 +79,7 @@ export default async function handler(req, res) {
       .update(patch)
       .eq("user_id", partner.id);
 
-    if (error) return json(res, 500, { error: "DB error: " + error.message });
+    if (error) return failSafely(res, { status: 500, code: "directory_settings_failed", message: "Could not save directory settings. Please try again.", error, context: "partners/directory-settings" });
     return json(res, 200, { ok: true });
   }
 

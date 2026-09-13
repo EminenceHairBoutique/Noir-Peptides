@@ -1,4 +1,5 @@
 import { supabaseServer } from "../../lib/supabaseServer.js";
+import { failSafely } from "../../lib/apiError.js";
 import { requireAdmin } from "../_utils/auth.js";
 import { jsonResponse as json } from "../_utils/body.js";
 
@@ -35,10 +36,7 @@ export default async function handler(req, res) {
 
   const { data, error } = await safeFetchApplications();
   if (error) {
-    return json(res, 500, {
-      error: "Could not fetch applications",
-      details: String(error.message || error),
-    });
+    return failSafely(res, { status: 500, code: "partner_applications_failed", message: "Could not fetch applications", error, context: "admin/partner-applications" });
   }
 
   return json(res, 200, { ok: true, applications: data || [] });

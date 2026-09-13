@@ -5,6 +5,7 @@
 // The AI concierge lives at api/ai/concierge.js.
 
 import { sendConciergeRequestEmail } from "../lib/email.js";
+import { failSafely } from "../lib/apiError.js";
 import { supabaseServer } from "../lib/supabaseServer.js";
 import { checkRateLimit } from "./_utils/rateLimit.js";
 import { readJsonBody } from "./_utils/body.js";
@@ -76,7 +77,15 @@ export default async function handler(req, res) {
     await sendConciergeRequestEmail({ type, payload });
     res.status(200).json({ ok: true });
   } catch (err) {
-    console.error("contact error", err);
-    res.status(500).send(err?.message || "Failed to send contact request");
+    // Public endpoint: never echo a provider/transport error to the browser.
+    // failSafely logs the real cause under a request id and returns the
+    // stable envelope {error, code, requestId}.
+    return failSafely(res, {
+      status: 500,
+      code: "contact_failed",
+      message: "We could not send your request. Please try again or email support directly.",
+      error: err,
+      context: "contact",
+    });
   }
 }
