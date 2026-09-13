@@ -21,7 +21,8 @@
     "test:e2e:prod": "node scripts/e2e-prod.mjs",
     "test:labels": "node scripts/test-labels.mjs",
     "test:cart": "node scripts/test-cart-pricing.mjs",
-    "perf": "node scripts/perf-profile.mjs"
+    "perf": "node scripts/perf-profile.mjs",
+    "perf:compare": "node scripts/perf-compare.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
