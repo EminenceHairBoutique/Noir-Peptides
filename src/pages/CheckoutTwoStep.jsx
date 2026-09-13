@@ -195,7 +195,11 @@ export default function CheckoutTwoStep() {
       <div className="bg-se-black text-se-bone min-h-screen pt-28 pb-24">
         <div className="content-wide grid lg:grid-cols-12 gap-10">
           <div className="lg:col-span-7">
-            <ProgressBar step={step} />
+            {/* Opt c7 (4.9): the page's level-one heading — axe flagged both steps
+            without one. Visually the progress bar carries the step; the h1 is
+            for the document outline and screen readers. */}
+        <h1 className="sr-only">Checkout — step {step} of 2: {step === 1 ? "Personal" : "Payment"}</h1>
+        <ProgressBar step={step} />
             <DisclaimerBanner className="mb-6" />
             {step === 1 ? (
               <StepPersonal state={form} setState={setForm} subtotalDollars={subtotal}

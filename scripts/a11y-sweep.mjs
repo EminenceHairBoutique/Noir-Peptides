@@ -30,6 +30,48 @@ for (const width of [390, 1280]) {
   }
   await context.close();
 }
+// Opt c7 (4.9): the GATED pages. Works against the `npm run build:e2e` dist
+// (the auth fixture routes the fake Supabase host); against the production
+// build /cart bounces to /login and the pass is skipped with a note.
+let authedViews = 0;
+try {
+  const { installAuth } = await import("../tests/e2e/fixtures/auth.js");
+  for (const width of [390, 1280]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await context.newPage();
+    await installAuth(page);
+    await page.goto(base + "/product/bpc-157", { waitUntil: "networkidle" });
+    const add = page.getByRole("button", { name: /add to cart/i }).first();
+    if (await add.isVisible().catch(() => false)) { await add.click(); await page.keyboard.press("Escape"); }
+    await page.goto(base + "/cart", { waitUntil: "networkidle" });
+    if (!/\/cart$/.test(page.url())) { console.log(`authed pass skipped at ${width}px (dist is not the E2E build; landed on ${new URL(page.url()).pathname})`); await context.close(); break; }
+    const sweep = async (label) => {
+      await page.waitForTimeout(400);
+      const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+      for (const v of results.violations) report.push({ width, route: label, id: v.id, impact: v.impact, help: v.help, helpUrl: v.helpUrl, nodes: v.nodes.slice(0, 5).map((n) => ({ target: n.target.join(" "), html: n.html.slice(0, 160), summary: n.failureSummary?.split("\n")[1]?.trim() })), count: v.nodes.length });
+      console.log(`${width}px ${label}: ${results.violations.length} rule(s) violated, ${results.passes.length} passed`);
+      authedViews++;
+    };
+    await sweep("/cart (authed)");
+    await page.goto(base + "/checkout", { waitUntil: "networkidle" });
+    await page.locator("#ct-first").waitFor({ timeout: 15000 });
+    await sweep("/checkout step 1 (authed)");
+    await page.fill("#ct-first", "Ada"); await page.fill("#ct-last", "Lovelace"); await page.fill("#ct-email", "researcher@e2e.test");
+    await page.fill("#ship-line1", "12 Lab Row"); await page.fill("#ship-city", "Austin"); await page.selectOption("#ship-state", "TX"); await page.fill("#ship-zip", "78701");
+    await page.selectOption("#ri-entity", { index: 1 }); await page.selectOption("#ri-protocol", { index: 1 });
+    await page.locator('input[name="shipmethod"]').first().check();
+    const boxes = page.locator('section[aria-labelledby="at-h"] input[type="checkbox"]');
+    for (let i = 0; i < await boxes.count(); i++) await boxes.nth(i).check();
+    await page.getByRole("button", { name: /continue to payment/i }).click();
+    await page.getByText(/BTCPay/i).first().waitFor({ timeout: 15000 });
+    await sweep("/checkout step 2 (authed)");
+    await context.close();
+  }
+} catch (e) {
+  console.log(`authed pass skipped: ${e?.message?.split("\n")[0]}`);
+}
+console.log(`authed page-views swept: ${authedViews}`);
+
 fs.writeFileSync(out, JSON.stringify(report, null, 2));
 const byRule = {};
 for (const r of report) { const k = `${r.impact}|${r.id}`; byRule[k] = byRule[k] || { impact: r.impact, id: r.id, help: r.help, pages: new Set(), nodes: 0 }; byRule[k].pages.add(`${r.route}@${r.width}`); byRule[k].nodes += r.count; }
@@ -65,6 +107,7 @@ let keyboardFailures = 0;
   }
   await context.close();
 }
+
 
 await browser.close();
 const blocking = report.filter((r) => r.impact === "critical" || r.impact === "serious").length;
