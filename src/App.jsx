@@ -8,6 +8,7 @@ import AgeGate from "./components/AgeGate";
 const CartDrawer = lazy(() => import("./components/CartDrawer"));
 import useRouteAnalytics from "./hooks/useRouteAnalytics";
 import { FEATURES } from "./config/features";
+import CartRecoveryNudge from "./components/CartRecoveryNudge";
 
 // Layout
 import Navbar from "./components/Navbar";
@@ -154,6 +155,7 @@ export default function App() {
       <Suspense fallback={null}>
         <CartDrawer />
       </Suspense>
+      {FEATURES.cartRecovery && !isBare && <CartRecoveryNudge />}
 
       <div
         className={`transition-all duration-300 ${

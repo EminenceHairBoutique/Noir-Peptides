@@ -35,7 +35,7 @@ console.log("Feature flags screen:");
 {
   const src = fs.readFileSync("api/admin/flags.js", "utf8");
   ok(!/PATCH|POST|PUT|DELETE/.test(src.replace(/\/\/[^\n]*/g, "")), "the endpoint has no write path (GET only)");
-  ok(FLAG_INVENTORY.map((f) => f.env).sort().join() === ["FEATURE_AI_PUBLIC", "VITE_FEATURE_AI_PUBLIC", "VITE_FEATURE_CALCULATOR"].join(), "inventory is exactly the three flags lib/featureFlags.js knows");
+  ok(FLAG_INVENTORY.map((f) => f.env).sort().join() === ["FEATURE_AI_PUBLIC", "VITE_FEATURE_AI_PUBLIC", "VITE_FEATURE_CALCULATOR", "VITE_FEATURE_CART_RECOVERY"].join(), "inventory is exactly the four flags lib/featureFlags.js knows");
   const off = flagStates({});
   ok(off.every((f) => f.on === false && f.set === false), "with nothing set every flag reports off / not set");
   const on = flagStates({ VITE_FEATURE_CALCULATOR: "1", FEATURE_AI_PUBLIC: "off", VITE_FEATURE_AI_PUBLIC: "sk_live_secretvalue" });

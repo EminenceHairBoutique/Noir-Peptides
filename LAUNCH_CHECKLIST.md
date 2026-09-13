@@ -80,6 +80,13 @@ assert that.
       are unaffected. To enable, set BOTH `VITE_FEATURE_AI_PUBLIC=1` (client
       route) and `FEATURE_AI_PUBLIC=1` (server endpoints), then redeploy.
       `ANTHROPIC_API_KEY` is still required for the endpoints to answer.
+- [ ] **Saved-cart return nudge** (opt cycle 11). Off by default: nothing
+      renders. On, a dismissible "Your cart is saved" bar links back to
+      `/cart` on public pages when the persisted cart has items; it reads the
+      cart only (never the checkout draft) and sends nothing. To enable:
+      `VITE_FEATURE_CART_RECOVERY=1` in Vercel env, then redeploy. A
+      server-sent reminder email is drafted (`cartReminderHtml`) but has no
+      sender — it needs a scheduled, write-capable workflow and your decision.
 
 ## 6) Analytics (prepared, not activated)
 
