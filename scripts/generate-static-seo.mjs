@@ -32,6 +32,7 @@ import {
   getVisibleProductsInCategory,
   hiddenCategorySlugs as staticHiddenCategorySlugs,
 } from "../src/data/tier1Catalog.js";
+import { HERO_DISCLAIMER, DISCLAIMER_FULL } from "../src/config/compliance.js";
 import { displayNameOf } from "../src/lib/displayName.js";
 
 // Opt cycle 9 (C7): products.code_name, fetched at build when the database is
@@ -51,7 +52,7 @@ import {
   DEALS_SHELL,
   TEST_RESULTS_SHELL,
   HOME_COPY,
-} from "../src/data/pageCopy.js";
+ SHOP_COPY } from "../src/data/pageCopy.js";
 import {
   RESEARCH_USE_POLICY_DOC,
   FDA_DISCLAIMER_DOC,
@@ -212,13 +213,12 @@ function ensureSiteUrl(pathname) {
 // chunk in <head>. Never the heavy lazy vendors (3D / PDF / QR) — the PDP
 // preload guard (test-pdp-preload.mjs) enforces that; a chunk is only ever
 // listed here when it is a STATIC import of the page.
-// The landing page (/) is deliberately NOT mapped: with its 4 KB chunk
-// resident before the main bundle finishes, the throttled-mobile profile
-// (npm run perf) showed its largest paint landing ~900 ms LATER (2.0 s →
-// 2.9 s, 5 of 6 runs) while /shop improved by ~380 ms; the mechanism is
-// suspected to be the route fade-in competing with initial script work.
-// Re-test after the fade is revisited (PLAYBOOK Hy-007).
+// The landing page (/) was unmapped from cycle 3 to 10 on a perf:compare
+// measurement (Hy-007, refuted as to mechanism). With paint-first loading
+// (opt cycle 11) every preload starts after the first frame, so the landing
+// chunk rides along — re-measured through the LHCI gate.
 const ROUTE_PAGE_SOURCES = [
+  [/^\/$/, "PublicLanding"],
   [/^\/shop(\/|$)/, "Shop"],
   [/^\/product\//, "ProductDetail"],
   [/^\/test-results$/, "TestResults"],
@@ -254,6 +254,51 @@ async function loadViteManifest() {
     return null;
   }
 }
+// ── Paint-first loading (opt cycle 11, scorecard 4.7) ─────────────────────
+// Vite hoists the entry <script type="module"> and its vendor modulepreloads
+// into <head>, so the whole JavaScript wave starts at parse time — BEFORE the
+// prerendered page paints — and Lighthouse's simulator charges every one of
+// those requests to the largest paint (measured: the shell paragraph never got
+// a frame; React's paint was the LCP on every route). The build now replaces
+// that tag with /boot.js, an EXTERNAL loader (an inline script would flip the
+// CSP gate) that appends the same preloads and the entry after the first
+// painted frame. The per-route chunk list rides on the same tag.
+const ENTRY_TAG_RE = /[ \t]*<script type="module" crossorigin src="(\/assets\/index-[\w-]+\.js)"><\/script>\n?/;
+const VENDOR_PRELOAD_RE = /[ \t]*<link rel="modulepreload" crossorigin href="(\/assets\/[\w.-]+\.js)">\n?/g;
+const BOOT_TAG_RE = /<script src="\/boot\.js" defer data-entry="[^"]*" data-preload="[^"]*"><\/script>/;
+export function renderBootTag(entry, preloads) {
+  return `<script src="/boot.js" defer data-entry="${entry}" data-preload="${preloads.join(",")}"></script>`;
+}
+/** Rewrites Vite's entry script + vendor preloads into the boot tag; returns what it removed. */
+export function paintFirst(html) {
+  const entryMatch = html.match(ENTRY_TAG_RE);
+  if (!entryMatch) return { html, entry: null, vendorPreloads: [] };
+  const entry = entryMatch[1];
+  const vendorPreloads = [...html.matchAll(VENDOR_PRELOAD_RE)].map((m) => m[1]);
+  let out = html.replace(VENDOR_PRELOAD_RE, "");
+  const indent = (entryMatch[0].match(/^[ \t]*/) || [""])[0];
+  out = out.replace(ENTRY_TAG_RE, `${indent}${renderBootTag(entry, vendorPreloads)}\n`);
+  return { html: out, entry, vendorPreloads };
+}
+/** The route's page chunk + its static imports, minus what the boot tag already lists. */
+export function routePreloadFiles(pathname, manifest, already = new Set()) {
+  if (!manifest) return [];
+  const key = routePageSource(pathname);
+  if (!key || !manifest[key]) return [];
+  const files = [];
+  const seen = new Set();
+  const visit = (k) => {
+    if (seen.has(k) || !manifest[k]) return;
+    seen.add(k);
+    const entry = manifest[k];
+    const href = entry.file ? `/${entry.file}` : null;
+    if (href && !NEVER_PRELOAD.test(href) && !already.has(href)) files.push(href);
+    for (const imp of entry.imports || []) visit(imp);
+  };
+  visit(key);
+  return files;
+}
+
 /** <link rel="modulepreload"> tags for a route's page chunk + its static imports. */
 export function renderRoutePreloads(pathname, manifest, baseHtml) {
   if (!manifest) return "";
@@ -503,7 +548,7 @@ function renderProductBody(p, related = []) {
   ].join("");
 }
 
-function renderListBody(heading, intro, prods, trail) {
+function renderListBody(heading, intro, prods, trail, extraBlocks = []) {
   const crumbs = trail
     ? `<nav aria-label="Breadcrumb">${trail
         .map((c, i) => `${i ? " / " : ""}<a href="${escapeHtml(c.href)}">${escapeHtml(c.name)}</a>`)
@@ -521,7 +566,8 @@ function renderListBody(heading, intro, prods, trail) {
     "<main>",
     crumbs,
     `<h1>${escapeHtml(heading)}</h1>`,
-    `<p>${escapeHtml(intro)}</p>`,
+    `<p style="font-family:var(--font-mono);font-size:17px;line-height:1.6">${escapeHtml(intro)}</p>`,
+    ...extraBlocks,
     `<ul>${items}</ul>`,
     `<p><strong>${RUO_LINE}</strong></p>`,
     renderFooterNav(),
@@ -543,7 +589,11 @@ function renderHomeBody(categories) {
   return [
     "<main>",
     "<h1>Noir Peptides — Research-Grade Peptide Reference Materials</h1>",
-    `<p>${escapeHtml(HOME_COPY.intro)} ${escapeHtml(HOME_COPY.posture)}</p>`,
+    // Shell parity (opt cycle 11): the same sentence React renders, in the same
+    // face and one pixel larger, so the FIRST paint is the page's largest
+    // paint and hydration never moves it (Hy-008).
+    `<p style="font-family:var(--font-mono);font-size:16px;line-height:1.65">${escapeHtml(HOME_COPY.intro)} ${escapeHtml(HOME_COPY.posture)}</p>`,
+    `<p style="font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase">${escapeHtml(HERO_DISCLAIMER)}</p>`,
     "<p>Batch-documented peptide reference materials for laboratory research. " +
       "Per-batch certificate of analysis available.</p>",
     `<nav aria-label="Research catalog"><ul>` +
@@ -795,7 +845,7 @@ function renderDocumentsBody(sdsRows) {
 function renderShellBody(shell, extraBlocks = []) {
   return wrapBody([
     `<h1>${escapeHtml(shell.heading)}</h1>`,
-    `<p>${escapeHtml(shell.intro)}</p>`,
+    `<p style="font-size:18px;line-height:1.6">${escapeHtml(shell.intro)}</p>`,
     ...(shell.sectionHeading ? [`<h2>${escapeHtml(shell.sectionHeading)}</h2>`] : []),
     ...extraBlocks,
   ]);
@@ -1093,7 +1143,11 @@ async function main() {
   await fs.mkdir(DIST_DIR, { recursive: true });
 
   const indexPath = path.join(DIST_DIR, "index.html");
-  const baseHtml = await fs.readFile(indexPath, "utf8");
+  const paint = paintFirst(await fs.readFile(indexPath, "utf8"));
+  const baseHtml = paint.html;
+  if (paint.entry) console.log(`[seo] paint-first: entry ${paint.entry} + ${paint.vendorPreloads.length} vendor preload(s) moved behind /boot.js`);
+  else console.warn("[seo] paint-first: Vite entry tag not found — pages keep the parse-time script");
+  const bootAlready = new Set([...paint.vendorPreloads, ...(paint.entry ? [paint.entry] : [])]);
 
   // WHAT THIS SCRIPT EMITS (keep this accurate — do not "fix" toward an
   // auth-wall model; the catalog IS meant to be indexable).
@@ -1375,11 +1429,12 @@ async function main() {
       title: "Research Peptide Catalog",
       description:
         "Browse batch-documented peptide reference materials for laboratory research. Per-batch COA available. For research use only. Not for human or veterinary use.",
-      bodyHtml: renderListBody(
-        "Research Peptide Catalog",
-        "Batch-documented peptide reference materials for laboratory research. For research use only. Not for human or veterinary use.",
-        catalogProducts
-      ),
+      // Shell parity (opt cycle 11): React also renders the RUO banner above the
+      // grid; in the shell it is the same sentence one pixel larger, so the first
+      // paint stays the largest paint after hydration (Hy-008).
+      bodyHtml: renderListBody("Research Peptide Catalog", SHOP_COPY.intro, catalogProducts, undefined, [
+        `<p style="font-family:var(--font-mono);font-size:14px;line-height:1.625">${escapeHtml(DISCLAIMER_FULL)}</p>`,
+      ]),
     },
     ...catalogCategories.map((cat) => ({
       pathname: `/shop/${cat.slug}`,
@@ -1540,9 +1595,12 @@ async function main() {
       jsonLd,
     });
 
-    const preloads = renderRoutePreloads(pathname, viteManifest, baseHtml);
-    if (preloads) preloadedRoutes++;
-    const withSeo = replaceSeoBlock(baseHtml, preloads ? `${seoBlock.trim()}\n${preloads}` : seoBlock);
+    const routeFiles = routePreloadFiles(pathname, viteManifest, bootAlready);
+    if (routeFiles.length) preloadedRoutes++;
+    const withBoot = paint.entry
+      ? baseHtml.replace(BOOT_TAG_RE, renderBootTag(paint.entry, [...paint.vendorPreloads, ...routeFiles]))
+      : baseHtml;
+    const withSeo = replaceSeoBlock(withBoot, seoBlock);
     const finalHtml = injectBody(withSeo, route.bodyHtml);
 
     const outFile =

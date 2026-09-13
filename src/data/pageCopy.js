@@ -109,3 +109,10 @@ export const TEST_RESULTS_SHELL = {
   intro:
     "Every batch is documented with third-party analytical testing — identity by mass spectrometry and purity by HPLC. Browse published certificates below, or verify the exact lot printed on your vial.",
 };
+
+// One source for the catalog page's intro: React (src/pages/Shop.jsx) and the
+// prerendered shell (scripts/generate-static-seo.mjs) must render the same
+// sentence — the shell paragraph is the page's largest first paint.
+export const SHOP_COPY = {
+  intro: "Batch-documented peptide reference materials for qualified laboratory research.",
+};

@@ -22,10 +22,15 @@ const ok = (cond, msg) => {
 const DIST = path.join(process.cwd(), "dist");
 const walk = (d, out = []) => { for (const e of readdirSync(d)) { const p = path.join(d, e); if (statSync(p).isDirectory()) walk(p, out); else if (e === "index.html") out.push(p); } return out; };
 const pages = walk(DIST).map((p) => ["/" + path.relative(DIST, path.dirname(p)).split(path.sep).filter(Boolean).join("/"), readFileSync(p, "utf8")]);
-const preloads = (html) => [...html.matchAll(/<link rel="modulepreload"[^>]*href="([^"]+)"/g)].map((m) => m[1]);
+// Opt cycle 11: preloads live on the paint-first boot tag (data-preload) —
+// read those too, so the assertions hold whichever way a page announces them.
+const preloads = (html) => [
+  ...[...html.matchAll(/<link rel="modulepreload"[^>]*href="([^"]+)"/g)].map((m) => m[1]),
+  ...[...html.matchAll(/<script src="\/boot\.js" defer data-entry="[^"]*" data-preload="([^"]*)"/g)].flatMap((m) => m[1].split(",").filter(Boolean)),
+];
 
 const EXPECT = [
-  ["/shop", "Shop"], ["/product/bpc-157", "ProductDetail"], ["/test-results", "TestResults"],
+  ["/", "PublicLanding"], ["/shop", "Shop"], ["/product/bpc-157", "ProductDetail"], ["/test-results", "TestResults"],
   ["/documents", "Documents"], ["/verify-lot", "VerifyLot"],
   ["/research", "Research"], ["/legal/terms", "Terms"], ["/legal/shipping", "ShippingRefunds"], ["/faqs", "Faqs"],
   ["/about", "About"], ["/contact", "Contact"], ["/deals", "Deals"], ["/coa-policy", "CoaPolicy"], ["/login", "Login"],
@@ -37,10 +42,12 @@ for (const [route, chunk] of EXPECT) {
   ok(own.length === 1, `${route} preloads its page chunk ${chunk}-*.js (${own.join(", ") || "none"})`);
   ok(own.every((h) => existsSync(path.join(DIST, h))), `${route}: preloaded file exists in dist`);
 }
-// The landing page is excluded on measurement (see ROUTE_PAGE_SOURCES in the
-// generator): preloading its chunk made its largest paint ~900 ms later.
+// Opt cycle 11: with paint-first loading every preload starts after the first
+// frame, so the landing page announces its chunk like every other route.
 const home = pages.find(([p]) => p === "/");
-ok(home && !preloads(home[1]).some((h) => /\/assets\/PublicLanding-/.test(h)), "/ does NOT preload its route chunk (measured regression; PLAYBOOK Hy-007)");
+ok(home && preloads(home[1]).some((h) => /\/assets\/PublicLanding-/.test(h)), "/ preloads its route chunk behind the boot tag");
+ok(pages.every(([, html]) => /<script src="\/boot\.js" defer data-entry="\/assets\/index-[\w-]+\.js"/.test(html) && !/<script type="module" crossorigin src="\/assets\/index-/.test(html)), "every page loads the app through /boot.js — no parse-time module script");
+ok(existsSync(path.join(DIST, "boot.js")), "dist/boot.js is shipped");
 // Batch-history pages exist only when the build had database access.
 const batches = pages.filter(([p]) => /^\/test-results\/[^/]+$/.test(p));
 if (batches.length) ok(batches.every(([, html]) => preloads(html).some((h) => /\/assets\/TestResultsProduct-/.test(h))), `every batch-history page (${batches.length}) preloads the TestResultsProduct chunk`);

@@ -4,6 +4,7 @@
 // (up to 4 materials, analytical fields only), and premium loading/empty/error
 // states. All data is RLS-gated via lib/catalog; no static product fallback.
 import React, { useEffect, useMemo, useState } from "react";
+import { SHOP_COPY } from "../data/pageCopy";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Search, SlidersHorizontal, X, GitCompare, Check } from "lucide-react";
 import { motion as Motion } from "framer-motion";
@@ -262,7 +263,7 @@ export default function Shop() {
               {pageTitle.toUpperCase()}
             </h1>
             <p className="text-[14px] text-se-bone/55 mt-4 max-w-xl font-accent">
-              {activeCategory ? activeCategory.description : "Batch-documented peptide reference materials for qualified laboratory research."}
+              {activeCategory ? activeCategory.description : SHOP_COPY.intro}
             </p>
           </div>
         </section>
