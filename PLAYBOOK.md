@@ -103,14 +103,14 @@ wins and the conflict is logged here so the prompt can be revised.
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
 | Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 4 | 2 | cycle 6 (checkout draft survives a reload — found walking the gated flow the fixture opened) |
-| Regulator walk | 7 | 7 | cycle 7 (discount descriptions + lab names held to the rules at the door) |
+| Regulator walk | 8 | 7 | cycle 7 — cycle 8: the four research articles read by hand, clean; no dates emitted (none invented) — 0 yield |
 | Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 4 | 2 | cycle 4 (cart next-tier nudge — first hit since the rewrite) |
-| Data honesty sweep | 4 | 4 | cycle 7 (the "scan the label" claim traced end to end: render → rasterize → decode → parse, every template) |
+| Data honesty sweep | 5 | 5 | cycle 8 (rendered-hygiene gate: no leaked `undefined` / `NaN` / `[object Object]` / placeholder text on any page — found clean, now enforced) |
 | Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 6 | 4 | cycle 7 (hostile-client flood → rate-limit coverage gate; found nothing missing, now enforced) |
-| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 7 | 6 | cycle 4 — cycles 5–6: two timing items measured and cut; cycle 7: not run (rewrite first) |
-| Ops dry run | 6 | 4 | cycle 7 (runbook brought current: deploy hook, Errors tab, E2E build, copy gates) |
-| Inversion | 4 | 3 | cycle 5 ("what makes a chargeback stick?" → receipt-grade confirmation email) |
-| Accessibility sweep (axe) — added cycle 2 | 5 | 5 | cycle 7 (authenticated pass over /cart and both checkout steps; missing h1 found and fixed) |
+| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 8 | 7 | cycle 8 (first run of the rewrite: per-route bytes & requests budget gate in the E2E job) |
+| Ops dry run | 7 | 5 | cycle 8 (post-deploy smoke chain on every production deployment) |
+| Inversion | 5 | 4 | cycle 8 ("what drops us from Google?" → every unknown path was a soft 404; real 404s + the never-emitted /quality page found on the way) |
+| Accessibility sweep (axe) — added cycle 2 | 6 | 6 | cycle 8 (horizontal-overflow guard on the gated pages inside the authenticated pass) |
 
 ## Retired
 
@@ -295,6 +295,21 @@ wins and the conflict is logged here so the prompt can be revised.
 - 4.9: the axe sweep covers the gated pages (/cart, checkout step 1 and 2)
   through the auth fixture on the E2E build — cycle 7.
 
+- 4.6: "every unknown path is a real 404" — `vercel.json` rewrites only the
+  client-side routes, the generator emits `dist/404.html`, `serve-dist.mjs`
+  reads the same rule; `scripts/test-routing.mjs` proves every declared
+  route is prerendered or rewritten and junk paths are not — cycle 8.
+- 4.7: per-route transfer KB and request budgets enforced by
+  `scripts/test-bytes-budget.mjs` (E2E job) — cycle 8.
+- 4.8 / 4.4: rendered hygiene (no lorem / TBD / `undefined` / `NaN` /
+  `[object Object]` / template braces / "placeholder" in what a person
+  reads) enforced by `scripts/test-dist-hygiene.mjs` — cycle 8.
+- 4.10: no horizontal overflow on the gated pages, asserted in the sweep's
+  authenticated pass — cycle 8.
+- 4.12: "post-deploy `test:e2e:prod` chain wired" —
+  `.github/workflows/post-deploy.yml` on every successful Production
+  deployment — cycle 8.
+
 ## Change log
 
 - **2026-09-13 (cycle 1)** — added H-001…H-005 (seeded, each re-verified or
@@ -339,3 +354,7 @@ wins and the conflict is logged here so the prompt can be revised.
   the one defect found (the labs handler read `picked.name` instead of
   `picked.fields.name`) was caught by the test written first. Scorecards
   4.1, 4.2, 4.4, 4.9 sharpened.
+- **2026-09-13 (cycle 8)** — no new heuristic (H-008 already covers the
+  cycle's lesson: the "/quality is a page" claim was false until the
+  routing gate computed it). Rewritten cost/perf generator yielded on its
+  first run. Scorecards 4.6, 4.7, 4.8, 4.10, 4.12 sharpened.

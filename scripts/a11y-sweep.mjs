@@ -47,6 +47,9 @@ try {
     if (!/\/cart$/.test(page.url())) { console.log(`authed pass skipped at ${width}px (dist is not the E2E build; landed on ${new URL(page.url()).pathname})`); await context.close(); break; }
     const sweep = async (label) => {
       await page.waitForTimeout(400);
+      // Opt c8 (4.10): the gated pages have no other overflow guard.
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      if (overflow > 1) { report.push({ width, route: label, id: "horizontal-overflow", impact: "serious", help: `page scrolls horizontally by ${overflow}px`, nodes: [], count: 1 }); console.log(`${width}px ${label}: horizontal overflow ${overflow}px`); }
       const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
       for (const v of results.violations) report.push({ width, route: label, id: v.id, impact: v.impact, help: v.help, helpUrl: v.helpUrl, nodes: v.nodes.slice(0, 5).map((n) => ({ target: n.target.join(" "), html: n.html.slice(0, 160), summary: n.failureSummary?.split("\n")[1]?.trim() })), count: v.nodes.length });
       console.log(`${width}px ${label}: ${results.violations.length} rule(s) violated, ${results.passes.length} passed`);

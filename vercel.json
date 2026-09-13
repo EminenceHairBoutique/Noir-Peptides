@@ -66,7 +66,115 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/account/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/assistant",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/cancel",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/cart",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/catalog/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/checkout",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/coa/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/collections",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/disclaimer",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/drops",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/faq",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/forgot-password",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/help",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/home",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/privacy-choices",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/products/:slug",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/register/attestation",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/reset-password",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/returns",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/shipping-refunds",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/success",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/test-results/:slug",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/v/:code",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/verify",
       "destination": "/index.html"
     }
   ]

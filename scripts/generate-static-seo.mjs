@@ -559,6 +559,7 @@ const FOOTER_NAV = [
   { href: "/verify-lot", label: "Verify a Lot" },
   { href: "/documents", label: "Document Library" },
   { href: "/about", label: "About" },
+  { href: "/quality", label: "Quality & Batch Standards" },
   { href: "/faqs", label: "FAQ" },
   { href: "/contact", label: "Contact" },
   { href: "/legal/research-use-policy", label: "Research-Use Policy" },
@@ -1188,6 +1189,17 @@ async function main() {
       bodyHtml: renderLegalDocBody(COA_POLICY_DOC),
     },
     {
+      // Opt c8 (4.6): linked from the header and footer since the launch
+      // pass, imported here since the Sept-11 pass — and never emitted. It
+      // was reachable only through the SPA fallback (a 200 with no static
+      // body, absent from the sitemap); with real 404s it would have vanished.
+      pathname: "/quality",
+      title: "Quality & Batch Standards | Noir Peptides",
+      description:
+        "Noir Peptides quality and batch standards: research-use transparency, batch documentation, and clear product metadata. For research use only.",
+      bodyHtml: renderLegalDocBody(QUALITY_DOC),
+    },
+    {
       // Standalone research-use agreement (its own linkable document, so an
       // auditor or a payment underwriter can cite one URL). Body comes verbatim
       // from RUO_AGREEMENT_DOC — the same string the React page renders.
@@ -1507,6 +1519,15 @@ async function main() {
 
     await fs.mkdir(path.dirname(outFile), { recursive: true });
     await fs.writeFile(outFile, finalHtml, "utf8");
+  }
+  // Opt c8 (4.6): Vercel serves dist/404.html with a REAL 404 status for any
+  // path no file and no rewrite matches (vercel.json rewrites only the
+  // client-side routes). Same document as /404/index.html.
+  try {
+    await fs.copyFile(path.join(DIST_DIR, "404", "index.html"), path.join(DIST_DIR, "404.html"));
+    console.log("[seo] wrote 404.html (served with a 404 status for unknown paths)");
+  } catch (e) {
+    console.warn(`[seo] 404.html not written: ${e?.message || e}`);
   }
   if (viteManifest) {
     console.log(`[seo] route-chunk modulepreload injected into ${preloadedRoutes} pages`);

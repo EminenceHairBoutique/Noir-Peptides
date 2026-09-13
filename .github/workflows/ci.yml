@@ -130,6 +130,13 @@ jobs:
       # QR round trip (opt cycle 7): render a label, rasterize it in Chromium,
       # decode the QR, parse it with the scanner's parser — for every template.
       - run: npm run test:qr
+      # Bytes & requests budget (opt cycle 8): what a first visit downloads
+      # per route against fixed ceilings; no timing assertions.
+      - name: Bytes & requests budget
+        run: |
+          node scripts/serve-dist.mjs &
+          sleep 2
+          npm run test:bytes
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

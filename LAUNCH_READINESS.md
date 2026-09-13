@@ -7,6 +7,28 @@ live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
 
+## ✅ Done (Sept-13 optimization cycle 8 — branch `claude/opt-cycle-8-20260913`)
+
+Five verified items (`OPTIMIZATION_LOG.md`, cycle 8):
+
+- **SEO: unknown paths are real 404s.** Vercel now rewrites only the
+  client-side routes to the app shell; everything else falls to a static
+  `404.html` served with a 404 status. On the way: the **Quality & Batch
+  Standards page had never been prerendered** — linked from the header and
+  footer since launch, reachable only through the SPA fallback, absent from
+  the sitemap. It is now a real page (sitemap 72 → 73).
+- **Observability: a post-deploy smoke chain** runs the server-gate specs
+  against every successful production deployment.
+- **Performance:** per-route bytes and request budgets are enforced in CI.
+- **UI hygiene:** no leaked `undefined` / `NaN` / placeholder text on any
+  rendered page — found clean, now enforced.
+- **Mobile:** the gated cart and checkout are guarded against horizontal
+  overflow.
+
+**Owner:** unchanged from cycle 7. Note for the next production deploy: the
+routing change means a mistyped product URL now returns 404 (as it should);
+every page linked anywhere on the site is covered by the routing gate.
+
 ## ✅ Done (Sept-13 optimization cycle 7 — branch `claude/opt-cycle-7-20260913`, stacked on cycle 6)
 
 Five verified items (`OPTIMIZATION_LOG.md`, cycle 7):
