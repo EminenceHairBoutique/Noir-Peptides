@@ -65,7 +65,7 @@ export default function TestResultsProduct() {
           <p className="mt-3 max-w-2xl text-se-steel">
             Every published certificate for this material, newest first. Each row is a
             specific tested lot;{" "}
-            <Link to={`/product/${product.slug}`} className="text-se-gold hover:underline">
+            <Link to={`/product/${product.slug}`} className="text-se-gold underline underline-offset-2">
               view the product page
             </Link>
             .
