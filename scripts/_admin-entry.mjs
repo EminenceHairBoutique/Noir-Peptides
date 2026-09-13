@@ -6,3 +6,4 @@ export { FIXTURES, FAULTS, LOG } from "../lib/supabaseServer.js";
 export { default as ordersHandler, loadAttestation, ATTESTATION_COLUMNS } from "../api/admin/orders.js";
 export { default as catalogHandler, triggerRebuild } from "../api/admin/catalog.js";
 export { default as labelConfigsHandler } from "../api/admin/labels.js";
+export { default as reviewsHandler } from "../api/reviews.js";

@@ -23,6 +23,12 @@ function builder(table) {
       FAULTS.missingColumnsOnce = false;
       return { data: null, error: { code: "42703", message: "column coas.lab_id does not exist" } };
     }
+    if (mode === "upsert") {
+      const row = { id: nextId++, created_at: "2026-09-13", ...payload };
+      (FIXTURES[table] ||= []).push(row);
+      LOG.push({ table, op: "upsert", row });
+      return { data: [row], error: null };
+    }
     if (mode === "insert") {
       const row = { id: nextId++, created_at: "2026-09-13", ...payload };
       (FIXTURES[table] ||= []).push(row);
@@ -42,6 +48,7 @@ function builder(table) {
   const api = {
     select(c) { if (c) cols = c; return api; },
     insert(p) { mode = "insert"; payload = p; return api; },
+    upsert(p) { mode = "upsert"; payload = p; return api; },
     update(p) { mode = "update"; payload = p; return api; },
     eq(col, val) { filters.push((r) => String(r[col]) === String(val)); return api; },
     order() { return api; },
