@@ -7,3 +7,5 @@ export { default as ordersHandler, loadAttestation, ATTESTATION_COLUMNS } from "
 export { default as catalogHandler, triggerRebuild } from "../api/admin/catalog.js";
 export { default as labelConfigsHandler } from "../api/admin/labels.js";
 export { default as reviewsHandler } from "../api/reviews.js";
+export { failSafely, recordServerError } from "../lib/apiError.js";
+export { default as serverErrorsHandler } from "../api/admin/server-errors.js";
