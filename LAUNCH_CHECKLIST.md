@@ -42,7 +42,7 @@ below are operator/legal/business actions the code cannot perform.
 - [ ] Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`.
 - [ ] Add the webhook endpoint `/api/stripe-webhook` (events:
       `checkout.session.completed`). `apiVersion` is pinned in code.
-- [ ] Optional: create a US shipping rate and set `STRIPE_US_SHIPPING_RATE_ID`
+- [x] Shipping is resolved server-side in integer cents from `src/config/checkout.js` — no Stripe shipping-rate id is needed (the old `STRIPE_US_SHIPPING_RATE_ID` is read nowhere and was removed from `.env.example`)
       (otherwise an inline flat rate is used). Checkout is US-only.
 
 ## 4) Email (Resend)
