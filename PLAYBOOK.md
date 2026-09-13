@@ -85,19 +85,27 @@ wins and the conflict is logged here so the prompt can be revised.
   420–460 ms opacity-0 window over already-painted content. — yield: 1
   (the fix kept for the verified reason, the hypothesis rewritten)
 
+- **H-013** [added cycle 5] For a paint metric, run the change as a
+  route-injected VARIANT (CSS or HTML swapped in by the test harness) and win
+  over ≥4 back-to-back runs before writing it into the tree. — evidence: the
+  styled prerender shell was written, built, A/B'd and reverted in one cycle:
+  it made the home page's largest paint land 860 ms later in 4 of 4 runs.
+  The same experiment as an injected variant would have cost ten minutes and
+  no build. — yield: 0 shipped (one item cut early, correctly)
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
-| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 2 | 1 | cycle 2 — not run cycles 3–4 (the link-depth gate runs every build) |
-| Regulator walk | 4 | 4 | cycle 4 (label copy gate: 32 rendered labels + 78 engine strings) |
+| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 3 | 1 | cycle 5: first screenshots of the GATED pages (/cart, /checkout step 1 + 2) via the auth fixture; JS-off screenshots of the prerender — 0 shipped items, two findings recorded |
+| Regulator walk | 5 | 5 | cycle 5 (admin-entered label text refused at the door — same rules as the gate) |
 | Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 4 | 2 | cycle 4 (cart next-tier nudge — first hit since the rewrite) |
 | Data honesty sweep | 3 | 3 | cycle 2 — cycle 3: 0 yield — not run cycle 4 |
-| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 4 | 2 | cycle 4 (category hidden between build and runtime → rebuild hook — first hit since the rewrite) |
-| Cost/perf profile | 4 | 6 | cycle 4 (lazy label renderer −21 KB on every PDP; first-route fade; A/B compare script) |
+| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 5 | 3 | cycle 5 (a stale attestation on a signed-in profile → the checkout bounces to the attestation step — asserted in E2E) |
+| Cost/perf profile | 5 | 6 | cycle 4 — cycle 5: styled prerender shell measured and CUT (+860 ms LCP on `/`), Hy-008 refined |
 | Ops dry run | 4 | 2 | cycle 3 — cycle 4: status emails checked, 0 yield |
-| Inversion | 3 | 2 | cycle 3 — not run cycle 4 |
-| Accessibility sweep (axe) — added cycle 2 | 3 | 3 | cycle 4 (cart drawer takes and returns focus; keyboard-only commerce walk in E2E) |
+| Inversion | 4 | 3 | cycle 5 ("what makes a chargeback stick?" → receipt-grade confirmation email) |
+| Accessibility sweep (axe) — added cycle 2 | 4 | 4 | cycle 5 (authenticated E2E fixture; keyboard-only walk through the gated cart → checkout; attestation gate asserted) |
 
 ## Retired
 
@@ -151,18 +159,28 @@ wins and the conflict is logged here so the prompt can be revised.
   opacity trace, main vs branch, `/` and `/shop`, 2 runs each). `/` stays
   unmapped. Superseded by Hy-008.
 - **Hy-008** The landing page's largest paint is bimodal (≈2.2 s or ≈3.0 s
-  on throttled mobile, ~1 run in 3) independent of the route preload, the
-  service worker (blocked in every run) and the fade; the third candidate is
-  the hero paragraph re-rendered at a larger size after React mounts. —
-  test: record `longtask` entries and `document.fonts` load events alongside
-  the LCP sequence over ≥6 runs; check whether the slow runs coincide with a
-  long task between candidates 2 and 3 or with a late font swap. — status:
-  OPEN (cycle 5).
+  on throttled mobile) independent of the route preload, the service worker
+  and the fade; the late candidate is React's hero paragraph (29 900 px²). —
+  status: OPEN, refined cycle 5. Six traced runs were all fast (long tasks at
+  ≈1.5 / 1.65 / 2.05 s; mono fonts `loadingdone` ≈2.4 s). A styled static
+  shell whose h1 (28 475) out-sized the age-gate paragraph made the hero the
+  ONLY later candidate — and it landed at ≈3.05 s in 4 of 4 runs (+860 ms
+  vs main); a route-injected preload of the mono 400 face moved it to ≈2.07 s
+  in 3 of 4 runs on that shell, but the same preload built in did not (0 of
+  4). The shell and the preload were reverted. What is known: the hero
+  paragraph's first React paint is sometimes smaller than the static
+  candidate and only a later repaint qualifies; what is not: which repaint.
+  — next test (H-013): route-inject `font-display: optional` for the mono
+  face and, separately, a fixed hero `min-height`, and read the candidate
+  sequence over ≥6 runs each.
 - **Hy-006** Keyboard-only checkout cannot be asserted until an authenticated
-  E2E fixture exists (no spec signs a user in today). — test: a Playwright
-  fixture that seeds a session against a stubbed/real Supabase, then a Tab-
-  walk through `/cart → /checkout` with focus-visible assertions. — status:
-  OPEN (cycle 4; fixture first).
+  E2E fixture exists. — status: **RESOLVED cycle 5** — `npm run build:e2e`
+  gives only the Vite step a fake `*.supabase.co` URL (prerender / CSP steps
+  run without env, as in production CI); `tests/e2e/fixtures/auth.js` seeds
+  the supabase-js session in localStorage and routes auth, profile, rails and
+  compliance calls; `tests/e2e/checkout-keyboard.spec.js` walks /cart →
+  step 1 → step 2 with the keyboard and asserts a focus indicator at every
+  stop, plus the attestation gate. No production code carries a test seam.
 - **Hy-003** The category descriptions containing "signaling"/"pathway"
   ("GH-Secretagogue… signaling research", "mitochondrial and metabolic-pathway
   research") are quotable as intended-use evidence even though each is framed
@@ -233,6 +251,17 @@ wins and the conflict is logged here so the prompt can be revised.
   FCP / LCP / candidate sequence / KB and medians for two servers back to
   back — the standard for any perf claim from cycle 4 on.
 
+- 4.1: "admin-editable fields with public render" — label config text is
+  refused at create/patch when it carries use language or an un-negated
+  scanner finding (`lib/labelCopyRules.js`, shared with the label gate;
+  `scripts/test-admin-label-copy.mjs`) — cycle 5.
+- 4.5 / 4.9: the GATED path is exercised in E2E — `build:e2e` + the auth
+  fixture; `checkout-keyboard.spec.js` (cart → step 1 → step 2, keyboard
+  only; stale attestation → attestation step) — cycle 5.
+- 4.11: the confirmation email is receipt-grade and tested
+  (`scripts/test-order-email.mjs`: lines, quantities, unit prices, total,
+  ship-to, method, escaping, honest omission) — cycle 5.
+
 ## Change log
 
 - **2026-09-13 (cycle 1)** — added H-001…H-005 (seeded, each re-verified or
@@ -261,3 +290,8 @@ wins and the conflict is logged here so the prompt can be revised.
   yielded on their first run. Hy-005 resolved (−21 KB per PDP), Hy-007
   refuted and superseded by Hy-008. Scorecards 4.1, 4.5, 4.6/4.11, 4.7, 4.9
   sharpened.
+- **2026-09-13 (cycle 5)** — added H-013 (route-inject a paint change as a
+  variant before writing it; evidence: the styled shell, +860 ms, reverted).
+  Hy-006 resolved (authenticated E2E fixture, no production seam); Hy-008
+  refined with the data from the cut item. Buyer walk credited with its
+  first gated-page screenshots. Scorecards 4.1, 4.5/4.9, 4.11 sharpened.

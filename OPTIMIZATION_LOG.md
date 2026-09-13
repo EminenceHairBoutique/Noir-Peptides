@@ -818,3 +818,202 @@ is inert until `VERCEL_DEPLOY_HOOK_URL` is set. No migrations, no data, no
 payment / RLS / CSP files touched; server pricing untouched.
 
 **Rollback.** Revert the branch.
+
+---
+
+## Cycle 5 — 2026-09-13
+
+**HEAD before:** `5a51054` (main, Merge PR #36). **Branch:** `claude/opt-cycle-5-20260913`.
+
+### RECON
+
+Numeric diff first: nothing landed on `main` since the cycle-4 merge (PR #36
+merged 07:50 UTC by the owner). Build 78 routes / sitemap 72; `test:unit` 52
+suites / 950 ✓; lint 0 errors; `npm audit` 0. Live site still unreachable.
+
+**Acting on cycle 4's "what I'd do differently":** the Hy-008 test below was
+run mechanism-first (long tasks + font events next to the candidate
+sequence); every importer of a module is grepped before touching it; the
+first screenshots of this cycle were taken during RECON (the prerendered
+pages with JavaScript off); every exit code of every chained run is read.
+
+**Findings (VERIFIED by a command unless marked):**
+- **4.7 / 4.8 — the prerendered shell is unstyled.** With JavaScript off,
+  `/`, `/shop` and a product page render as browser-default 16 px DM Sans
+  text on the dark ground — legible, but an unstyled column of links (JS-off
+  screenshots at 390). That is what every visitor sees for the first ~1 s on
+  throttled mobile. Its hero paragraph paints at ~1.0 s as LCP candidate 1
+  (size 24 570); React's styled hero paragraph is larger (29 900) and becomes
+  the final LCP at ~2.2 s. If the static hero carried the page's real type
+  scale, the first paint would already be the largest — LCP ≈ FCP on `/`
+  and `/shop` — and hydration would not visibly re-lay the page.
+- **Hy-008 (bimodal `/` LCP), 6 runs with long-task + font tracing:** all six
+  fast (2144–2272 ms); the slow mode did not occur. Long tasks sit at ≈1525
+  (125 ms), ≈1655 (95 ms), ≈2050 (60 ms); fonts `loadingdone` at ≈1260 and
+  ≈2390; candidate 3 follows the third long task (React's commit of the
+  landing page). Inconclusive on the slow mode; moot for LCP if the finding
+  above lands.
+- **4.1 — admin-entered label text is not compliance-scanned.** `api/admin/
+  labels.js` `pickWritable` whitelists `display_name`, `material_type`,
+  `composition`, `fill_note`, `storage_short`, `storage_full`, `manufacturer`,
+  `distributed_by`, `revision_notes` … and validates only presence. Anything
+  typed there prints on the label after approval; the cycle-4 label gate
+  scans fixed sample configs, not what an admin types.
+- **4.9 / 4.5 — Hy-006 fixture feasibility, on reading:** the E2E build has
+  no Supabase env, so Vite folds the client to `const s=null` — no test-side
+  rewrite can revive it. A fixture needs `vite build` with a fake URL under
+  `*.supabase.co` (already in the CSP `connect-src`) while the prerender
+  steps run WITHOUT env (so the data-presence assertion behaves exactly as
+  today); at runtime supabase-js reads its session from localStorage and the
+  profile via PostgREST — both mockable with Playwright routes. Checkout's
+  server calls (`/api/checkout-compliance`, `/api/payment-rails`) are also
+  routable. No production code needs a test seam.
+- **4.11 / 4.5 — the order confirmation email carries only the order number
+  and the total.** No line items, no ship-to snapshot, no shipping-method
+  line — the buyer's only receipt, and the weakest possible chargeback
+  evidence. `lib/payments/fulfillment.js` has `items` and the shipping
+  address in hand when it sends it.
+- Buyer walk: the gated pages (`/cart`, `/checkout`) have never been
+  screenshotted by the engine — the fixture would make that possible.
+
+### SCORE (before this cycle's work)
+
+| # | Scorecard | Score | Evidence |
+| --- | --- | --- | --- |
+| 4.1 | Legal | 9 | admin label text unscanned server-side |
+| 4.2 | Security | 8 | unchanged |
+| 4.3 | Data integrity | 7 | unchanged |
+| 4.4 | Trust | 8 | unchanged |
+| 4.5 | Commerce | 8 | two-step flow never exercised in E2E |
+| 4.6 | SEO | 8 | unchanged |
+| 4.7 | Performance | 8 | LCP = React re-render on `/` and `/shop`; static shell unstyled |
+| 4.8 | UI/UX | 7 | first-second view is browser defaults |
+| 4.9 | Accessibility | 8 | keyboard-only checkout unasserted |
+| 4.10 | Mobile | 8 | unchanged |
+| 4.11 | Admin | 8 | confirmation email thin |
+| 4.12 | Observability | 6 | unchanged |
+| 4.13 | Hygiene | 8 | unchanged |
+
+### PLAN (written before execution; ranked impact × confidence / effort, legal first)
+
+1. **[4.1] Server-side compliance scan of admin label text.** A shared
+   `lib/labelCopyRules.js` (scanner + the use-language patterns the cycle-4
+   gate uses) applied in `api/admin/labels.js` on create and patch: any
+   finding → 400 naming the field and the term; the label gate imports the
+   same rules. Test executes the real handler against the stub.
+   Generator: regulator walk.
+2. **[4.7 / 4.8] Styled prerender shell.** CSS scoped to the static
+   `#root > main:not(#main)` gives the shell the site's type scale (display
+   face for the h1, body face and measure for paragraphs, an inline nav
+   list), so the first paint is the largest paint. Measured with
+   `perf:compare` against main on `/`, `/shop`, PDP (candidate sequences);
+   JS-off screenshots before/after. Generator: cost/perf.
+3. **[4.9 / 4.5] Authenticated E2E fixture + keyboard-only checkout.**
+   `npm run build:e2e` (vite build with a fake `*.supabase.co` URL, then the
+   prerender steps without env); `tests/e2e/fixtures/auth.js` seeds a
+   session and routes the auth, profile, rails and compliance calls;
+   `tests/e2e/checkout-keyboard.spec.js` walks /cart → /checkout step 1 →
+   step 2 with the keyboard, asserting focus visibility and the attestation
+   gate; first screenshots of the gated pages at 390/1280. CI's E2E job
+   builds with `build:e2e`. Generator: accessibility sweep + buyer walk.
+4. **[4.11 / 4.5] Receipt-grade confirmation email.** Pure
+   `orderConfirmationHtml({...})` builder (line items, quantities, unit
+   prices, subtotal/shipping/total, ship-to, shipping method, order number,
+   the RUO line) used by `sendOrderConfirmationEmail`; fulfilment passes what
+   it has. Tested directly; the corpus gate keeps scanning the template.
+   Generator: inversion ("what makes a chargeback stick?").
+
+Not this cycle: Hy-008's slow mode (unobserved in 6 runs; moot for LCP if
+item 2 lands — recorded); the Stripe-webhook echo (ask-before).
+
+### EXECUTION — results
+
+| # | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| 1 | Admin label text scanned server-side | **VERIFIED** | `lib/labelCopyRules.js` shared by the handler and the build gate (the gate now imports its patterns — asserted). `scripts/test-admin-label-copy.mjs` (21 assertions) executes the real create + patch: "Reconstitute with 2 mL bacteriostatic water" → 400 naming `fill_note` with volume + solvent + instruction; "promotes healing" in `display_name` → 400 (scanner, outside a negation); "Inject subcutaneously daily" in a patch → 400 and nothing written; clean copy and the negated RUO wording → 200; only text fields are judged. Second method: the handler's two insertion points read after the change |
+| 2 | Styled prerender shell | **CUT — measured regression** | Written, built, A/B'd against main with `perf:compare` (4 runs): `/` LCP 2204 → **3064 ms (+860, 4 of 4 runs)** — the static h1 (28 475 px²) out-sized the age-gate paragraph so React's hero paragraph (29 900) became the only later candidate, and it landed at ≈3.05 s; `/shop` +36, PDP and `/test-results` unchanged. A route-injected preload of the mono 400 face moved the hero to ≈2.07 s in 3 of 4 runs on that shell; the same preload BUILT IN did not (0 of 4). Both reverted; `git diff` on `src/index.css` and `index.html` is empty. JS-off screenshots of the shell before the change kept (`c5-static-*-390.png`). Findings folded into Hy-008; H-013 added |
+| 3 | Authenticated E2E fixture + keyboard-only checkout | **VERIFIED** | `npm run build:e2e` (fake `https://e2e.supabase.co`, prerender steps without env — log lines assert both phases); `tests/e2e/fixtures/auth.js` (session in `sb-e2e-auth-token`, routes for auth / profiles / rails / compliance, catch-all 503 → static fallbacks); `tests/e2e/checkout-keyboard.spec.js` 2/2 green: /cart renders for the attested researcher, "Proceed to Checkout" reached by Tab with an indicator, step 1's controls (> 12) all show an indicator, form completed (typing, Space on the method radio and the three certifications), Continue → step 2 renders the routed rails and the pay control; a profile without a current attestation is sent to `/register/attestation`. First screenshots of the gated pages: `c5-cart.png`, `c5-checkout-step1.png`, `c5-checkout-step2.png` (1280). Bug found and fixed in the fixture itself: Playwright matches the LAST registered route first, so the catch-all had shadowed the profile mock (503 → attestation bounce) |
+| 4 | Receipt-grade confirmation email | **VERIFIED** | `orderConfirmationHtml` pure builder + `lib/orderLines.js`; `scripts/test-order-email.mjs` (19 assertions): both line shapes (BTCPay `unit_dollars`, Stripe `price.unit_amount` + metadata SKU), quantities, unit prices, total, ship-to snapshot, method, RUO line, escaping (`&` and `<b>` in user text), honest omission (no table without items, a dash for an unknown unit price), non-USD label; fulfilment passes items / address / method / name (asserted by regex). The corpus gate scans the template source and flagged the word "cycle" in my own comment — reworded |
+
+Also fixed while verifying: none in product code beyond the above.
+
+**Final gate on the finished tree:** build 78 routes / sitemap 72 · lint 0
+errors · **54 suites, 988 assertions** (+2 / +38) · **mobile 52/52** ·
+`build:e2e` → **E2E 32 passed / 4 skipped** (the four `E2E_API_URL` gate
+specs) · axe 0 critical / 0 serious / 0 landmark / 0 keyboard on the E2E
+build (as CI will run it).
+
+**Cut / not attempted:** the styled shell (above); Hy-008's cause (next test
+recorded in the PLAYBOOK); the Stripe-webhook echo (ask-before).
+
+### SCORECARD DELTA
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.1 | Legal | 9 | 9 | admin-entered label text can no longer print past the rules; still 9 while counsel items (Hy-003, the reconstitution note) are open |
+| 4.2 | Security | 8 | 8 | unchanged |
+| 4.3 | Data integrity | 7 | 7 | unchanged |
+| 4.4 | Trust | 8 | 8 | unchanged |
+| 4.5 | Commerce | 8 | **9** | the two-step flow is exercised end to end for the first time (rails from the server, compliance record before payment, attestation gate); receipt-grade confirmation. Not 10: no live rail |
+| 4.6 | SEO | 8 | 8 | unchanged |
+| 4.7 | Performance | 8 | 8 | no shipped change; Hy-008 refined with a measured dead end |
+| 4.8 | UI/UX | 7 | 7 | the first-second view stays browser-default (the styled shell was cut on LCP) |
+| 4.9 | Accessibility | 8 | **9** | keyboard-only checkout asserted through step 2 with indicators at every stop. Not 10: 200 % zoom and screen-reader announcements of the step indicator unasserted |
+| 4.10 | Mobile | 8 | 8 | 52/52 |
+| 4.11 | Admin | 8 | **9** | the receipt; the label door |
+| 4.12 | Observability | 6 | 6 | unchanged |
+| 4.13 | Hygiene | 8 | 8 | +2 suites, +1 spec, +1 build script |
+
+### GENERATOR YIELDS (cycle 5)
+
+Regulator walk 1 · Accessibility sweep 1 · Inversion 1 · Failure injection
+(stale state) 1 (the stale-attestation bounce, asserted) · Buyer walk 0
+shipped (first gated-page screenshots; two findings recorded) · Cost/perf 0
+(one item cut with data) · Competitor delta / Ops dry run / Data honesty not
+run.
+
+### ESCALATIONS (owner-only; ranked — #1 leads until cleared)
+
+1. **`npm run verify:rls` on prod** — unconfirmed since `0030`.
+2. Attorney: category posture → `soft_launch_hidden`; Hy-003; the label's
+   post-reconstitution storage note.
+3. Apply `0031`–`0034`; decide `0027`. 4. Repo private. 5. Domain + `VITE_SITE_URL`.
+6. Enter labs + lookup codes. 7. Delete legacy `src/data/products.js` + audit script + CI step.
+8. `api/stripe-webhook.js` signature-error echo (ask-before).
+9. Remove the Google Fonts origins from the CSP (ask-before block).
+10. Set `VERCEL_DEPLOY_HOOK_URL` (cycle 4).
+
+### What I'd do differently
+
+Run the paint experiment as an injected variant before writing CSS (H-013);
+the cut cost a build, an A/B, a rebuild and the revert. Read Playwright's
+route-precedence rule before stacking a catch-all on specific routes — the
+one fixture bug this cycle was that. Keep comments out of the compliance
+scanner's path: a doc comment in `lib/email.js` carried the word "cycle" and
+tripped the corpus gate, which was doing its job. And take the gated-page
+screenshots at 390 as well as 1280 next time — the fixture makes it cheap.
+
+### PR DRAFT (open only on approval)
+
+**Title:** Optimization cycle 5 — label copy enforced at the door, authenticated E2E + keyboard checkout, receipt-grade confirmation
+
+**Summary.** Three verified items on top of PR #36 and one measured cut:
+(1) text an admin types into a label config is refused at create/patch when
+it carries use language or an un-negated scanner finding — the same rules
+the build gate renders real labels against; (2) `npm run build:e2e` + an
+authenticated Playwright fixture (no database, no production seam) let E2E
+walk /cart → checkout step 1 → step 2 with the keyboard, assert a focus
+indicator at every stop and prove the attestation gate; CI's E2E job uses
+it; (3) the order confirmation email carries line items, quantities, unit
+prices, total, ship-to, shipping method and the research-use line, escaped
+and tested. Cut: a styled prerender shell that made the home page's largest
+paint land 860 ms later in 4 of 4 runs against main. +2 unit suites, +1 E2E
+spec.
+
+**Risks.** CI's E2E job now builds with `build:e2e` (Vite gets a fake
+`*.supabase.co` URL; prerender / precache / CSP run without env exactly as
+the production build). The confirmation email's callers pass more fields
+(all optional; the builder omits what is absent). No migrations, no data,
+no payment / RLS / CSP files touched.
+
+**Rollback.** Revert the branch.
