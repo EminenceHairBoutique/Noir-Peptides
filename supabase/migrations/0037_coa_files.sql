@@ -4,9 +4,17 @@
 -- only through /api/coa-file/<id>.<ext>, which signs a 10-minute URL for
 -- PUBLISHED certificates. Additive and idempotent. Writes no rows.
 
-insert into storage.buckets (id, name, public)
-values ('coa-files', 'coa-files', false)
-on conflict (id) do nothing;
+-- The bucket lives in Supabase's storage schema. On a bare Postgres (the CI
+-- ordering job) that schema does not exist, so the insert is skipped there;
+-- on Supabase it runs as written.
+do $$
+begin
+  if to_regclass('storage.buckets') is not null then
+    insert into storage.buckets (id, name, public)
+    values ('coa-files', 'coa-files', false)
+    on conflict (id) do nothing;
+  end if;
+end $$;
 
 alter table public.coas add column if not exists file_path text;
 
