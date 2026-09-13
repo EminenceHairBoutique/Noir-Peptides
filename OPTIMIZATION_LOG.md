@@ -1997,3 +1997,83 @@ applied to live (0037 is additive and unapplied), no price / visibility /
 flag change, no pricing / shipping / checkout-session / btcpay file touched.
 
 **Rollback.** Revert the branch.
+
+---
+
+## Cycle 11 — 2026-09-13 (addendum "Cycle 4 — polish to nine everywhere + growth foundations")
+
+**HEAD before:** `24900d9` (cycle-10 branch, PR #42 Draft, stacked on #41).
+**Branch:** `claude/opt-cycle-11-20260913`, stacked on cycle 10.
+
+### RECON
+
+- **CI on #42:** CI green (incl. the mobile step); DB gates green; Migration
+  hygiene was red on `0037` (bare Postgres has no `storage.buckets`) — guarded,
+  green expected on the re-run; Evidence red on Lighthouse only (CI medians
+  `/` 2968 · `/shop` 3285 · PDP 2746 · `/test-results` 3276 ms). #41: DB gates
+  green on run #2. Both PRs carry one engine comment naming the LCP gate.
+- **The mechanism, measured (H-012), unthrottled at 390 px:**
+
+  | route | JS blocked: LCP candidate at FCP | with JS: what wins |
+  | --- | --- | --- |
+  | `/` | shell `<p>` 26,496 px² at 116 ms | React hero `<p>` **29,991** px² at 484 ms (larger) |
+  | `/shop` | shell `<p>` 26,358 px² | React RUO `<p>` **32,791** px² at 416 ms (larger) |
+  | `/product/bpc-157` | shell `<p>` **54,003** px² | nothing larger — the shell should win, but it never gets a frame |
+  | `/test-results` | shell `<p>` 35,154 px² | React `<p>` **40,464** px² at 400 ms (larger) |
+
+  With JS present the shell is replaced before the first frame is presented
+  (the first candidate with JS is the cookie banner's paragraph at 72 ms), so
+  the observed LCP is always React's paint and the simulator charges the
+  whole pre-paint request graph to it. Two conditions make the paint the
+  shell's: the JS wave must start **after** the first frame, and each shell
+  paragraph must be **at least as large** as React's largest above-the-fold
+  text on that route (the PDP already is — it is the route nearest the
+  budget in CI, 2586 ms).
+- **From the screenshot matrix (cycle 9 run, 4.8 notes in the log's plan):**
+  consent dialog covered every fold (fixed in the matrix; product fix F2
+  below); PDP spec rows show "—" for sequence / MW / CAS on all 44 (the
+  static catalog and the 0009 seed carry none by design; 12 verified values
+  exist in the retired 0001 rows); About/Deals `whileInView` blanks (matrix
+  fixed); checkout summary at the bottom on mobile; cart badge 1 vs 4.
+- **Growth (4.14) reality:** the routed checkout sends no `redeemPoints` /
+  `discountCode` while the account page promises points; partner pricing is
+  dormant schema; `api/partners/apply.js` has no page; restock is done but
+  source-grep-tested only; no scheduler writes to the site.
+- **Tokens (4.8):** `tailwind.config.js` is dead (a different brand, zero
+  references), `src/input.css` unreferenced, three dead `--font-family-*`
+  `@theme` lines, hex values duplicated between `:root` and `@theme`; 37 hex
+  / 9 rgba / 23 arbitrary-colour literals and 737 `text-[…]` sizes in JSX.
+
+### PLAN (written before execution; one commit per item, in this order)
+
+1. **[4.7] Paint-first loader + shell parity**, measured through
+   `scripts/perf-lhci.mjs` (5 runs), shipped only on a win: `public/boot.js`
+   (external `src` script — the only loader shape the CSP gate lets through;
+   waits two frames, then appends the modulepreloads and the module script);
+   the generator strips Vite's entry tag + vendor preloads from the template
+   and feeds the per-route chunk list to the loader; shell paragraphs sized
+   ≥ React's (`/`, `/shop`, `/test-results`), `/shop`'s intro un-drifted via a
+   shared constant, the hero disclaimer in the `/` shell; tests updated
+   (route-preload extractor, routing's 404 literal, bytes +1 request, SW
+   install list).
+2. **[4.4] Specs — verified only:** the 12 transcribed values (from the retired
+   0001 rows) into the static catalog + an update-only migration `0038`;
+   Control Room fields for sequence / MW / CAS (format-validated); the panel
+   omits empty rows; `test-product-specs` reports the count; the other 32 are
+   owner data (D5b in the Owner Sprint).
+3. **[4.4/4.6] Batch-history permalinks in every build** from a static mirror of
+   the 19 seeded certificates; PDP ↔ permalink links in the crawlable HTML;
+   sitemap 73 → 88.
+4. **[4.14] Growth foundations:** executed loyalty-coherence test + the spend
+   path wired on step 2 (client only); `/partners` request page on the existing
+   endpoint; executed restock test; abandoned-cart nudge + draft template
+   behind a default-off flag; tokens audit (dead config removed, ratchet test,
+   `docs/DESIGN_TOKENS.md`).
+5. **[4.8] UI:** consent as a bottom sheet at ≤ 640 px; checkout summary strip;
+   cart-badge investigation; re-shot matrix + per-route notes.
+6. §F report, PLAYBOOK, docs, full gate, push, Draft PR (C6).
+
+Generators: Cost/perf (bytes & requests) leads with a *structural* change
+measured through the gate; Data honesty (specs never fabricated; 12
+transcribed, 32 escalated); Buyer walk (the matrix notes); Failure injection
+(loader fallback when rAF never fires); Regulator walk (wholesale + cart copy).
