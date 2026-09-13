@@ -30,6 +30,9 @@ const walk = (d, out = []) => {
 
 // Names the platform (Vite / Node / Vercel / CI / Playwright) sets itself.
 const PLATFORM = new Set(["NODE_ENV", "DEV", "PROD", "MODE", "BASE_URL", "SSR", "CI", "VERCEL", "VERCEL_URL", "VERCEL_ENV", "PLAYWRIGHT_CHROMIUM_PATH", "HOME", "PATH"]);
+// GitHub Actions sets GITHUB_* on every runner (opt cycle 9: the evidence
+// scripts read GITHUB_SHA / RUN_ID / … for provenance).
+const isPlatform = (n) => PLATFORM.has(n) || /^GITHUB_/.test(n);
 
 const used = new Map(); // name → first file
 for (const dir of ["api", "lib", "src", "scripts"]) {
@@ -45,12 +48,12 @@ const example = readFileSync(path.join(ROOT, ".env.example"), "utf8");
 const documented = new Set();
 for (const m of example.matchAll(/^\s*#?\s*([A-Z][A-Z0-9_]+)\s*=/gm)) documented.add(m[1]);
 
-const missing = [...used.keys()].filter((n) => !documented.has(n)).sort();
+const missing = [...used.keys()].filter((n) => !documented.has(n) && !isPlatform(n)).sort();
 ok(used.size >= 30, `runtime + scripts read ${used.size} distinct env names`);
 ok(missing.length === 0, `every env name read by code is documented in .env.example (missing: ${JSON.stringify(missing.map((n) => `${n} ← ${used.get(n)}`))})`);
 
 // Documented but read nowhere: a stale name misleads the operator.
-const unused = [...documented].filter((n) => !used.has(n) && !PLATFORM.has(n)).sort();
+const unused = [...documented].filter((n) => !used.has(n) && !isPlatform(n)).sort();
 ok(unused.length === 0, `every documented env name is read somewhere (stale: ${JSON.stringify(unused)})`);
 
 // Secret shapes: nothing in the example may look like a live credential.

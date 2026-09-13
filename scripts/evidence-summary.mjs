@@ -14,9 +14,7 @@ import path from "node:path";
 import { spawnSync, execSync } from "node:child_process";
 
 const dir = process.argv[2] || "evidence";
-const read = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
-const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
-const BUDGET = { lcp: 2500, cls: 0.1, tbt: 200 };
+import { readJson as read, axeSummary, lighthouseMedians } from "./_evidence-fold.mjs";
 
 function git(cmd) { try { return execSync(`git ${cmd}`, { encoding: "utf8" }).trim(); } catch { return null; } }
 const sha = process.env.GITHUB_SHA || git("rev-parse HEAD");
@@ -29,50 +27,9 @@ const screensOut = screens
   ? { views: screens.views, routes: screens.routes, widths: screens.widths, failing: screens.failing, overflow: screens.overflow, consoleErrors: screens.consoleErrors, skipped: screens.skipped, seconds: screens.seconds, pass: screens.failing.length === 0 }
   : { pass: null, note: "screens.json missing" };
 
-// ── axe (the sweep's JSON: one record per violated rule per view) ──────────
-const axe = read(path.join(dir, "axe.json"));
-let axeOut = { pass: null, note: "axe.json missing" };
-if (Array.isArray(axe)) {
-  const byImpact = {};
-  for (const r of axe) byImpact[r.impact] = (byImpact[r.impact] || 0) + r.count;
-  const blocking = axe.filter((r) => r.impact === "critical" || r.impact === "serious");
-  axeOut = {
-    views: new Set(axe.map((r) => `${r.route}@${r.width}`)).size || undefined,
-    findings: axe.length, byImpact,
-    seriousOrCritical: blocking.reduce((n, r) => n + r.count, 0),
-    blockingRules: [...new Set(blocking.map((r) => `${r.id} (${r.route}@${r.width})`))].slice(0, 20),
-    pass: blocking.length === 0,
-  };
-}
-
-// ── Lighthouse (LHCI filesystem upload: manifest.json + one LHR per run) ───
-function lighthouse(subdir) {
-  const manifest = read(path.join(dir, subdir, "manifest.json"));
-  if (!Array.isArray(manifest)) return { pass: null, note: `${subdir}/manifest.json missing` };
-  const byUrl = {};
-  for (const m of manifest) {
-    const lhr = read(path.isAbsolute(m.jsonPath) ? m.jsonPath : path.join(dir, subdir, path.basename(m.jsonPath)));
-    if (!lhr) continue;
-    const route = new URL(m.url).pathname;
-    const a = lhr.audits || {};
-    (byUrl[route] ||= { runs: 0, lcp: [], cls: [], tbt: [], perf: [] });
-    byUrl[route].runs++;
-    byUrl[route].lcp.push(a["largest-contentful-paint"]?.numericValue ?? NaN);
-    byUrl[route].cls.push(a["cumulative-layout-shift"]?.numericValue ?? NaN);
-    byUrl[route].tbt.push(a["total-blocking-time"]?.numericValue ?? NaN);
-    byUrl[route].perf.push(lhr.categories?.performance?.score ?? NaN);
-  }
-  const routes = {};
-  let allPass = true;
-  for (const [route, v] of Object.entries(byUrl)) {
-    const lcp = median(v.lcp), cls = median(v.cls), tbt = median(v.tbt), perf = median(v.perf);
-    const pass = lcp <= BUDGET.lcp && cls <= BUDGET.cls && tbt <= BUDGET.tbt;
-    if (!pass) allPass = false;
-    routes[route] = { runs: v.runs, lcpMs: Math.round(lcp), cls: Number(cls.toFixed(3)), tbtMs: Math.round(tbt), perf: Number((perf * 100).toFixed(0)), pass };
-  }
-  return { budget: BUDGET, aggregation: "median", routes, pass: Object.keys(routes).length ? allPass : null };
-}
-const lh = lighthouse("lighthouse");
+// ── axe (the sweep's JSON) and Lighthouse (LHCI filesystem upload) ────────
+const axeOut = axeSummary(read(path.join(dir, "axe.json")));
+const lh = lighthouseMedians(path.join(dir, "lighthouse"));
 
 // ── Crawls (run here so the record is complete) ────────────────────────────
 function crawl(script) {
