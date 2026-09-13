@@ -1178,9 +1178,11 @@ this PR. No payment / RLS / CSP files touched.
 
 ## Cycle 7 — 2026-09-13
 
-**HEAD before:** `16655cd` (cycle-6 head; PR #38 open and green, not yet
-merged — this cycle is STACKED on it at the owner's "Continue"; the PR will
-target `main` once #38 lands). **Branch:** `claude/opt-cycle-7-20260913`.
+**HEAD before:** `16655cd` (cycle-6 head; PR #38 was open and green when
+the owner said "Continue", so this cycle branched from it; #38 merged at
+09:32 UTC — before this cycle's PR was opened — so the PR targets `main`
+and its diff is exactly the cycle-7 commits). **Branch:**
+`claude/opt-cycle-7-20260913`.
 
 ### RECON
 
