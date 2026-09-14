@@ -109,6 +109,7 @@ export default function CheckoutTwoStep() {
   // would reject.
   const [promoCode, setPromoCode] = useState("");
   const [redeemPoints, setRedeemPoints] = useState(0);
+  const [referralCode, setReferralCode] = useState("");
   const pointsBalance = Math.max(0, Math.floor(Number(user?.loyaltyPoints) || 0));
   const redeemable = Math.floor(pointsBalance / REDEEM_INCREMENT) * REDEEM_INCREMENT;
   const pointsToRedeem = Math.min(Math.max(0, Math.floor(redeemPoints / REDEEM_INCREMENT) * REDEEM_INCREMENT), redeemable);
@@ -161,6 +162,7 @@ export default function CheckoutTwoStep() {
     clearCheckoutDraft();
     if (!rail) return;
     const discountCode = String(spend.discountCode ?? promoCode ?? "").trim().toUpperCase().slice(0, 32);
+    const referral = String(spend.referralCode ?? referralCode ?? "").trim().toUpperCase().slice(0, 32);
     const points = Math.min(
       Math.max(0, Math.floor((Number(spend.redeemPoints ?? redeemPoints) || 0) / REDEEM_INCREMENT) * REDEEM_INCREMENT),
       redeemable
@@ -186,6 +188,7 @@ export default function CheckoutTwoStep() {
           // derives the dollars (lib/pricing.js computeAdjustments).
           discountCode: discountCode || undefined,
           redeemPoints: points > 0 ? points : undefined,
+          referralCode: referral || undefined,
         }),
       });
       if (!res.ok) {
@@ -249,6 +252,7 @@ export default function CheckoutTwoStep() {
             ) : (
               <StepPayment onBack={() => { setStep(1); window.scrollTo({ top: 0 }); }} onPay={onPay}
                 promoCode={promoCode} setPromoCode={setPromoCode}
+                referralCode={referralCode} setReferralCode={setReferralCode}
                 redeemPoints={pointsToRedeem} setRedeemPoints={setRedeemPoints} pointsBalance={pointsBalance}
                 submitting={submitting} error={error} selectedRail={selectedRail} setSelectedRail={setSelectedRail} />
             )}

@@ -21,6 +21,7 @@ import { REDEEM_INCREMENT, redeemDollars } from "../../utils/loyalty";
 export default function StepPayment({
   onBack, onPay, submitting, error, selectedRail, setSelectedRail,
   promoCode = "", setPromoCode, redeemPoints = 0, setRedeemPoints, pointsBalance = 0,
+  referralCode = "", setReferralCode,
 }) {
   const redeemOptions = Array.from(
     { length: Math.floor(Number(pointsBalance || 0) / REDEEM_INCREMENT) },
@@ -118,6 +119,31 @@ export default function StepPayment({
         </div>
       )}
 
+      {setReferralCode && (
+        <div>
+          <label htmlFor="referral" className="text-[10px] font-accent uppercase tracking-[0.2em] text-se-steel block mb-2">
+            Referral code (optional)
+          </label>
+          <input
+            id="referral"
+            type="text"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck="false"
+            maxLength={32}
+            placeholder="NP-XXXXX"
+            disabled={submitting}
+            aria-describedby="referral-help"
+            className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent tracking-[0.12em] placeholder:text-se-steel focus:outline-none focus:border-se-gold transition disabled:opacity-50"
+          />
+          <p id="referral-help" className="text-[10px] text-se-steel font-accent mt-1.5">
+            Checked by the server on your first paid order.
+          </p>
+        </div>
+      )}
+
       {setRedeemPoints && redeemOptions.length > 0 && (
         <div>
           <label htmlFor="redeem" className="text-[10px] font-accent uppercase tracking-[0.2em] text-se-steel block mb-2">
@@ -154,7 +180,7 @@ export default function StepPayment({
         <button type="button" onClick={onBack} disabled={submitting} className="btn-outline flex-1 disabled:opacity-50">
           Back
         </button>
-        <button type="button" onClick={() => onPay(rails?.find((r) => r.id === selectedRail), { discountCode: promoCode, redeemPoints })}
+        <button type="button" onClick={() => onPay(rails?.find((r) => r.id === selectedRail), { discountCode: promoCode, redeemPoints, referralCode })}
           disabled={submitting || !selectedRail || !rails?.length}
           className="btn-primary flex-[2] disabled:opacity-50">
           {submitting ? "Redirecting…" : "Complete payment"}

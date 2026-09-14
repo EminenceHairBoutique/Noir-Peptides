@@ -28,11 +28,14 @@ test("a 350-point balance offers 100/200/300 and the pay request carries the hin
   await expect(page.getByTestId("rewards-estimate")).toContainText("200 pts");
   await page.fill("#promo", "welcome10");
   await expect(page.locator("#promo")).toHaveValue("WELCOME10");
+  await page.fill("#referral", "np-abcde");
+  await expect(page.locator("#referral")).toHaveValue("NP-ABCDE");
 
   await page.getByRole("button", { name: /complete payment/i }).click();
   await expect.poll(() => posted, { timeout: 15_000 }).not.toBeNull();
   expect(posted.redeemPoints).toBe(200);
   expect(posted.discountCode).toBe("WELCOME10");
+  expect(posted.referralCode).toBe("NP-ABCDE");
   for (const k of ["loyaltyDollars", "couponDollars", "discountAmount", "promoAmount", "total", "subtotal"]) {
     expect(posted, `no client dollar field ${k}`).not.toHaveProperty(k);
   }
@@ -56,4 +59,5 @@ test("with no balance there is no points select, and an empty promo posts nothin
   await expect.poll(() => posted, { timeout: 15_000 }).not.toBeNull();
   expect(posted).not.toHaveProperty("redeemPoints");
   expect(posted).not.toHaveProperty("discountCode");
+  expect(posted).not.toHaveProperty("referralCode");
 });
