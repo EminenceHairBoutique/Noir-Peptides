@@ -47,9 +47,9 @@ export const ACCEPTED = {
   "/legal/shipping": ["human-use:for human consumption","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic"],
   "/partners": ["dosing:dosing"],
   "/quality": ["therapeutic-benefit:therapeutic"],
-  // Opt cycle 11: the catalog shell carries the RUO banner sentence React
-  // renders above the grid ("Not approved by the FDA for … therapeutic …").
-  "/shop": ["therapeutic-benefit:therapeutic"],
+  // Opt cycle 11/12: the catalog and category shells carry the site-wide RUO
+  // disclaimer sentence (DISCLAIMER_FULL); test-dist-copy removes that exact
+  // constant before scanning, so /shop needs no entry.
   "/legal/terms": ["administration:cycle","administration:injectable","administration:injection","administration:injection","administration:stacking","disease-claim:prevent disease","disease-claim:prevent disease","dosing:dosing","dosing:dosing","therapeutic-benefit:cure","therapeutic-benefit:cure","therapeutic-benefit:therapeutic","therapeutic-benefit:therapeutic","therapeutic-benefit:treat","therapeutic-benefit:treat","therapeutic-benefit:treatment","therapeutic-benefit:treatment"],
 };
 

@@ -39,10 +39,16 @@
       head.appendChild(script);
     }
   }
+  // A page whose prerendered shell has nothing to paint (a client-only route
+  // served by the SPA fallback) never reports a contentful paint until the
+  // app renders — waiting for the entry there would only hit the timer. Such
+  // a page starts on the next frames instead; a shell with content waits.
+  var root = document.getElementById("root");
+  var hasShell = !!(root && root.textContent && root.textContent.replace(/\s+/g, "").length > 0);
   var afterPaint = false;
   try {
     var types = typeof PerformanceObserver === "function" ? PerformanceObserver.supportedEntryTypes : null;
-    if (types && types.indexOf("paint") !== -1) {
+    if (hasShell && types && types.indexOf("paint") !== -1) {
       var po = new PerformanceObserver(function (list) {
         var entries = list.getEntries();
         for (var j = 0; j < entries.length; j++) {
