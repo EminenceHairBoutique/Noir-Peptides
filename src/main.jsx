@@ -1,4 +1,4 @@
-import React from "react";
+import React, { startTransition } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
@@ -27,18 +27,28 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
   else window.addEventListener("load", registerSw);
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      {/* Site-wide: framer-motion animations collapse to instant transitions
-          for users whose OS asks for reduced motion (MOBILE_ROADMAP #12). */}
-      <MotionConfig reducedMotion="user">
-      <UserProvider>
-        <CartProvider>
-          <App />
-        </CartProvider>
-      </UserProvider>
-      </MotionConfig>
-    </BrowserRouter>
-  </React.StrictMode>
-);
+// Opt cycle 12 (4.7 TBT): the first render is a TRANSITION, so React
+// time-slices it. The 44-card grid and the 19-row certificate table were
+// hydrating in one 180–270 ms main-thread task (Lighthouse's mobile
+// simulation); as a transition the same work runs in ≤ 5 ms slices the
+// browser can interrupt for input and scrolling. Nothing about the tree
+// changes, the shell stays on screen until the tree commits, and the effects
+// below (worker, error reporter) are unaffected.
+const root = ReactDOM.createRoot(document.getElementById("root"));
+startTransition(() => {
+  root.render(
+    <React.StrictMode>
+      <BrowserRouter>
+        {/* Site-wide: framer-motion animations collapse to instant transitions
+            for users whose OS asks for reduced motion (MOBILE_ROADMAP #12). */}
+        <MotionConfig reducedMotion="user">
+          <UserProvider>
+            <CartProvider>
+              <App />
+            </CartProvider>
+          </UserProvider>
+        </MotionConfig>
+      </BrowserRouter>
+    </React.StrictMode>
+  );
+});

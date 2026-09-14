@@ -1,7 +1,10 @@
 // src/data/productSpecs.js   (opt cycle 11 — scorecard 4.4)
 // Dry technical specifications per product: sequence, molecular weight, CAS.
-// EVERY value here is a transcription of a verified source named in `source`;
-// nothing is derived or invented. A product with no entry renders no spec
+// EVERY value here is a TRANSCRIPTION of the source named in `source`;
+// nothing is derived or invented. The only source so far is the repository's
+// own 0001 seed — self-authored, not confirmed against a supplier certificate
+// or the CAS registry — so these are "transcribed", never "verified" (Owner
+// Sprint D5b asks the owner to confirm them). A product with no entry renders no spec
 // row (the panel omits what it does not know), and the Owner Sprint counts
 // the gap. The first source is the retired 0001 seed (12 products) — values
 // that carried annotations or a parent-protein reference were NOT copied

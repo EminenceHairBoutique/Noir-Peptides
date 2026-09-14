@@ -138,6 +138,14 @@ jobs:
           node scripts/serve-dist.mjs &
           sleep 2
           npm run test:bytes
+          npm run test:parity
+      # Opt cycle 12: the saved-cart nudge exists only behind a default-off flag;
+      # this lane builds with it ON so its mobile spec can see it. The flag stays
+      # unset in every documented environment (test-feature-flags asserts that).
+      - name: Flag-on lane — cart-recovery nudge (mobile)
+        run: |
+          VITE_FEATURE_CART_RECOVERY=1 npm run build:e2e
+          npx playwright test -c playwright.mobile.config.js tests/mobile/cart-nudge.spec.js --reporter=line
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

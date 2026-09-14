@@ -10,8 +10,11 @@
     node scripts/live-probe.mjs <baseUrl> [outFile]        # the HTTP checks
     node scripts/live-probe.mjs --finalize [outFile]       # fold axe-live.json +
                                                            # lighthouse-live/ in, set the verdict
-  env: CANONICAL_HOST (default: the base URL's host), LOCAL_SITEMAP_COUNT
-  (from a local build; the live count must be ≥ it).
+  env: CANONICAL_HOST (default: the site's configured production host,
+  lib/siteUrl.js — every build canonicalises to it wherever it is served),
+  LOCAL_SITEMAP_COUNT (fallback floor when dist/prerender-meta.json is absent;
+  with it, the floor is this build's static routes + the live build's
+  batch-permalink count, so an unpublished certificate is never a red).
   Exit 1 when any check fails. Never writes anything to the site.
 */
 import fs from "node:fs";
@@ -21,6 +24,8 @@ import { buildCsp } from "./csp.mjs";
 import { renderedText, ACCEPTED } from "./_copy-scan.mjs";
 import { parseSitemapPaths } from "./_sitemap-routes.mjs";
 import { readJson, axeSummary, lighthouseMedians } from "./_evidence-fold.mjs";
+import { PRODUCTION_HOST } from "../lib/siteUrl.js";
+import { getAllProducts } from "../src/data/tier1Catalog.js";
 
 const args = process.argv.slice(2);
 const runUrl = process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_SERVER_URL || "https://github.com"}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : null;
@@ -48,10 +53,15 @@ if (args[0] === "--finalize") {
 // ── The HTTP checks ────────────────────────────────────────────────────────
 const base = (args[0] || process.env.PROD_URL || "https://noir-peptides.vercel.app").replace(/\/+$/, "");
 const out = args[1] || "evidence/live-probe.json";
-const canonicalHost = process.env.CANONICAL_HOST || new URL(base).host;
+// Opt cycle 12: the expected canonical host is the site's configured
+// production host unless the owner sets CANONICAL_HOST — the probed URL's
+// host was never right (a Vercel deployment URL is not the canonical).
+const canonicalHost = process.env.CANONICAL_HOST || PRODUCTION_HOST;
 const localSitemapCount = Number(process.env.LOCAL_SITEMAP_COUNT || 0) || null;
+const localMeta = readJson(path.join(process.cwd(), "dist/prerender-meta.json"));
 const checks = [];
-const check = (id, pass, value, expected, note) => { checks.push({ id, pass: !!pass, value, expected, ...(note ? { note } : {}) }); console.log(`  ${pass ? "✓" : "✗"} ${id}${pass ? "" : ` — got ${JSON.stringify(value)}, expected ${JSON.stringify(expected)}`}`); return !!pass; };
+const check = (id, pass, value, expected, note, group) => { checks.push({ id, pass: !!pass, value, expected, ...(note ? { note } : {}), ...(group ? { group } : {}) }); console.log(`  ${pass ? "✓" : "✗"} ${id}${pass ? "" : ` — got ${JSON.stringify(value)}, expected ${JSON.stringify(expected)}`}`); return !!pass; };
+const HOST = "host-config"; // checks that read red until PROD_URL / CANONICAL_HOST match the real domain
 
 async function get(route, { json = false } = {}) {
   const ctl = new AbortController();
@@ -84,7 +94,7 @@ for (const route of pages) {
   const can = canonicalOf(r.text);
   let host = null, pathname = null;
   try { const u = new URL(can); host = u.host; pathname = u.pathname.replace(/\/+$/, "") || "/"; } catch { /* absent */ }
-  check(`canonical ${route}`, host === canonicalHost && pathname === route, can, `https://${canonicalHost}${route}`);
+  check(`canonical ${route}`, host === canonicalHost && pathname === route, can, `https://${canonicalHost}${route}`, undefined, HOST);
   const got = scanCopy(renderedText(r.text)).findings.map((f) => `${f.category}:${f.term.toLowerCase()}`).sort();
   const want = (ACCEPTED[route] || []).slice().sort();
   check(`scanner ${route}`, JSON.stringify(got) === JSON.stringify(want), got, want, want.length ? "accepted negations only (H-006)" : "zero findings");
@@ -100,8 +110,10 @@ for (const route of pages) {
 }
 
 // Build metadata: the data-presence claim, executed (Hy-001).
+let liveMeta = null;
 {
   const r = await get("/prerender-meta.json", { json: true });
+  liveMeta = r.body && typeof r.body === "object" ? r.body : null;
   check("status /prerender-meta.json", r.status === 200 && r.body && typeof r.body === "object", r.status, 200);
   check("build dbEnvPresent", r.body?.dbEnvPresent === true, r.body?.dbEnvPresent ?? null, true, "the production build fetched real rows");
   check("build coaRowCount ≥ 1", Number(r.body?.coaRowCount) >= 1, r.body?.coaRowCount ?? null, "≥ 1");
@@ -118,18 +130,35 @@ for (const route of pages) {
 {
   check("status /sitemap.xml", sitemap.status === 200, sitemap.status, 200);
   const hosts = new Set([...sitemap.text.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => { try { return new URL(m[1]).host; } catch { return "?"; } }));
-  check("sitemap url count", localSitemapCount ? livePaths.length >= localSitemapCount : livePaths.length >= 60, livePaths.length, localSitemapCount ? `≥ ${localSitemapCount} (local build)` : "≥ 60");
-  check("sitemap hosts", hosts.size === 1 && hosts.has(canonicalHost), [...hosts], [canonicalHost]);
+  // Floor (opt cycle 12): this checkout's static routes + the LIVE build's
+  // batch-permalink count. Static routes never shrink without a code change;
+  // permalinks follow the owner's publish/unpublish decisions and are read
+  // from the live build itself, so a legitimate unpublish is never a red.
+  const staticRoutes = localMeta && Number.isFinite(Number(localMeta.sitemapUrlCount)) && Number.isFinite(Number(localMeta.permalinkProductCount))
+    ? Number(localMeta.sitemapUrlCount) - Number(localMeta.permalinkProductCount) : null;
+  const livePermalinks = Number.isFinite(Number(liveMeta?.permalinkProductCount)) ? Number(liveMeta.permalinkProductCount) : null;
+  const floor = staticRoutes != null && livePermalinks != null ? staticRoutes + livePermalinks : (localSitemapCount || 60);
+  check("sitemap url count", livePaths.length >= floor, livePaths.length, `≥ ${floor}${staticRoutes != null && livePermalinks != null ? ` (static ${staticRoutes} + live permalinks ${livePermalinks})` : localSitemapCount ? " (local build)" : ""}`);
+  check("sitemap hosts", hosts.size === 1 && hosts.has(canonicalHost), [...hosts], [canonicalHost], undefined, HOST);
+  // Soft-launch posture (opt cycle 12): nothing of a category the live build
+  // hid may be in the live sitemap.
+  const hidden = new Set(Array.isArray(liveMeta?.hiddenCategories) ? liveMeta.hiddenCategories : []);
+  const bySlug = new Map(getAllProducts().map((p) => [p.slug, p.category_slug]));
+  const leaked = livePaths.filter((p) => { const cat = p.match(/^\/shop\/([^/]+)$/); if (cat) return hidden.has(cat[1]); const prod = p.match(/^\/product\/([^/]+)$/); return Boolean(prod && hidden.has(bySlug.get(prod[1]))); });
+  check("sitemap honours hidden categories", leaked.length === 0, leaked, [], `${hidden.size} hidden in the live build`);
   const robots = await get("/robots.txt");
   check("status /robots.txt", robots.status === 200, robots.status, 200);
   const sm = (robots.text.match(/^Sitemap:\s*(\S+)/m) || [])[1] || null;
-  check("robots sitemap line", sm === `https://${canonicalHost}/sitemap.xml`, sm, `https://${canonicalHost}/sitemap.xml`);
+  check("robots sitemap line", sm === `https://${canonicalHost}/sitemap.xml`, sm, `https://${canonicalHost}/sitemap.xml`, undefined, HOST);
 }
 
 // Payment rails: a JSON envelope, never a 5xx.
 {
   const r = await get("/api/payment-rails", { json: true });
   check("rails envelope", r.status === 200 && Array.isArray(r.body?.rails) && typeof r.body?.unavailable === "boolean", { status: r.status, keys: r.body && typeof r.body === "object" ? Object.keys(r.body) : null }, { status: 200, keys: ["rails", "cryptoDiscountPct", "unavailable"] });
+  // Opt cycle 12 (4.5): an envelope with NO payable rail is the maintenance
+  // state a rotated key or a dropped env produces — the probe must say so.
+  check("rails available", r.body?.unavailable === false && Array.isArray(r.body?.rails) && r.body.rails.length >= 1, Array.isArray(r.body?.rails) ? r.body.rails.map((x) => x.id) : null, "≥ 1 payable rail", "a live checkout needs at least one rail the server can charge");
 }
 
 // Unknown paths are real 404s (opt cycle 8).
@@ -144,7 +173,7 @@ fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(record, null, 2) + "\n");
 // LHCI config for the browser-based pass against the same site.
 fs.writeFileSync(path.join(path.dirname(out), "lighthouserc.live.json"), JSON.stringify({ ci: {
-  collect: { url: ["/", "/shop", "/product/bpc-157", "/test-results"].map((r) => base + r), numberOfRuns: 3, settings: { chromeFlags: "--no-sandbox --headless=new" } },
+  collect: { url: ["/", "/shop", "/product/bpc-157", "/test-results", "/shop/tissue-repair-research", "/test-results/bpc-157", "/partners"].map((r) => base + r), numberOfRuns: 3, settings: { chromeFlags: "--no-sandbox --headless=new" } },
   assert: { assertions: { "largest-contentful-paint": ["error", { maxNumericValue: 2500, aggregationMethod: "median" }], "cumulative-layout-shift": ["error", { maxNumericValue: 0.1, aggregationMethod: "median" }], "total-blocking-time": ["error", { maxNumericValue: 200, aggregationMethod: "median" }] } },
   upload: { target: "filesystem", outputDir: path.join(path.dirname(out), "lighthouse-live"), reportFilenamePattern: "%%PATHNAME%%-%%DATETIME%%.%%EXTENSION%%" },
 } }, null, 2));

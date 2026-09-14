@@ -100,7 +100,7 @@ console.log("\nadmin + data layer (static guards):");
     ok(!/getHiddenCategorySlugs|visibleProducts/.test(body), "getProductsAuthoritative (admin / Label Studio) is NOT filtered");
   }
   const seo = read("../scripts/generate-static-seo.mjs");
-  ok(/getVisibleCategories\(\)/.test(seo) && /getVisibleProducts\(\)/.test(seo) && /getVisibleProductsInCategory\(/.test(seo), "prerenderer builds shop/category/product/related from the VISIBLE views");
+  ok(/visibleCategories\(\)/.test(seo) && /visibleProducts\(\)/.test(seo) && /visibleProductsInCategory\(/.test(seo) && /fetchHiddenCategoriesAtBuild\(\)/.test(seo) && /new Set\(\[\.\.\.staticHiddenCategorySlugs\(\), \.\.\.dbHidden\]\)/.test(seo), "prerenderer builds shop/category/product/related from the VISIBLE views — the static ∪ database hidden set (opt cycle 12)");
   ok(/hiddenRoutes\.push/.test(seo) && /hiddenCategories: \[\.\.\.hiddenSlugs\]\.sort\(\)/.test(seo), "prerenderer emits 404 bodies for hidden paths and records them in build meta");
   const pdp = read("../src/pages/ProductDetail.jsx");
   ok(/<SEO title="Material Not Found"[^>]*noindex=\{true\}/.test(pdp), "PDP not-found state is noindex");
@@ -114,3 +114,31 @@ if (failures) {
   process.exit(1);
 }
 console.log("\nAll category-visibility checks passed.");
+
+// ── Opt cycle 12 (4.6): the BUILD honours hidden categories from BOTH sources ──
+// prerender-meta.json records the union the generator used (static ∪ database
+// when DB env was present) and its source; nothing of a hidden category may be
+// in the sitemap, whichever source hid it.
+{
+  const { existsSync } = await import("node:fs");
+  const metaPath = new URL("../dist/prerender-meta.json", import.meta.url);
+  if (existsSync(metaPath)) {
+    const meta = JSON.parse(readFileSync(metaPath, "utf8"));
+    const sitemap = readFileSync(new URL("../dist/sitemap.xml", import.meta.url), "utf8");
+    const locs = [...sitemap.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => new URL(m[1]).pathname);
+    ok(Array.isArray(meta.hiddenCategories) && (meta.hiddenSource === "static" || meta.hiddenSource === "static+db"), `prerender-meta records hiddenCategories (${(meta.hiddenCategories || []).length}) and hiddenSource (${meta.hiddenSource})`);
+    ok(meta.dbEnvPresent !== true || meta.hiddenSource === "static+db", "with database env present the build consulted product_categories.soft_launch_hidden (static+db)");
+    const hidden = new Set(meta.hiddenCategories || []);
+    const leaked = locs.filter((p) => {
+      const cat = p.match(/^\/shop\/([^/]+)$/);
+      if (cat && hidden.has(cat[1])) return true;
+      const prod = p.match(/^\/product\/([^/]+)$/);
+      if (!prod) return false;
+      const row = getAllProducts().find((x) => x.slug === prod[1]);
+      return Boolean(row && hidden.has(row.category_slug));
+    });
+    ok(leaked.length === 0, `no hidden-category page or product is in dist/sitemap.xml (leaked: ${JSON.stringify(leaked)})`);
+  } else {
+    console.log("  ⓘ dist/prerender-meta.json absent — build-output assertions skipped (run after npm run build)");
+  }
+}

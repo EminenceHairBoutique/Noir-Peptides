@@ -10,13 +10,23 @@ name: Post-deploy smoke
 
 on:
   deployment_status:
+  # Opt cycle 12: manual run against a deployment URL (the first executed
+  # record of this gate — every deployment_status run before it failed on
+  # Playwright's webServer check, see playwright.config.js).
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Deployment origin to smoke (https://…)"
+        required: true
+        type: string
 
 jobs:
   prod-gates:
     if: >-
-      github.event.deployment_status.state == 'success' &&
-      (github.event.deployment.environment == 'Production' ||
-       github.event.deployment.environment == 'production')
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       (github.event.deployment.environment == 'Production' ||
+        github.event.deployment.environment == 'production'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -29,8 +39,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Server gates against the live deployment
         env:
-          E2E_API_URL: ${{ github.event.deployment_status.environment_url }}
-          E2E_BASE_URL: ${{ github.event.deployment_status.environment_url }}
+          E2E_API_URL: ${{ inputs.url || github.event.deployment_status.environment_url }}
+          E2E_BASE_URL: ${{ inputs.url || github.event.deployment_status.environment_url }}
         run: npx playwright test tests/e2e/checkout-attestation-gate.spec.js --reporter=line
       - uses: actions/upload-artifact@v4
         if: failure()

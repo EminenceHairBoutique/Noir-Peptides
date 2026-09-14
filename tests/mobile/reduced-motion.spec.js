@@ -36,3 +36,23 @@ test("with motion allowed the hero backdrop does animate (control)", async ({ br
   expect(running).toBeGreaterThan(0);
   await ctx.close();
 });
+
+// Opt cycle 12: the hand-written scrolls (route change, checkout step change)
+// honour the setting too — under reduce every window.scrollTo is instant.
+test("route-change scroll is instant under reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("np_age_ack_v1", "1");
+    window.localStorage.setItem("np_cookie_consent", JSON.stringify({ necessary: true, analytics: false, marketing: false, timestamp: Date.now() }));
+    window.__scrollCalls = [];
+    const orig = window.scrollTo.bind(window);
+    window.scrollTo = (...args) => { window.__scrollCalls.push(args[0] && typeof args[0] === "object" ? args[0].behavior || "unset" : "positional"); return orig(...args); };
+  });
+  await page.goto("/shop", { waitUntil: "networkidle" });
+  await page.getByRole("link", { name: /^BPC-157$/ }).first().click();
+  await expect(page).toHaveURL(/\/products?\/bpc-157/);
+  await page.waitForTimeout(300);
+  const calls = await page.evaluate(() => window.__scrollCalls);
+  expect(calls.length, "the route change scrolled").toBeGreaterThan(0);
+  expect(calls.filter((b) => b === "smooth"), "no smooth scroll under reduced motion").toEqual([]);
+});

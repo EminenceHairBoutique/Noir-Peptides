@@ -3,6 +3,7 @@ import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import COABadge from "./COABadge";
 import { getLatestCoaMap } from "../lib/coas";
+import { formatPurity } from "../lib/labVerify";
 
 const LabelPreview = lazy(() => import("./labels/LabelPreview"));
 
@@ -68,10 +69,11 @@ const ProductCard = ({ product, label = null, latestCoa: latestCoaProp }) => {
   const category = product.category_slug;
 
   return (
-    <Link
-      to={`/products/${product.slug ?? product.id}`}
-      className="group block product-card overflow-hidden"
-    >
+    /* Opt cycle 12 (4.9): the card is an <article> and the product NAME is the
+       link — stretched over the card with a pseudo-element — so the
+       certificate chip below is a sibling control, never a link inside a
+       link (invalid HTML; screen readers concatenated both names). */
+    <article className="group relative product-card overflow-hidden">
       {/* Visual */}
       <div className="relative aspect-square overflow-hidden">
         {img ? (
@@ -95,8 +97,10 @@ const ProductCard = ({ product, label = null, latestCoa: latestCoaProp }) => {
         {/* Purity + stock chips. Opt cycle 11 (4.8 F6): one wrapping row —
             two absolute corners collided on a 163 px card at 390 px. */}
         <div className="absolute top-2 left-2 right-2 md:top-3 md:left-3 md:right-3 flex flex-wrap items-start justify-between gap-1">
-          {product.purity_percent != null ? (
-            <div className="badge badge-new">≥ {product.purity_percent}% PURE</div>
+          {/* Purity chip only from the latest PUBLISHED certificate (opt cycle 12);
+              a product without one shows no purity claim at all. */}
+          {formatPurity(latestCoa) ? (
+            <div className="badge badge-new">{formatPurity(latestCoa)} HPLC</div>
           ) : <span />}
           <div
             className={`badge ${
@@ -128,9 +132,14 @@ const ProductCard = ({ product, label = null, latestCoa: latestCoaProp }) => {
             one title is 1 line and its neighbor is 2. Full name in title. */}
         <h3
           title={product.displayName || product.name}
-          className="text-[14px] text-se-bone font-display tracking-[0.02em] mb-1 line-clamp-2 min-h-[2.5em] leading-tight"
+          className="text-[14px] text-se-bone font-display tracking-[0.02em] mb-1 leading-tight"
         >
-          {product.displayName || product.name}
+          <Link
+            to={`/products/${product.slug ?? product.id}`}
+            className="block min-h-[44px] line-clamp-2 after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline focus-visible:after:outline-2 focus-visible:after:outline-se-gold focus-visible:after:outline-offset-[-2px]"
+          >
+            {product.displayName || product.name}
+          </Link>
         </h3>
 
         {/* Identical on every card; below 480 px the grid carries it once in
@@ -152,15 +161,12 @@ const ProductCard = ({ product, label = null, latestCoa: latestCoaProp }) => {
           </div>
           {latestCoa?.file_url ? (
             /* W5: a real published certificate exists — link it with lot +
-               test date visible. Inner anchor inside the card Link follows
-               the existing COABadge pattern; stopPropagation keeps the card
-               navigation from firing. */
+               test date visible; a sibling control above the stretched link. */
             <a
               href={latestCoa.file_url}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="shrink-0 inline-flex items-center min-h-[44px] whitespace-nowrap text-[9px] font-accent uppercase tracking-[0.1em] text-se-gold border border-se-gold/40 px-2 py-1.5 hover:bg-se-gold/[0.08] transition"
+              className="relative z-10 shrink-0 inline-flex items-center min-h-[44px] whitespace-nowrap text-[9px] font-accent uppercase tracking-[0.1em] text-se-gold border border-se-gold/40 px-2 py-1.5 hover:bg-se-gold/[0.08] transition"
               aria-label={`Certificate of Analysis for lot ${latestCoa.lot}${latestCoa.tested_at ? `, tested ${String(latestCoa.tested_at).slice(0, 10)}` : ""}`}
             >
               ✓ COA · {latestCoa.lot}
@@ -170,7 +176,7 @@ const ProductCard = ({ product, label = null, latestCoa: latestCoaProp }) => {
               ) : null}
             </a>
           ) : product.coa_url ? (
-            <div className="shrink-0"><COABadge coaUrl={product.coa_url} /></div>
+            <div className="relative z-10 shrink-0"><COABadge coaUrl={product.coa_url} /></div>
           ) : (
             /* same height as the certificate chip so the row never grows when
                the map resolves (page height stable after a scroll to the end) */
@@ -184,8 +190,11 @@ const ProductCard = ({ product, label = null, latestCoa: latestCoaProp }) => {
           Research use only · Not for human use
         </p>
       </div>
-    </Link>
+    </article>
   );
 };
 
-export default ProductCard;
+// Opt cycle 12 (4.7 TBT): the grid re-renders on every facet, query or
+// compare change and on the certificate map's arrival; a card whose product,
+// label and certificate are unchanged has nothing to redo.
+export default React.memo(ProductCard);

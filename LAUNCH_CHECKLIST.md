@@ -46,7 +46,7 @@ below are operator/legal/business actions the code cannot perform.
 - [ ] Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`.
 - [ ] Add the webhook endpoint `/api/stripe-webhook` (events:
       `checkout.session.completed`). `apiVersion` is pinned in code.
-- [x] Shipping is resolved server-side in integer cents from `src/config/checkout.js` — no Stripe shipping-rate id is needed (the old `STRIPE_US_SHIPPING_RATE_ID` is read nowhere and was removed from `.env.example`)
+- [x] Shipping is resolved server-side in integer cents from `src/config/checkout.js` — no Stripe shipping-rate id is needed (the old shipping-rate variable is read nowhere and was removed from `.env.example`)
       (otherwise an inline flat rate is used). Checkout is US-only.
 
 ## 4) Email (Resend)
@@ -129,8 +129,11 @@ restores the header-only behaviour automatically._
 
 - [ ] `npm run build` and `npm run lint` are green.
 - [ ] `npm run test:e2e` (set `E2E_API_URL` to also exercise the server gates).
-- [ ] Logged-out users cannot read product rows; gated routes redirect to
-      `/login`; `/research` + `/legal/*` are public and indexable.
+- [ ] Product, variant, category and published-certificate rows are PUBLIC reads
+      (migrations 0013 / 0024 — `verify:rls` proves the anon view); identity and
+      commerce tables are per-user; the gated routes (`/account`, `/checkout`,
+      `/admin`) redirect to `/login`; the catalog, `/research` + `/legal/*` are
+      public and indexable.
 - [ ] Confirm `robots.txt` and the canonical/OG URLs use the production domain.
 - [ ] Instrument Lighthouse / Core Web Vitals on the deployed build (these are
       post-deploy targets, not in-session guarantees).

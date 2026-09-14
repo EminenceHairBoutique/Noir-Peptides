@@ -72,11 +72,11 @@ console.log("\n4. Prerender overlays code names from the database:");
   const seo = read("scripts/generate-static-seo.mjs");
   ok(/async function fetchCodeNamesAtBuild\(\)/.test(seo) && /select=id,code_name&code_name=not\.is\.null/.test(seo), "fetches id + code_name for products that have one");
   ok(/codeNames = await fetchCodeNamesAtBuild\(\)/.test(seo), "runs at build before the routes are assembled");
-  ok(/const catalogProducts = withDisplayNames\(getVisibleProducts\(\)\)/.test(seo), "shop list uses display names");
-  ok((seo.match(/withDisplayNames\(getVisibleProductsInCategory\(/g) || []).length === 2, "category pages and PDP related rails use display names");
+  ok(/const catalogProducts = withDisplayNames\(visibleProducts\(\)\)/.test(seo), "shop list uses display names (visible = static ∪ database hidden set, opt cycle 12)");
+  ok((seo.match(/withDisplayNames\(visibleProductsInCategory\(/g) || []).length === 2, "category pages and PDP related rails use display names");
   for (const marker of ["name: `${dn(p)} — Research Reference Material`", "<h1>${escapeHtml(dn(p))} — Research Reference Material</h1>", "name: `${dn(p)} ${v.size_label}`", "${escapeHtml(dn(p))}</a> — from", "${escapeHtml(dn(r))}</a> — from"]) ok(seo.includes(marker), `prerender surface: ${marker.slice(0, 48)}…`);
   ok((seo.match(/title: `\$\{dn\(p\)\} — Research Reference Material`/g) || []).length === 2, "product route + JSON-LD titles use the display name");
-  ok(/`<h1>\$\{escapeHtml\(prod\.name\)\} — Batch Test History<\/h1>`/.test(seo), "batch-history permalinks keep the substance name");
+  ok(/`<h1[^>]*>\$\{escapeHtml\(prod\.name\)\} — Batch Test History<\/h1>`/.test(seo), "batch-history permalinks keep the substance name");
   ok(/codeNameCount: codeNames\.size/.test(seo), "prerender-meta records how many code names were applied");
   if (existsSync(new URL("../dist/prerender-meta.json", import.meta.url))) {
     const meta = JSON.parse(read("dist/prerender-meta.json"));

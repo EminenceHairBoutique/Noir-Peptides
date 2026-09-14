@@ -48,6 +48,18 @@ const home = pages.find(([p]) => p === "/");
 ok(home && preloads(home[1]).some((h) => /\/assets\/PublicLanding-/.test(h)), "/ preloads its route chunk behind the boot tag");
 ok(pages.every(([, html]) => /<script src="\/boot\.js" defer data-entry="\/assets\/index-[\w-]+\.js"/.test(html) && !/<script type="module" crossorigin src="\/assets\/index-/.test(html)), "every page loads the app through /boot.js — no parse-time module script");
 ok(existsSync(path.join(DIST, "boot.js")), "dist/boot.js is shipped");
+// Opt cycle 12 (4.7): the loader starts the app on the first-contentful-paint
+// entry (never before the paint — two animation frames raced it and the
+// Lighthouse LCP median flipped run to run), keeps the frame fallback for
+// browsers without paint timing, and the 1500 ms timer for no paint at all.
+{
+  const boot = readFileSync(path.join(DIST, "boot.js"), "utf8");
+  ok(/first-contentful-paint/.test(boot) && /observe\(\{ type: "paint", buffered: true \}\)/.test(boot), "boot.js waits for the first-contentful-paint entry before requesting the app");
+  ok(/requestAnimationFrame\(start\)/.test(boot) && /setTimeout\(start, 1500\)/.test(boot), "boot.js keeps the frame fallback and the 1500 ms timer");
+  ok(/hasShell/.test(boot) && /if \(hasShell && types/.test(boot), "boot.js waits for the paint only on a shell with content — an empty shell (client-only route) starts on frames, not the 1500 ms timer");
+  const bootCode = boot.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  ok(!/<script|innerHTML|eval\(|new Function/.test(bootCode), "boot.js code contains no inline-script or eval shape (CSP gate stays honest)");
+}
 // Batch-history pages exist only when the build had database access.
 const batches = pages.filter(([p]) => /^\/test-results\/[^/]+$/.test(p));
 if (batches.length) ok(batches.every(([, html]) => preloads(html).some((h) => /\/assets\/TestResultsProduct-/.test(h))), `every batch-history page (${batches.length}) preloads the TestResultsProduct chunk`);
@@ -63,8 +75,14 @@ ok(heavy.length === 0, `no page preloads vendor-three / vendor-pdf / jsQR (${JSO
 // The list is the page chunk's STATIC import closure (the browser needs every
 // one of them before the page module can run), so its size is the page's own
 // import graph — the PDP's is 20 today. A bound still catches a runaway graph.
-const bloated = pages.filter(([, html]) => preloads(html).length > 24).map(([p, html]) => `${p}:${preloads(html).length}`);
-ok(bloated.length === 0, `no page carries more than 24 modulepreloads (${JSON.stringify(bloated.slice(0, 5))})`);
+// Opt cycle 12: the bound is split — the vendor wave (shared, ≤ 8) and the
+// route's own closure (≤ 20; the PDP is 16 today) — so a vendor split can
+// never quietly raise the route budget or vice versa.
+const isVendor = (h) => /\/assets\/vendor-/.test(h);
+const bloated = pages.filter(([, html]) => preloads(html).filter((h) => !isVendor(h)).length > 20).map(([p, html]) => `${p}:${preloads(html).filter((h) => !isVendor(h)).length}`);
+ok(bloated.length === 0, `no page carries more than 20 route-chunk modulepreloads (${JSON.stringify(bloated.slice(0, 5))})`);
+const vendorHeavy = pages.filter(([, html]) => preloads(html).filter(isVendor).length > 8).map(([p, html]) => `${p}:${preloads(html).filter(isVendor).length}`);
+ok(vendorHeavy.length === 0, `no page preloads more than 8 vendor chunks (${JSON.stringify(vendorHeavy.slice(0, 5))})`);
 const missing = pages.filter(([, html]) => preloads(html).some((h) => !existsSync(path.join(DIST, h)))).map(([p]) => p);
 ok(missing.length === 0, `every modulepreload on every page resolves to a file in dist (${JSON.stringify(missing.slice(0, 5))})`);
 ok(!existsSync(path.join(DIST, ".vite")), "the Vite manifest is not left in dist (build input, not a deliverable)");

@@ -34,8 +34,34 @@ union all select 'inventory columns (0028)',
 union all select 'fulfillment columns (0029)',
        exists (select 1 from information_schema.columns where table_name='orders' and column_name='tracking_url')
 union all select 'label FK RESTRICT (0027, optional)',
-       exists (select 1 from pg_constraint c where c.conname='label_configs_product_id_fkey' and c.confdeltype='r');
+       exists (select 1 from pg_constraint c where c.conname='label_configs_product_id_fkey' and c.confdeltype='r')
+union all select 'coas.cas_number (0031)',
+       exists (select 1 from information_schema.columns where table_name='coas' and column_name='cas_number')
+union all select 'labs table (0032)',
+       exists (select 1 from information_schema.tables where table_name='labs')
+union all select 'products.sds_file_url (0033)',
+       exists (select 1 from information_schema.columns where table_name='products' and column_name='sds_file_url')
+union all select 'product_categories.soft_launch_hidden (0034)',
+       exists (select 1 from information_schema.columns where table_name='product_categories' and column_name='soft_launch_hidden')
+union all select 'server_errors table (0035)',
+       exists (select 1 from information_schema.tables where table_name='server_errors')
+union all select 'products.code_name (0036)',
+       exists (select 1 from information_schema.columns where table_name='products' and column_name='code_name')
+union all select 'coas.file_path (0037)',
+       exists (select 1 from information_schema.columns where table_name='coas' and column_name='file_path')
+union all select 'transcribed specs, 11 rows (0038)',
+       (select count(*) from public.products where molecular_weight is not null) >= 11
+union all select 'seeded purity cleared (0039)',
+       not exists (select 1 from public.products where purity_percent = 99.0)
+union all select 'loyalty_points >= 0 constraint (0040)',
+       exists (select 1 from pg_constraint where conname='profiles_loyalty_points_nonnegative')
+union all select 'coa-files bucket limits (0041)',
+       exists (select 1 from storage.buckets where id='coa-files' and file_size_limit = 4194304);
 ```
+
+`npm run db:verify` prints the same list (its "Feature presence" section) from
+the API, one ✅/⛔ per migration with the doc to follow — the constraint from
+0040 is the one item only the SQL above can see.
 
 | Migration | Purpose | Status |
 | --- | --- | --- |
@@ -45,6 +71,11 @@ union all select 'label FK RESTRICT (0027, optional)',
 | 0025 | Error-telemetry table (Errors tab) | Run if the check above says false |
 | 0028 | Tracked inventory columns | Run if false |
 | 0029 | Fulfillment/tracking columns | Run if false |
+| 0031–0037 | CAS on certificates, labs + two-factor, SDS, soft-launch flag, server errors, code names, certificate files | Run if false — `docs/MIGRATIONS_0032_0033.md`, `_0034.md`, `_0036.md`, `_0037.md` |
+| 0038 | Transcribed specs (update-only, 11 rows) | Run if false — `docs/MIGRATIONS_0038.md` |
+| 0039 | Seeded purity cleared (update-only) | Run if false — `docs/MIGRATIONS_0039.md` |
+| 0040 | `loyalty_points >= 0` check constraint | Run if false — `docs/MIGRATIONS_0040.md` |
+| 0041 | `coa-files` bucket limits (4 MB, PDF/JPEG) | Run if false — `docs/MIGRATIONS_0041.md` |
 | 0027 `_PROPOSED` | Label FK CASCADE→RESTRICT (protects label history) | **Optional — owner approval required** |
 
 ## 2. Environment variables (Vercel → Settings → Environment Variables)
@@ -56,7 +87,7 @@ union all select 'label FK RESTRICT (0027, optional)',
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | All live data | Storefront falls back to the bundled catalog; admin/auth dead |
 | `SUPABASE_SERVICE_ROLE_KEY` | Every `/api` endpoint's DB access | Checkout, admin, verification all fail |
 | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` + `VITE_STRIPE_PUBLISHABLE_KEY` | Card checkout + fulfillment | No card rail |
-| `STRIPE_US_SHIPPING_RATE_ID` | Shipping line at checkout | Checkout errors |
+| `PAYMENTS_STRIPE_LIVE_ACK` | Required alongside an `sk_live_` key: the explicit acknowledgement that live cards will be charged (exact value in `lib/payments/providers.js`) | With a live key and no ack the card rail is EXCLUDED — checkout answers `503 stripe_live_disabled` |
 | `BTCPAY_URL` / `BTCPAY_STORE_ID` / `BTCPAY_API_KEY` / `BTCPAY_WEBHOOK_SECRET` | Crypto rail | Crypto option hidden/fails |
 | `RESEND_API_KEY` | Order/shipping/restock/concierge email | Everything else works; emails silently queue or skip |
 | `ADMIN_EMAILS` (+ `VITE_ADMIN_EMAILS` mirror) | Admin bootstrap allowlist | Admin depends solely on `profiles.role` (drift-fragile — set both) |
@@ -116,6 +147,13 @@ site is rebuilt. Set `VERCEL_DEPLOY_HOOK_URL` (Vercel → Project → Settings �
 Git → Deploy Hooks) and the flip triggers the rebuild itself; the row says
 "Rebuild triggered", "Static pages update on the next deploy" or "Rebuild
 request failed" — never nothing. See `docs/MIGRATIONS_0034.md`.
+
+Since opt cycle 12 the rebuild reads the flag from the database as well as
+from the static mirror (the union — a static hide always holds): a category
+you hide in the Control Room drops out of the home rail, `/shop`, the
+sitemap and its product pages on the next build. `dist/prerender-meta.json`
+records `hiddenCategories` and `hiddenSource` (`static` or `static+db`) for
+the build that is live; the live probe checks the sitemap against it.
 
 ### Errors tab — client and server (opt cycles 4–6)
 
@@ -208,7 +246,7 @@ its screen or command. The same twelve, with the exact command:
 | # | Step | Screen / command |
 | --- | --- | --- |
 | D1 | RLS verified on production | `npm run verify:rls` with the production keys (§1); the DB gates workflow proves the script on every PR |
-| D2 | Migrations 0031–0037 applied; 0027 decided | `docs/MIGRATIONS_0032_0033.md`, `_0034.md`, `_0036.md`, `_0037.md`; then `npm run db:verify` |
+| D2 | Migrations 0031–0041 applied; 0027 decided | `docs/MIGRATIONS_0032_0033.md`, `_0034.md`, `_0036.md`, `_0037.md`, `_0038.md`, `_0039.md`, `_0040.md`, `_0041.md`; then `npm run db:verify` (its feature-presence section lists each) |
 | D3 | Repository private | GitHub → Settings → Danger zone |
 | D4 | Domain, `VITE_SITE_URL`, `PROD_URL` + `CANONICAL_HOST` variables | Vercel → Domains / Environment Variables; GitHub → Settings → Variables |
 | D5 | Labs, lookup codes, CAS, certificate files | Control Room → COA Manager (Upload PDF / JPG per certificate) |

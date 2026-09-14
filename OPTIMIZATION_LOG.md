@@ -2225,7 +2225,7 @@ publisher (landed 22:00Z). Owner-side durable option: the project's
 | 4.7 Performance | 9 | — | live Lighthouse (D4 + first probe) | **CI: Evidence run 34789025447 green** (`ci/latest.json` for the #44 head, 2026-09-13 23:29Z) · local: `evidence/lhci-*` 5-run medians |
 | 4.8 UI/UX | 8 | second review pass | D10 | local: `evidence/screens` re-shot 2026-09-13 |
 | 4.9 Accessibility | 9 | — | live axe (first probe) | local sweep 0/0 after two fixes · CI on the PR |
-| 4.10 Mobile | 9 | — | D10 | local: mobile 38/38 (the suite count changed with the reduced-motion + rewards specs) |
+| 4.10 Mobile | 9 | — | D10 | CI: mobile 56/56 under vite preview (E2E job, run 34789025458) · local 56/56 |
 | 4.11 Admin | 9 | — | owner order dry-run | local: `test-admin-screens` (13 rows) · `test-back-in-stock` 18 ✓ |
 | 4.12 Observability | 8 | a recorded green live-probe run | D4 (`PROD_URL` / `CANONICAL_HOST`), D11 | `evidence/live/latest.json`: **none** |
 | 4.13 Hygiene | 9 | — (9 = 10) | — | lint 0/0 · unit chain green · 2026-09-13 |
@@ -2320,6 +2320,341 @@ single-sourced; four matrix defects fixed.
 No migration applied to live (0038 unapplied), no price / visibility /
 flag change (the new flag defaults off), no pricing / shipping /
 checkout-session / btcpay file touched.
+
+**Rollback.** Revert the branch.
+
+---
+
+## Cycle 12 — 2026-09-14 (addendum "Cycle 5+ — hold at nine; promote to ten only from live evidence")
+
+**HEAD before:** `a04f331` (`main`; PR #43 merged cycles 10 + 11 at 01:41Z after the owner merged
+#44 into the cycle-10 branch). **Branch:** `claude/opt-cycle-12-20260914` from `main`.
+
+### RECON
+
+- **Evidence at start (`scripts/evidence-latest.mjs`):** `ci/latest.json` **green** for `a04f331`
+  on `main` (run 34796722607: LCP 1511 / 1656 / 1509 / 1509 ms, CLS 0, TBT ≤ 156 ms, screens 372 / 0,
+  axe 0, crawls green). `live/latest.json`: **none** — 0 live-probe runs (cron `17 */6` had one slot
+  since the workflow reached `main`; GitHub cron is best-effort). Post-deploy smoke: **16 runs, every
+  production one failed in 2 s** — the gate has never executed (see below).
+- **Method (ultracode):** RECON ran as a workflow (`noir-cycle12-recon`, run `wf_23d8d950-8f2`):
+  8 lens readers (correctness, compliance/data honesty, security, performance, a11y/mobile,
+  hold-at-nine, growth/UI, ops/docs) over the merged tree → 63 findings → each judged by 3
+  adversarial verifiers (reproduce · already-covered · scope-and-value; majority rules) → 61
+  confirmed, 2 refuted → one synthesizer ranked them into 20 items. 198 agents, 11.5 M tokens,
+  78 min. Provenance: the journal under the session's `subagents/workflows/wf_23d8d950-8f2/`.
+- **Pre-verified by hand (primary sources) before planning:**
+  1. `api/_utils/auth.js:142` — `tier.startsWith("partner_")` makes `partner_pending` (the tier
+     `api/partners/apply.js` sets for any signed-in applicant) pass `requirePartner`. Real.
+  2. `scripts/generate-static-seo.mjs` — every category/route decision reads
+     `getVisibleCategories()` from the STATIC catalog; the Control Room's
+     `product_categories.soft_launch_hidden` flip + rebuild never reaches the prerender. Real.
+  3. Post-deploy smoke run 34796753523 on `a04f331`: `Error: https://noir-peptides-…vercel.app is
+     already used … set reuseExistingServer:true` — `playwright.config.js` always starts
+     `vite preview` even with a remote `E2E_BASE_URL`, so 0 tests have ever run against production.
+     Also learned: Vercel reports the production deployment as a per-deployment URL
+     (`noir-peptides-<hash>-sryle-eternal.vercel.app`), not a stable alias.
+  4. Purity: `src/lib/catalog.js:45` `purity_percent: 99` for every static product (and 0009 seeds
+     `99.0`), rendered as "≥ 99% PURE" / "≥ 99% (HPLC)" on every card, PDP and the specs panel that
+     promises "what is verified and nothing else" — while the site's own published certificates
+     say KPV 98.54 %, Semax 98.80 %, Tesamorelin 98.49 %. A seeded constant presented as a
+     measurement and contradicted by the site's own data: hard-rule territory (4.4 / 4.1), missed by
+     the cycle-11 specs pass. The cycle leads with it.
+  5. `node scripts/live-probe.mjs` against a local production build: 21/35 — every failure is a
+     local-vs-Vercel delta (canonical host, security headers, `dbEnvPresent`, the rails API), so the
+     probe's code path is sound; but its expected canonical host defaults to the probed host, so the
+     first real run is red on nine checks unless `CANONICAL_HOST` is set. Fixed this cycle.
+- **Not covered by this RECON (carry to cycle 13):** anything on the live hosts (sandbox egress);
+  StepPersonal / AiChat / admin runtime a11y; `api/btcpay/*`, `api/stripe-webhook.js` beyond the
+  body destructure (ask-before); `sw.js` navigation caching writes every route's HTML into the
+  `/index.html` shell slot (pre-existing, unverified); other public forms (contact, concierge,
+  research upload) for the same upsert / 200-on-failure / log-object patterns; the repo variables
+  `PROD_URL` / `CANONICAL_HOST` are not readable via API.
+
+### SCORE (before this cycle's work)
+
+All cards as reported at the end of cycle 11 (4.7 = 9 on the green CI run; 4.14 = 7; 4.8 = 8;
+4.12 = 8). Two of the confirmed findings would move cards DOWN under H-014 if left: the purity
+constant (4.4 → 8, arguably 4.1) and the never-executed production smoke (4.12's cycle-8 row was
+scored on a gate that had not run). Both are corrected in this cycle's delta, honestly.
+
+### PLAN (written before execution; one commit per item, in this order)
+
+1. **[4.4 / 4.1] Purity only from a published certificate.** Static fallback `purity_percent: null`;
+   card chip, PDP badge/COA panel row and the specs panel render the LATEST PUBLISHED certificate's
+   HPLC value (`98.54 % (HPLC, lot …)`) or nothing; `Home.jsx` hard-coded "≥ 99%" strings removed;
+   the PDP's per-product "Methods: HPLC / MS" / "Endotoxin: LAL tested" lines become
+   certificate-derived or generic. Migration `0039_null_seeded_purity.sql` (update-only, apply is
+   ask-before) + `docs/MIGRATIONS_0039.md`. Gate: no rendered purity value without a matching
+   published row; `test-dist-copy` asserts no "≥ 99" in dist. 0009 stays as history (never edited).
+2. **[4.2 / 4.14 / 4.9] Partner application hardening.** No blind upsert on email (existing
+   approved/rejected → untouched; another user's row → no write, no leak; signed-in → keyed by
+   user; resubmission refreshes only the free-text fields); a failed store is a 502 envelope, never
+   "received"; profile → `partner_pending` only on a NEW row and never for an approved partner;
+   scrubbed logs; capped fields; `requirePartner` no longer accepts `partner_pending`; the success
+   heading takes focus. Executed tests for each case + an E2E.
+3. **[4.12] Post-deploy smoke actually runs.** `playwright.config.js` omits `webServer` for a
+   remote `E2E_BASE_URL`; config test; `workflow_dispatch` input on `post-deploy.yml`; first executed
+   run cited (the earlier "VERIFIED" cycle-8 row corrected).
+4. **[4.12 / 4.5 / 4.6] Live probe:** expected canonical host = `CANONICAL_HOST` || the site's
+   configured production host (localhost only when probing localhost); a `rails available` check
+   (≥ 1 payable rail); sitemap floor from `prerender-meta.json` counts instead of a CI-build
+   constant; host-config checks grouped in the issue body; first record via manual dispatch after
+   merge.
+5. **[4.6 / 4.1] Soft-launch hides reach the rebuild:** the generator unions the DB column with
+   the static flags when DB env is present; `prerender-meta.json` lists hidden categories; the
+   probe asserts no hidden-category product in the live sitemap; RUNBOOK sentence corrected.
+6. **[4.14] Referral program real end-to-end:** referral input on step 2 posting `referralCode`
+   (a hint; both rails already consume it); `GET /api/account/referral-code` issues the server
+   code on demand; the account page shows the server code, never a locally generated one.
+7. **[4.5 / 4.2] Loyalty deduction atomic:** compare-and-swap update (`.eq("loyalty_points",
+   read)`) with one retry, a `redeem_shortfall` ledger row instead of a silent clamp; migration
+   `0040_loyalty_nonnegative.sql` (check constraint NOT VALID; apply ask-before). Executed
+   concurrency test through the fulfilment harness.
+8. **[4.9 / 4.7 / 4.4] ProductCard without link-in-link** (stretched link, chip as a sibling) and
+   ONE certificate source for `/shop` (the filter/compare column reads the same map as the chips);
+   request budget −1; a render test that no `<a>` nests in an `<a>`.
+9. **[4.7 / 4.9] Shell parity on the 8 category pages and 15 permalinks**, permalink hydration
+   from the seed (CLS), shell links underlined, LHCI gate +3 URLs (`/shop/tissue-repair-research`,
+   `/test-results/bpc-157`, `/partners`), measured through `perf-lhci` before shipping.
+10. **[4.7] Shell-parity gate** `scripts/test-shell-parity.mjs` (JS blocked → largest text block
+    area vs hydrated) in the E2E job.
+11. **[4.9 / 4.10] Checkout a11y:** step change moves focus to the step heading; payment error is a
+    live region; `#order-summary` focusable and focused by the jump link; programmatic scrolls
+    honour reduced motion (`src/lib/motion.js`). Specs extended.
+12. **[4.10 / 4.9] CartRecoveryNudge** clears the bottom nav (same offset as the consent sheet),
+    region semantics, focus destination on dismiss, suppressed while consent is open; a flag-on
+    mobile spec in its own lane (the flag stays off everywhere documented).
+13. **[4.9 / 4.1] AgeGate** takes, traps and restores focus; the page behind is inert; a keyboard
+    E2E without the ack seed.
+14. **[4.11 / 4.3 / 4.13] D2 proves 0038**, `db:verify` gains a per-migration feature-presence
+    section (columns via PostgREST HEAD; 0038 via the spec-row count), a migration-doc convention
+    gate for every migration ≥ 0032, RUNBOOK §1/§6 + checklist to 0038.
+15. **[4.13 / 4.5 / 4.4 / 4.6] Owner-doc drift sweep:** the Copilot "auth wall" block rewritten
+    (catalog is public — hard rule), `PAYMENTS_STRIPE_LIVE_ACK` documented and surfaced on the
+    Owner Sprint D8 row (presence only), dead `STRIPE_US_SHIPPING_RATE_ID` removed, spec counts
+    11 / 33 everywhere, "verified" → "transcribed" for the 0001-sourced specs, tracker cells,
+    0019 header; a doc-drift test.
+16. **[4.3 / 4.4] COA storage hygiene:** replaced objects removed on re-upload; `lookupByLot` seed
+    fallback; mirror rows carry no synthetic `created_at`; migration `0041_coa_bucket_limits.sql`
+    (apply ask-before).
+17. **[4.2] Evidence / live-probe workflows split** into a read-only job and a write-only publish
+    job (`contents: write` never runs PR-branch code).
+18. **[4.11 / 4.14] Control Room Partners tab** shows every application field and lets the owner
+    pick the tier on approve.
+19. **[4.13 / 4.7] Hygiene:** dead client loyalty helpers deleted (the second earning rate), the
+    modulepreload bound split (route vs vendor).
+20. **[4.7] Measured-only probes** (ship on a win, else the number goes in the log): Plex Mono
+    preload; plain cards + `memo(ProductCard)` for `/shop` TBT.
+21. §F report, PLAYBOOK, docs, full gate the way CI runs it (mobile under `vite preview`,
+    all-routes axe, `perf-lhci`), push, Draft PR (C6), watch CI, post-deploy + live-probe dispatch.
+
+Deferred to cycle 13 (confirmed, not planned, to keep the cycle finishable): `text-[…]` typography
+scale + ratchet (767 sites); shop card density lever; account "Points activity" ledger + a Control
+Room redemptions StatCard; `dist/app.html` for the SPA fallback (no PublicLanding preload on
+client-only routes); the ProductDetail label double-fetch; `sw.js` navigation-cache shell slot.
+
+Generators: Inversion + adversarial verification (the workflow) led; Data honesty (purity, spec
+provenance wording); Failure injection (partner rebind, concurrent redemption, remote-URL smoke);
+Ops dry run (D2 proof, doc drift); Accessibility sweep (five keyboard/SR gaps on the money path);
+Cost/perf measurement lane (parity, gate coverage, two probes).
+
+### EXECUTION — results
+
+| # | Item | Commit | Result |
+| --- | --- | --- | --- |
+| 1 | Purity only from a published certificate | `4fde8f5` | Static fallback null; card chip, PDP badge, certificate panel (purity / methods / endotoxin), traceability methods, specs panel, shop compare + sort read the LATEST PUBLISHED certificate or show nothing; Home's "≥ 99%" strings removed; migration 0039 (apply ask-before). Gate: `test-purity-honesty` (react-dom/server renders; no "≥ 99%" literal in src). |
+| 2 | Partner application hardened | `0709f0c` | Insert, never upsert-by-email; existing rows untouched by anyone but their account (free-text only, while pending); failed store → 502; profile → partner_pending only on a new row; scrubbed logs; capped fields; `requirePartner` rejects `partner_pending`; success heading focused. 18 executed cases + E2E. |
+| 3 | Post-deploy smoke can run | `618467f` | No Playwright webServer for a remote base URL (both configs; 3-branch config test); `workflow_dispatch` input. The first executed record is produced after merge (§ below). |
+| 4 | Live probe | `2a6c4f6` | Canonical host from `lib/siteUrl.js`; `rails available`; sitemap floor from build metadata; hidden-category check; host-config grouped in the issue. Local run 31/37 (the six reds are Vercel-only). |
+| 5 | Soft-launch hide reaches the rebuild | `7f676d5` | Generator unions the DB flag with the static one; `hiddenSource` in meta; gate on the sitemap. |
+| 6 | Referral program real | `254a466` | `GET /api/account/referral-code` issues the server code; UserContext hydrates it; referral input on step 2 posts the hint; executed endpoint + resolution tests; E2E. |
+| 7 | Atomic loyalty deduction | `3f4098e` | Compare-and-swap with one retry; shortfall ledger rows; migration 0040 (apply ask-before). Race test: exactly one of two deducts. |
+| 8 | Card without link-in-link; one COA source | `e50f9f1` | `<article>` + stretched name link (44 px); chip a sibling; the facet/compare column and chips share one map; /shop −1 request. |
+| 9 | Parity on 23 more pages; parity gate; 7 gated URLs | `2aa74dd` | Category pages + permalinks carry parity; permalinks hydrate from the seed; shell links underlined; `test-parity` in the E2E job (12 families, first run caught 3); LHCI +3 URLs. |
+| 10 | Shell-parity gate | (in 9) | `scripts/test-shell-parity.mjs`. |
+| 11 | Checkout a11y | `fc6d225` | Step heading focus, live-region errors, focusable summary target, reduced-motion scrolls (`src/lib/motion.js`); specs. |
+| 12 | Cart nudge | `b2b4e58` | Bottom-nav offset, region semantics, consent wait, focus on dismiss; flag-on CI lane + spec. |
+| 13 | Age gate focus | `7ad7134` | Takes / traps / hands over focus; inert page; first-visit keyboard E2E. |
+| 14 | D2 proves 0038–0041; db:verify feature presence; migration-doc gate | `776e3fb` | Data probes for the update-only migrations; `test-migration-docs` enforces the convention for every migration. |
+| 15 | Owner-doc drift sweep | `81d5933` | Copilot "auth wall" rewritten (catalog public); Stripe live-ack documented, dead shipping variable gone; 11/33; "transcribed"; `test-doc-drift`. |
+| 16 | COA storage hygiene | `e4d244d` | Replaced objects removed; `lookupByLot` seed fallback; honest mirror ids; migration 0041 (apply ask-before). |
+| 17 | Workflows split | `79bbf4c` · `a89ca82` | PR-branch code runs with `contents: read`; only the publish job writes. Follow-up from the first CI runs on #46: the publish jobs ran `always()` and failed on a missing artifact after a superseded push cancelled the build — now `!cancelled()` (a red build still publishes; a cancelled one never does). |
+| 18 | Partners tab | `dd6f617` | Every field; tier select validated against `lib/partnerTiers.js`. |
+| 19 | Hygiene | `b4e1527` | Dead client loyalty helpers deleted (gated); preload bound split (route ≤ 20, vendor ≤ 8). |
+| 20 | Measured levers (4.7) | `26a2c20` · `063c339` · `8422c1c` · `7f4d91a` | The first 7-URL lane on the finished tree was **red twice** — PDP LCP median 2706 ms (runs 1502 / 2706 / 2849 on one build) and `/shop` TBT 205 ms. Read per run (H-017): observed LCP = observed FCP in 21 of 21 runs (the shell paragraph never lost), so the flip lived in the simulation — the two-frame trigger issued the bundle request 5–30 ms before the observed paint and Lighthouse charged the bundle to first paint whenever that request finished first; the same flip is in cycle 11's own numbers (`/` 1503 / 1505 / 1504 / 1851 / 2161). Four levers, each built and measured on its target routes (`perf-lhci --urls`, 5 runs): **L1** the loader starts on the `first-contentful-paint` entry → 15 / 15 runs request after the paint, sim FCP a constant ~1205 ms, LCP 1503–1659 on every run, TBT unchanged; **L2** an identical live answer no longer replaces seeded state + the PDP settles in one batch → React scripting −8 – 13 %, TBT medians within ±10 ms; **L3** `memo(ProductCard)` + plain frames past the fold → `/shop` TBT 192 → 167, PDP 159 → 129; **L4** the initial render as a transition (time-sliced) → `/shop` 167 → **77**, PDP 129 → **32**, `/test-results` 111 → **53**; LCP, CLS and TTI unchanged by all four. Not measured this cycle: the Plex Mono preload (the per-run reading showed the font was not the cause; the remaining 150 ms LCP step 1503 → 1655 is the font wave — a cycle-13 measured-only probe). **L1 refined by the gate (`588bb50`):** the E2E lane read `/verify-lot` 1.5 s early — a client-only route's prerendered shell has nothing to paint, so the paint entry never came and the app waited for the timer; the loader now waits for the paint only on a shell with content and starts an empty shell on frames (the seven gated URLs all have shells; the request-after-paint property is unchanged there). |
+
+**Lighthouse levers (`scripts/perf-lhci.mjs`, this sandbox, same session; LCP · TBT in ms, CLS 0 throughout):**
+
+| build | `/shop` | `/product/bpc-157` | `/test-results` | note |
+| --- | --- | --- | --- | --- |
+| finished tree, 7-URL lane, 3 runs (`evidence/lhci-cycle12-parity`) | 1503 · **205** | **2706** · 138 | 1504 · 171 | two red; PDP runs 1502 / 2706 / 2849 |
+| L1 loader on the paint entry, 5 runs (`lhci-c12-L1`) | 1655 · 190 | 1652 · 153 | 1506 · 120 | no run over 1659; request after paint 15 / 15 |
+| + L2 no redundant render, one settled batch (`lhci-c12-L2`) | 1654 · 192 | 1653 · 159 | 1505 · 111 | scripting −8 – 13 % |
+| + L3 memoised card, plain frames past the fold (`lhci-c12-L3`) | 1654 · 167 | 1654 · 129 | — | motion 123–155 → 96–115 |
+| + L4 initial render as a transition (`lhci-c12-L4`) | 1655 · **77** | 1653 · **32** | 1506 · **53** | longest task 180–270 → 90–140 |
+
+**Lighthouse lane, final tree (7 URLs, median of 3):**
+`evidence/lhci-cycle12-final` (default E2E build, serve-dist, mobile simulation, 3 runs per URL, 340 s):
+
+| URL | LCP | TBT | CLS | perf | every run |
+| --- | --- | --- | --- | --- | --- |
+| `/` | 1655 ms | 3 ms | 0 | 100 | LCP 1655–1659 · TBT 2–31 |
+| `/shop` | 1652 ms | 36 ms | 0 | 100 | LCP 1505–1653 · TBT 33–63 |
+| `/product/bpc-157` | 1654 ms | 60 ms | 0 | 100 | LCP 1653–1655 · TBT 55–100 |
+| `/test-results` | 1504 ms | 34 ms | 0 | 100 | LCP 1504–1508 · TBT 29–36 |
+| `/shop/tissue-repair-research` | 1653 ms | 10 ms | 0.009 | 100 | LCP 1653–1654 · TBT 8–15 |
+| `/test-results/bpc-157` | 1654 ms | 5 ms | 0 | 100 | LCP 1507–1655 · TBT 4–15 |
+| `/partners` | 1653 ms | 6 ms | 0 | 100 | LCP 1653–1658 · TBT 2–7 |
+
+No run on any URL outside the budgets (LCP ≤ 2500 · TBT ≤ 200 · CLS ≤ 0.1); the first lane on the same items had two red medians and runs at 2.7–2.85 s (item 20). The CI Evidence run on the PR is the H-014 proof.
+
+**Full gate (the way CI runs it):**
+Second pass on the finished tree (the first pass caught three things, all fixed and re-run: the copy scan on the category shells, the E2E read of an empty-shell route 1.5 s early, the sweep's skip-link check after the age gate's new focus handover — `588bb50`, `40b5f8c`). Logs under the session scratchpad `gate2/`.
+
+| lane | how CI runs it | result |
+| --- | --- | --- |
+| lint | `npm run lint` (`--max-warnings 0`) | 0 errors · 0 warnings |
+| unit chain | `npm run test:unit` (incl. `test-coa-state`, `test-purity-honesty`, `test-partner-apply`, `test-dist-copy`, `test-route-preload`) | green, every script |
+| shell parity | `node scripts/test-shell-parity.mjs` (12 families) | all pass |
+| QR round trip · bytes & requests | `npm run test:qr` · `node scripts/test-bytes-budget.mjs` | all pass |
+| E2E (Chromium) | `npx playwright test` against serve-dist | **41 / 41** |
+| mobile | `npm run test:mobile` under `vite preview`, no `E2E_BASE_URL` | **58 / 58** (cart-nudge skipped by design: flag off) |
+| all-routes axe | `A11Y_ALL_ROUTES=1 node scripts/a11y-sweep.mjs` (+ 6 authed views) | 0 critical / serious · 0 landmark · 0 keyboard (age-gate handover + skip link on 3 routes) |
+| flag-on lane | `VITE_FEATURE_CART_RECOVERY=1 npm run build:e2e` + `cart-nudge.spec` under `vite preview` | 1 / 1; default build restored after |
+| Lighthouse | `perf-lhci cycle12-final --runs 3` (7 URLs, the gate's config) | table above, all green |
+
+### SCORECARD DELTA (H-014)
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.1 | Legal | 9 | 9 | a seeded purity constant presented as a measurement (hard-rule territory) is gone from every surface; the age gate takes / traps / hands over focus; the catalog stays public (the Copilot "auth wall" text corrected) |
+| 4.2 | Security | 9 | 9 | partner application: no upsert-by-email, no cross-account write, 502 on a failed store, `partner_pending` no longer passes `requirePartner`; loyalty deduction atomic; PR-branch code never runs with `contents: write` |
+| 4.3 | Data | 9 | 9 | D2 proves 0038–0041 by data; `db:verify` feature presence; migration-doc gate; storage objects removed on re-upload |
+| 4.4 | Trust | 9 | 9 | **honest note:** at RECON this card was an 8 — every card and product page printed "≥ 99 % PURE" from a seeded constant the site's own certificates contradicted (KPV 98.54 %, Semax 98.80 %, Tesamorelin 98.49 %); the cycle-11 nine was scored over that defect. Item 1 makes purity certificate-only (or absent) and gates it; 9 holds on this cycle's evidence. 10 stays owner data (D5, D5b: 33 spec sets) |
+| 4.5 | Commerce | 9 | 9 | referral code issued server-side and posted from step 2; compare-and-swap redemption with a shortfall ledger; BTCPay idempotency still escalated; 10 = live smoke (D8) |
+| 4.6 | SEO | 9 | 9 | a Control Room hide now reaches the rebuild (sitemap + prerender); the live probe asserts it; canonical host from one constant; 10 = D4 |
+| 4.7 | Performance | 9 | 9 | the nine now rests on a **deterministic** lane: the loader race that flipped the median for two cycles is fixed (H-017), hydration is time-sliced (TBT 205 / 138 / 171 → 77 / 32 / 53 locally), seven URLs gated; the CI Evidence run on this PR is the H-014 proof. 10 = live Lighthouse on the real host |
+| 4.8 | UI/UX | 8 | 8 | card without link-in-link, nudge above the bottom nav, consent-aware; the second clean review pass still waits on D10 |
+| 4.9 | Accessibility | 9 | 9 | six keyboard / screen-reader gaps on the money path closed and gated (step focus, live errors, summary target, reduced-motion scrolls, nudge region + focus, age-gate trap); all-routes axe 0 / 0 |
+| 4.10 | Mobile | 9 | 9 | nudge clears the bottom nav; checkout summary jump focuses; mobile suite under `vite preview` green (see gate) |
+| 4.11 | Admin | 9 | 9 | Partners tab shows every field, tier validated; D2 row proves the update-only migrations by data |
+| 4.12 | Observability | 8 | **7** | **corrected down (H-014 / H-016):** the cycle-8 "post-deploy smoke VERIFIED" row was scored on a gate that had never executed — all 16 production runs died in 2 s on a Playwright config check. The config is fixed here (both configs omit `webServer` for a remote URL; dispatch input), the live probe is hardened (canonical host, rails, sitemap floor, hidden categories) and the workflows split read / write — but **no executed production smoke and no live-probe record exist yet**. 8 = the first executed post-deploy run on the merged head; 9 = a green live probe on the real host (D4) |
+| 4.13 | Hygiene | 9 | 9 | lint 0 / 0; dead loyalty helpers gone; doc-drift, migration-doc and preload-bound gates; 11 / 33 and "transcribed" everywhere |
+| 4.14 | Growth | 7 | 7 | referral real end to end, partner flow hardened and reviewable with a tier; still 7 by the stated criterion — no observed application or redemption (data, not code) |
+
+### TEN-TRACKER (§F)
+
+| Card | Score | Blocks 9 (engine) | Blocks 10 (owner) | Evidence (path · date) |
+| --- | --- | --- | --- | --- |
+| 4.1 Legal | 9 | — | live scanner = 0 on the real host (D4); counsel (D6) | local: `test-purity-honesty`, `test-dist-copy`, corpus gate · 2026-09-14 |
+| 4.2 Security | 9 | — | D1 · D3 · D12 | local: `test-partner-apply` (18 cases), `test-rewards` race · CI: DB gates on this PR |
+| 4.3 Data | 9 | — | D2 (apply 0031–**0041**), `db:verify` on prod | local: `test-migration-docs`, `test-coa-seed-sync`, `test-coa-state` · CI: DB gates + migration hygiene |
+| 4.4 Trust | 9 | — | D5 · D5b (33 spec sets) | local: `test-purity-honesty` (certificate-only purity), `test-prerender-coverage` · 2026-09-14 |
+| 4.5 Commerce | 9 | — | D8 (+ BTCPay idempotency key, ask-before) | local: `test-referral-code`, `test-rewards`, `test-pricing-coherence`, `checkout-rewards.spec` |
+| 4.6 SEO | 9 | — | D4 | local: link-depth, routing, jsonld-shapes; generator hidden-category gate |
+| 4.7 Performance | 9 | — | live Lighthouse (D4 + first probe) | **CI: Evidence run 34810277084 green on #46 head `a89ca82`** (7 URLs: LCP 1655–1660 ms, TBT ≤ 80, CLS ≤ 0.009) · local: `evidence/lhci-cycle12-final` (7 × 3, every run in budget) and the four lever lanes above |
+| 4.8 UI/UX | 8 | second review pass | D10 | local: `evidence/screens` (cycle 11) · card/nudge fixes this cycle |
+| 4.9 Accessibility | 9 | — | live axe (first probe) | local: all-routes sweep 0 / 0 (gate below) · CI on the PR |
+| 4.10 Mobile | 9 | — | D10 | local: mobile under `vite preview` (gate below) · CI E2E job on the PR |
+| 4.11 Admin | 9 | — | owner order dry-run | local: `test-admin-screens` (D2 probes 0038 / 0039; 0040 / 0041 named unprovable) |
+| 4.12 Observability | **7** | an executed post-deploy run; a recorded live-probe run | D4 (`PROD_URL` / `CANONICAL_HOST`), D11 | `evidence/live/latest.json`: **none**; post-deploy: 0 executed runs (config fixed `618467f`) |
+| 4.13 Hygiene | 9 | — (9 = 10) | — | lint 0 / 0 · unit chain green · 2026-09-14 |
+| 4.14 Growth | 7 | first observed redemption / application (data) | attributed repeat order | local: the executed referral / partner / rewards tests |
+
+### OWNER SPRINT STATUS (§D)
+
+**D1–D12: none evidenced** (`evidence/live/latest.json` absent; no DB gate on
+prod; no repo variables). What moved this cycle: **D2**'s list ends at
+**0041** (0039 nulls the seeded purity, 0040 the non-negative points check,
+0041 the certificate bucket limits — all update-only / guarded, none applied);
+the Owner Sprint row proves 0038 / 0039 by data and names 0040 / 0041 as
+unprovable from the API; **D5b** unchanged (11 / 44 spec sets; 33 are yours);
+**D8** gains the `PAYMENTS_STRIPE_LIVE_ACK` presence row; **D4** is now the
+single blocker for 4.7 / 4.9 / 4.12 tens and for a meaningful live probe. After
+this PR merges the post-deploy smoke fires on Vercel's deployment status by
+itself for the first time (the engine also dispatches it and the live probe
+by hand and cites both runs in the thread).
+
+### EVIDENCE PROVENANCE (§F)
+
+- **From CI (read through `scripts/evidence-latest.mjs` at RECON):** `ci/latest.json` for
+  `a04f331` (**main**, Evidence run 34796722607, green: LCP 1511 / 1656 / 1509 / 1509 ms, CLS 0,
+  TBT ≤ 156 ms, screens 372 / 0, axe 0). **From CI on this PR:** `ci/latest.json` for the #46
+  head (Evidence run 34810277084, 2026-09-14 05:59Z, green on seven URLs — numbers in the PR DRAFT
+  section); CI run 34810277109; DB gates run 34810277115.
+- **From this sandbox (2026-09-14):** every number above; `evidence/lhci-cycle12-parity`
+  (the red baseline), `lhci-c12-L1` … `L4` (one lever each, 5 runs), `lhci-cycle12-final`
+  (7 URLs × 3); the RECON workflow journal (`wf_23d8d950-8f2`, 198 agents); the gate log
+  (`scratchpad/gate/*.log`, not committed).
+- **Live:** none (`evidence/live/latest.json` absent; 0 live-probe runs; 0 executed
+  post-deploy runs — the latter's config defect is fixed in `618467f`).
+
+### GENERATOR YIELDS (cycle 12)
+
+Inversion + adversarial verification 2 (the workflow: "which gate has never run?" → the
+production smoke and the live probe; "which helper does nothing call?") · Regulator walk 1
+(the purity constant) · Data honesty 4 (purity from certificates; "transcribed"; honest mirror
+ids; D2 by data) · Failure injection 4 (partner rebind / demotion / failed store; concurrent
+redemption; remote-URL smoke; a hide that never reached the rebuild) · Cost/perf 1 + 4 levers
+(parity on 23 pages and the parity gate; then the loader race, the redundant render, the
+memoised card, the time-sliced first render — each measured) · Ops dry run 3 · Accessibility 6
+(all on the money path, by adversarial reading, then gated) · Buyer walk 1 (first-visit
+keyboard path) · Competitor delta not run.
+
+### ESCALATIONS (owner-only; ranked)
+
+1. **This PR** (Draft; base `main`). Merge when the checks are green; the post-deploy smoke then
+   executes for the first time on Vercel's deployment status.
+2. **D4** repo variables `PROD_URL` (the real production origin) and `CANONICAL_HOST` — the live
+   probe defaults to the `*.vercel.app` host and reads red on nine host-config checks until set;
+   4.12 cannot pass 7, and 4.7 / 4.9 cannot reach 10, without a recorded run against the real host.
+3. **D2** apply `0031`–`0041` (`docs/MIGRATIONS_0039.md` / `0040` / `0041`; 0039 nulls the
+   seeded 99.0 purity — until it is applied, the LIVE database still carries the constant the
+   storefront no longer prints).
+4. **D5b** sequence · MW · CAS for the 33 products without them (Control Room → Catalog).
+5. **D1** `verify:rls` on prod · **D3** repo private → **D12** rotate.
+6. **`PAYMENTS_STRIPE_LIVE_ACK`** — set it only after the Stripe live-mode review (RUNBOOK §2).
+7. **BTCPay idempotency key** (`api/btcpay/create-invoice.js`, ask-before) — unchanged.
+8. **Partner pricing** — dormant and asserted dormant; turning it on touches `lib/pricing.js`.
+9. **Cart reminder email** — template exists, nothing sends it; decide whether you want it.
+10. **Code names on order lines** (`lib/pricing.js`) — unchanged.
+11. **Vercel "Ignored Build Step"** for the `evidence` branch — done in code; the project setting is
+    the durable owner-side form.
+12. D6 · D7 · D8 · D9 · D10 (walk the matrix on a phone) · D11 · `VERCEL_DEPLOY_HOOK_URL`.
+
+### What I'd do differently
+
+Read every run before trusting a median (H-017): the 1.5 s ↔ 2.7 s flip was in cycle 11's own
+lane and passed by luck; one hour of per-run reading found the ordering race that ten levers of
+"measured, not moved" in cycle 10 had circled. Measure a lever on the routes it targets with
+five runs (`perf-lhci --urls`, ~4 min each) — four levers in an hour instead of one per cycle.
+And hold the measured-win rule against the commit reminder: three levers went in as three
+commits with their own numbers, the fourth waited for its lane rather than ride along.
+
+### PR DRAFT (opened as a Draft per addendum C6, base = `main`)
+
+**Opened:** [#46](https://github.com/EminenceHairBoutique/Noir-Peptides/pull/46) at 2026-09-14 05:31Z (Draft; subscribed; steward check-in armed).
+
+**CI green on head `a89ca82` (06:00Z, `mergeable_state: clean`):** CI run [34810277109](https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34810277109) (Lint · test · build, End-to-end, Migration hygiene) · DB gates run [34810277115](https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34810277115) · **Evidence run [34810277084](https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34810277084)** — `ci/latest.json` verdict green: Lighthouse median of 3 on seven URLs LCP `/` 1660 · `/shop` 1656 · PDP 1656 · `/test-results` 1655 · category 1656 · permalink 1655 · `/partners` 1655 ms, TBT 0 / 80 / 66 / 37 / 9 / 0 / 0 ms, CLS ≤ 0.009, perf 99–100; screens 372 views / 0 failing; axe 0; link-depth and hygiene green · GitGuardian · Vercel preview. Two earlier red `Publish` checks were on superseded heads under the old workflow file (`always()` after a cancelled build) — fixed by `a89ca82` (`!cancelled()`), one comment each side. **This is the H-014 CI proof for 4.7 = 9.**
+
+**Title:** Opt cycle 12 — purity only from certificates, partner hardening, deterministic paint-first + time-sliced hydration, live-evidence readiness
+
+**Summary.** Adversarial RECON of cycles 10 + 11 (a workflow: 8 readers, 3 verifiers per
+finding) led with a hard-rule defect the engine itself had shipped — "≥ 99 % PURE" from a seeded
+constant the site's own certificates contradict — and two security defects in the partner
+application. 20 planned items shipped; the performance lane then caught its own flakiness:
+the paint-first loader raced Lighthouse's first paint and the LCP median flipped by luck; fixed
+at the mechanism, with hydration time-sliced on top (TBT 205 / 138 / 171 → 77 / 32 / 53 ms on
+`/shop`, the PDP and `/test-results`). Migrations 0039–0041 (update-only, guarded; apply is
+ask-before). Post-deploy smoke can now actually run against a remote URL; live probe hardened;
+workflows split so PR-branch code never holds `contents: write`.
+
+**Honest state.** 4.7's nine rests on the CI Evidence run on this PR (seven URLs, hard budgets,
+median of 3). 4.12 is corrected to **7**: the production smoke has never executed (its config
+defect is fixed here); the first executed run and the first live-probe record are the next
+proofs. No migration applied to live, no price / visibility / flag change (the cart-recovery flag
+stays off everywhere), no pricing / shipping / checkout-session / btcpay file touched.
 
 **Rollback.** Revert the branch.
 

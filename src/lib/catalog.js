@@ -36,13 +36,18 @@ function staticProducts({ category } = {}) {
     // Opt cycle 9 (C7): the static mirror of products.code_name (set on nothing).
     code_name: p.codeName ?? null,
     displayName: displayNameOf({ name: p.name, code_name: p.codeName }),
-    // Verified dry specs (opt cycle 11) — null when not on record.
+    // Transcribed dry specs (opt cycle 11; source named in productSpecs.js) — null when not on record.
     peptide_sequence: p.specs?.sequence ?? null,
     molecular_weight: p.specs?.molecularWeight ?? null,
     cas_number: p.specs?.cas ?? null,
     category_slug: p.category_slug,
     price: p.price,
-    purity_percent: 99,
+    // Opt cycle 12 (4.4 / 4.1): purity is NEVER a constant. The site's own
+    // published certificates (KPV 98.54 %, Semax 98.80 %, Tesamorelin 98.49 %)
+    // contradicted the seeded "≥ 99 %"; every surface now reads the latest
+    // published certificate or shows nothing. Migration 0039 nulls the seeded
+    // value in the database (apply is an owner step).
+    purity_percent: null,
     form: "Lyophilized powder",
     storage_temp: "-20°C",
     research_use_only: true,

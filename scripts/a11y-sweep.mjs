@@ -100,7 +100,18 @@ let keyboardFailures = 0;
     await page.goto(base + route, { waitUntil: "networkidle" });
     // The age gate is a modal on first visit; accept it so the page is reachable.
     const gate = page.getByRole("button", { name: /enter|confirm|i am|agree|continue/i }).first();
-    if (await gate.isVisible().catch(() => false)) { await gate.click(); await page.waitForTimeout(300); }
+    if (await gate.isVisible().catch(() => false)) {
+      await gate.click();
+      await page.waitForTimeout(300);
+      // Opt cycle 12 (4.9): confirming the gate hands focus to #main (AgeGate.jsx),
+      // so the header is already bypassed for that visit — assert the handover,
+      // then reload (the gate stays accepted) so the skip-link check below runs
+      // on a fresh document like every other route.
+      const handed = await page.evaluate(() => { const a = document.activeElement; const m = document.getElementById("main"); return !!m && (a === m || m.contains(a)); });
+      if (!handed) keyboardFailures++;
+      console.log(`${handed ? "✓" : "✗"} keyboard ${route}: confirming the age gate hands focus to #main`);
+      await page.goto(base + route, { waitUntil: "networkidle" });
+    }
     await page.keyboard.press("Tab");
     const first = await page.evaluate(() => ({ text: document.activeElement?.textContent?.trim(), href: document.activeElement?.getAttribute("href") }));
     const onSkip = first.href === "#main" && /skip to content/i.test(first.text || "");

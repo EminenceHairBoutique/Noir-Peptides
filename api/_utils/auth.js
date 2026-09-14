@@ -136,10 +136,11 @@ export async function requirePartner(req, res) {
   const tier = String(profile?.account_tier || "").toLowerCase();
   const status = String(profile?.partner_status || "").toLowerCase();
 
+  // Opt cycle 12: an approved partner only. `partner_pending` is the tier a
+  // self-service application sets; it must never pass this guard.
   const isApproved =
     tier === "partner" ||
     tier === "wholesale" ||
-    tier.startsWith("partner_") ||
     status === "approved" ||
     status === "active";
 

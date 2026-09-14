@@ -6,7 +6,7 @@ const DEFAULT_DESCRIPTION =
   "Batch-documented peptide reference materials for laboratory research. COA available. For research use only. Not for human or veterinary use.";
 const DEFAULT_IMAGE_PATH = "/assets/noir/noir-og.png";
 
-const PRODUCTION_SITE_URL = "https://www.noirpeptides.com";
+import { PRODUCTION_SITE_URL } from "../../lib/siteUrl.js";
 
 // Never emit a localhost/loopback canonical or OG URL at runtime. If the build
 // was shipped with a misconfigured VITE_SITE_URL, prefer the live origin (when

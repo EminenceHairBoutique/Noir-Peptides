@@ -19,8 +19,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Opt cycle 12 (4.2): two jobs. Everything that runs the PR branch's code
+# (npm ci lifecycle scripts, the build, the probes) runs with a READ-ONLY
+# token; only the final publish job, which runs nothing from the branch but
+# the checked-in publisher on an already-built artifact, holds contents: write.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: evidence-${{ github.ref }}
@@ -31,6 +35,8 @@ jobs:
     name: Screens · axe · Lighthouse · crawls
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -82,9 +88,29 @@ jobs:
           path: evidence/
           retention-days: 30
 
-      - name: Publish the summary to the `evidence` branch
-        if: >-
-          always() &&
-          (github.event_name != 'pull_request' ||
-           github.event.pull_request.head.repo.full_name == github.repository)
+  publish:
+    name: Publish the summary to the evidence branch
+    needs: evidence
+    # Runs after a red evidence job too (the red summary is the point) but
+    # never after a CANCELLED one: a superseded push cancels the build before
+    # it uploads, and `always()` then failed here on a missing artifact
+    # (cycle 12, PR #46) — a red that was nobody's code.
+    if: >-
+      !cancelled() &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/download-artifact@v4
+        with:
+          name: evidence-${{ github.sha }}
+          path: evidence/
+      - name: Publish evidence/summary.json as ci/<sha>.json + ci/latest.json
         run: node scripts/evidence-publish.mjs ci evidence/summary.json

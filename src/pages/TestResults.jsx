@@ -15,7 +15,7 @@ import { Search, ChevronDown } from "lucide-react";
 import SEO from "../components/SEO";
 import BatchHistoryTable from "../components/BatchHistoryTable";
 import QrVerifyExplainer from "../components/QrVerifyExplainer";
-import { getAllCoas, getSeedCoas } from "../lib/coas";
+import { getAllCoas, getSeedCoas, sameCoaRows } from "../lib/coas";
 import { getAllProducts, getCategories } from "../data/tier1Catalog";
 import { deriveCoaStats, filterCoas, groupByProduct, hasAnyCas } from "../lib/coaStats";
 
@@ -67,7 +67,9 @@ export default function TestResults() {
     let alive = true;
     getAllCoas().then((rows) => {
       if (alive) {
-        setCoas(rows);
+        // Opt cycle 12 (4.7 TBT): the same rows as the seed → keep the state,
+        // no second render of every table.
+        setCoas((cur) => (sameCoaRows(cur, rows) ? cur : rows));
         setLoading(false);
       }
     });

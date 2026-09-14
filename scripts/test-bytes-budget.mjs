@@ -27,7 +27,7 @@ const ok = (cond, msg) => {
 const BUDGET = {
   // +1 request per route since opt cycle 11: /boot.js, the paint-first loader.
   "/": { kb: 372, requests: 31 },
-  "/shop": { kb: 392, requests: 43 },
+  "/shop": { kb: 392, requests: 42 }, // opt cycle 12: one coas query (the map), not two
   "/product/bpc-157": { kb: 412, requests: 57 },
   "/test-results": { kb: 382, requests: 35 },
   "/faqs": { kb: 372, requests: 31 },

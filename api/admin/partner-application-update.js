@@ -2,6 +2,7 @@ import { supabaseServer } from "../../lib/supabaseServer.js";
 import { requireAdmin } from "../_utils/auth.js";
 import { readJsonBody, jsonResponse as json } from "../_utils/body.js";
 import { validateBody } from "../_utils/validate.js";
+import { PARTNER_TIERS, DEFAULT_PARTNER_TIER } from "../../lib/partnerTiers.js";
 
 async function ensureProfileRow(userId, email) {
   if (!userId) return;
@@ -21,7 +22,8 @@ export default async function handler(req, res) {
 
   const applicationId = body.applicationId || body.id;
   const action = String(body.action || "").toLowerCase();
-  const partnerTier = body.partnerTier || "wholesale";
+  const partnerTier = body.partnerTier || DEFAULT_PARTNER_TIER;
+  if (!PARTNER_TIERS.includes(partnerTier)) return json(res, 400, { error: "Invalid request", details: [`partnerTier must be one of ${PARTNER_TIERS.join(", ")}`] });
 
   const { ok, errors } = validateBody(
     { applicationId, action },

@@ -4,6 +4,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:4173";
+// Opt cycle 12 (4.12): a remote base URL (a deployment) has nothing to start —
+// Playwright would otherwise refuse to run ("… is already used") under CI, which
+// is why the production post-deploy smoke had never executed. No webServer then.
+const REMOTE = !/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(BASE_URL);
 
 export default defineConfig({
   testDir: "./tests/mobile",
@@ -16,10 +20,12 @@ export default defineConfig({
       : {}),
   },
   projects: [{ name: "mobile-chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: "npm run preview -- --port 4173",
-    url: BASE_URL,
-    reuseExistingServer: true,
-    timeout: 60_000,
-  },
+  ...(REMOTE ? {} : {
+    webServer: {
+      command: "npm run preview -- --port 4173",
+      url: BASE_URL,
+      reuseExistingServer: true,
+      timeout: 60_000,
+    },
+  }),
 });

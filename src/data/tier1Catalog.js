@@ -210,7 +210,7 @@ export function getAllProducts() {
         name: p.name,
         // Optional storefront code name (mirror of products.code_name); set on nothing.
         codeName: p.codeName ?? null,
-        // Verified dry specs (src/data/productSpecs.js) or null — never derived.
+        // Transcribed dry specs (src/data/productSpecs.js, source named per product) or null — never derived.
         specs: PRODUCT_SPECS[p.id] || null,
         blurb: p.blurb,
         description: `${p.blurb} ${RUO_SUFFIX}`,

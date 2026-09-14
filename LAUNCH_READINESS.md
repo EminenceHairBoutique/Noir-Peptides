@@ -1,11 +1,69 @@
 # Noir Peptides — Launch Readiness
 
-_Last updated: 2026-09-13 (opt cycle 11)_
+_Last updated: 2026-09-14 (opt cycle 12)_
 
 This tracks the Launch Remediation work (6 tasks) and what remains before going
 live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
+
+## ✅ Done (Sept-14 optimization cycle 12 — branch `claude/opt-cycle-12-20260914`, base `main`, Draft PR)
+
+The addendum's "Cycle 5+ — hold at nine; promote to ten only from live
+evidence" (`OPTIMIZATION_LOG.md`, cycle 12). RECON was an adversarial
+re-read of cycles 10 + 11 (a workflow: 8 readers, 3 verifiers per finding):
+
+- **Purity is certificate-only.** Every card, product page and the specs
+  panel printed "≥ 99 % PURE" from a seeded constant (`purity_percent: 99`
+  on all 44 static products, 0009 seeds 99.0) that the site's own published
+  certificates contradict (KPV 98.54 %, Semax 98.80 %, Tesamorelin 98.49 %).
+  Purity now comes from the LATEST PUBLISHED certificate or is absent;
+  migration `0039` nulls the seeded value (update-only — apply is yours);
+  the Home page's "≥ 99 %" strings are gone; gated by `test-purity-honesty`.
+- **Partner application hardened:** no upsert-by-email (an existing
+  approved / rejected row is never overwritten, another account's row is
+  never touched), a failed store is a 502 (never "received"), profile →
+  `partner_pending` only on a NEW row, `partner_pending` no longer passes
+  the partner guard; the Control Room Partners tab shows every field and
+  lets you pick the tier on approval (`lib/partnerTiers.js`).
+- **Live-evidence readiness:** the post-deploy smoke had **never executed**
+  (all 16 production runs died in 2 s on a Playwright config check) — fixed
+  (`playwright.config.js` omits `webServer` for a remote URL; dispatch input),
+  so it fires for real on the first deployment after this merges. The live
+  probe expects the configured production host, checks that a payable rail
+  exists, derives the sitemap floor from build metadata and asserts hidden
+  categories stay out of the live sitemap. Both evidence workflows split into
+  a read-only job and a write-only publish job. **Observability is scored 7
+  until the first executed smoke and the first probe record exist.**
+- **Performance, deterministic:** the paint-first loader's two-frame trigger
+  raced Lighthouse's first paint and the LCP median flipped 1.5 ↔ 2.7 s run to
+  run (in cycle 11's numbers too); the loader now starts the app on the
+  `first-contentful-paint` entry (15 of 15 runs after the paint). Hydration is
+  time-sliced (the first render is a React transition) and the seeded pages no
+  longer render twice: TBT on `/shop` · product page · `/test-results`
+  205 / 138 / 171 → 77 / 32 / 53 ms locally, LCP and CLS unchanged; seven URLs
+  are now under the hard Lighthouse gate, with a shell-parity gate in CI.
+  **CI proof: the `Evidence` check is green on the PR head** (run 34810277084 —
+  LCP 1655–1660 ms on all seven URLs, TBT ≤ 80 ms, CLS ≤ 0.009, axe 0, 372
+  screenshots / 0 failing).
+- **Accessibility on the money path:** checkout step changes move focus to
+  the step heading, errors are live regions, the order-summary jump lands on
+  a focusable target, programmatic scrolls honour reduced motion; the
+  saved-cart nudge clears the bottom nav and is a named region; the age gate
+  takes, traps and hands over focus with the page behind it inert; product
+  cards no longer nest a link in a link.
+- **Referral and loyalty real:** the referral code is issued server-side and
+  posted from step 2; point deduction is compare-and-swap with a shortfall
+  ledger (migration `0040`, a NOT VALID check — yours to apply); COA storage
+  removes replaced objects and `0041` caps the bucket (yours to apply).
+- **Docs to the truth:** the Copilot instructions' "auth wall" text rewritten
+  (the catalog is public), `PAYMENTS_STRIPE_LIVE_ACK` documented and shown on
+  the Owner Sprint D8 row, spec counts 11 / 33 and "transcribed" everywhere,
+  D2 proves 0038–0041 by data, migration-doc and doc-drift gates.
+
+**Owner Sprint status:** none complete. New for D2: migrations `0039`,
+`0040`, `0041`. D4 (`PROD_URL` / `CANONICAL_HOST`) is the single blocker for
+a meaningful live probe and for every 10.
 
 ## ✅ Done (Sept-13 optimization cycle 11 — branch `claude/opt-cycle-11-20260913`, stacked on cycle 10, Draft PR)
 
@@ -20,12 +78,14 @@ The addendum's "Cycle 4 — polish to nine everywhere + growth foundations"
   **CI proof: the `Evidence` check is green on the PR head** (run 34789025447 —
   LCP 1.5–2.0 s on all four routes, CLS 0, TBT ≤ 135 ms); performance is
   scored 9 (10 needs the live host).
-- **Specifications, honest:** sequence / molecular weight / CAS for the 12
-  products with verified values (transcribed, CAS check-digit validated;
+- **Specifications, honest:** sequence / molecular weight / CAS for the 11
+  products with transcribed values (from the 0001 seed, CAS check-digit validated;
   migration `0038`, update-only — `docs/MIGRATIONS_0038.md`); the panel omits
   what it does not know instead of printing "—"; the Control Room edits the
-  three fields (format-validated); the other 32 are **owner data** (Owner
-  Sprint row D5b counts them).
+  three fields (format-validated); the other 33 are **owner data** (Owner
+  Sprint row D5b counts them). The 11 come from the self-authored 0001 seed,
+  not from a supplier or the CAS registry — confirm before any "verified"
+  wording returns.
 - **Certificates in every build:** the 19 published certificates already in
   the live table are mirrored from their migration, so `/test-results`, the
   15 batch-history permalinks (sitemap 73 → 89 with `/partners`) and the

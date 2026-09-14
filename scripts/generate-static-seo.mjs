@@ -27,9 +27,6 @@ import {
   getAllProducts,
   getCategories,
   getProductsInCategory,
-  getVisibleCategories,
-  getVisibleProducts,
-  getVisibleProductsInCategory,
   hiddenCategorySlugs as staticHiddenCategorySlugs,
 } from "../src/data/tier1Catalog.js";
 import { HERO_DISCLAIMER, DISCLAIMER_FULL } from "../src/config/compliance.js";
@@ -74,7 +71,35 @@ const SITE_NAME = "Noir Peptides";
 const DEFAULT_DESCRIPTION =
   "Batch-documented peptide reference materials for laboratory research. COA available. For research use only. Not for human or veterinary use.";
 
-const PRODUCTION_DEFAULT = "https://www.noirpeptides.com";
+import { PRODUCTION_SITE_URL as PRODUCTION_DEFAULT } from "../lib/siteUrl.js";
+
+// ── Category visibility at build: static ∪ database (opt cycle 12, 4.6) ────
+// The Control Room flips product_categories.soft_launch_hidden and triggers a
+// rebuild; before this cycle the rebuild read only the static mirror's flag,
+// so a hidden category's pages stayed prerendered and in the sitemap. The
+// union below never subtracts: a static hide holds even if the row disagrees.
+let hiddenSlugs = staticHiddenCategorySlugs();
+let hiddenSource = "static";
+const visibleCategories = () => getCategories().filter((c) => !hiddenSlugs.has(c.slug));
+const visibleProducts = () => getAllProducts().filter((p) => !hiddenSlugs.has(p.category_slug));
+const visibleProductsInCategory = (slug) => (hiddenSlugs.has(slug) ? [] : getAllProducts().filter((p) => p.category_slug === slug));
+async function fetchHiddenCategoriesAtBuild() {
+  const url = String(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+  const key = process.env.VITE_SUPABASE_ANON_KEY || "";
+  if (!url || !key) return null;
+  try {
+    const res = await fetch(`${url}/rest/v1/product_categories?select=slug,soft_launch_hidden&soft_launch_hidden=eq.true`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) throw new Error(`product_categories fetch ${res.status}`);
+    const rows = await res.json();
+    if (!Array.isArray(rows)) throw new Error("malformed product_categories response");
+    return new Set(rows.map((r) => String(r.slug)));
+  } catch (e) {
+    console.warn(`[seo] category visibility fetch failed (${e.message}) — static soft-launch flags only`);
+    return null;
+  }
+}
 
 // ── Resolve a SAFE absolute site URL ────────────────────────────────────────
 // The guard's purpose is to never ship localhost/empty canonicals or OG URLs.
@@ -642,7 +667,7 @@ const FOOTER_NAV = [
 function renderFooterNav() {
   const li = (l) => `<li><a href="${escapeHtml(l.href)}">${escapeHtml(l.label)}</a></li>`;
   const links = FOOTER_NAV.map(li).join("");
-  const cats = getVisibleCategories()
+  const cats = visibleCategories()
     .map((c) => li({ href: `/shop/${c.slug}`, label: c.name }))
     .join("");
   return `<nav aria-label="Site"><ul>${links}</ul></nav>` +
@@ -810,7 +835,8 @@ const DOCUMENTS_POLICY_LINKS = [
 function renderDocumentsBody(sdsRows) {
   const blocks = [
     "<h1>Document Library</h1>",
-    "<p>Safety Data Sheets, batch certificates of analysis, lot verification and the " +
+    // Shell parity (opt cycle 12): sized to React's intro so the first paint stays the largest.
+    '<p style="font-size:18px;line-height:1.6">Safety Data Sheets, batch certificates of analysis, lot verification and the ' +
       "policies under which these materials are supplied.</p>",
     "<h2>Certificates and verification</h2>",
     "<ul>" +
@@ -888,7 +914,7 @@ function renderResearchIndexBody(articles) {
     .join("");
   return wrapBody([
     "<h1>Research &amp; Education</h1>",
-    `<p>${escapeHtml(
+    `<p style="font-size:18px;line-height:1.6">${escapeHtml(
       "Educational articles on certificates of analysis, HPLC purity, and how peptide reference materials are studied in the laboratory."
     )}</p>`,
     `<ul>${items}</ul>`,
@@ -1194,8 +1220,13 @@ async function main() {
   // (src/data/tier1Catalog.js) so the static HTML and the DB never drift.
   // Sept-11 T7: storefront surfaces use the VISIBLE views; a soft-launch-
   // hidden category never reaches the home rail, /shop, the sitemap or a PDP.
-  const homeCategories = getVisibleCategories();
-  const hiddenSlugs = staticHiddenCategorySlugs();
+  const dbHidden = await fetchHiddenCategoriesAtBuild();
+  if (dbHidden) {
+    hiddenSlugs = new Set([...staticHiddenCategorySlugs(), ...dbHidden]);
+    hiddenSource = "static+db";
+    console.log(`[seo] category visibility: ${dbHidden.size} hidden in the database, ${staticHiddenCategorySlugs().size} in the static mirror → ${hiddenSlugs.size} hidden (union)`);
+  }
+  const homeCategories = visibleCategories();
 
   // W2/W4: published COA rows for the trust-surface prerender (null when the
   // build has no database access — shell-only, honestly logged).
@@ -1466,8 +1497,8 @@ async function main() {
   // a current attestation, enforced server-side). Data is mirrored from the
   // same source as the SQL seed (src/data/tier1Catalog.js) so HTML and DB never
   // drift.
-  const catalogProducts = withDisplayNames(getVisibleProducts());
-  const catalogCategories = getVisibleCategories();
+  const catalogProducts = withDisplayNames(visibleProducts());
+  const catalogCategories = visibleCategories();
 
   const shopRoutes = [
     {
@@ -1486,15 +1517,18 @@ async function main() {
       pathname: `/shop/${cat.slug}`,
       title: `${cat.name} — Research Reference Materials`,
       description: `${cat.description} For research use only. Not for human or veterinary use.`,
+      // Shell parity (opt cycle 12): the same RUO sentence /shop carries — on
+      // the 8 category pages React's banner used to win LCP.
       bodyHtml: renderListBody(
         cat.name,
         cat.description,
-        withDisplayNames(getVisibleProductsInCategory(cat.slug)),
+        withDisplayNames(visibleProductsInCategory(cat.slug)),
         [
           { name: "Home", href: "/" },
           { name: "Shop", href: "/shop" },
           { name: cat.name, href: `/shop/${cat.slug}` },
-        ]
+        ],
+        [`<p style="font-family:var(--font-mono);font-size:14px;line-height:1.625">${escapeHtml(DISCLAIMER_FULL)}</p>`]
       ),
       // Mirrors the trail rendered immediately above.
       breadcrumb: [
@@ -1521,7 +1555,7 @@ async function main() {
     ],
     bodyHtml: renderProductBody(
       p,
-      withDisplayNames(getVisibleProductsInCategory(p.category_slug)).filter((r) => r.slug !== p.slug).slice(0, 6),
+      withDisplayNames(visibleProductsInCategory(p.category_slug)).filter((r) => r.slug !== p.slug).slice(0, 6),
       coaGroups.has(p.id)
     ),
   }));
@@ -1542,10 +1576,11 @@ async function main() {
           // Visible trail mirrors the BreadcrumbList JSON-LD below — the
           // structured data never claims markup the page does not render.
           `<nav aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/test-results">Test Results</a> / ${escapeHtml(prod.name)}</nav>`,
-          `<h1>${escapeHtml(prod.name)} — Batch Test History</h1>`,
-          `<p>Every published certificate for this material, newest first.</p>`,
+          // Shell parity (opt cycle 12): the h1 at React's mobile size and the
+          // page's full intro, so the first paint is the largest paint here too.
+          `<h1 style="font-size:30px;line-height:1.15">${escapeHtml(prod.name)} — Batch Test History</h1>`,
+          `<p style="font-size:18px;line-height:1.6">Every published certificate for this material, newest first. Each row is a specific tested lot; <a href="/product/${escapeHtml(prod.slug)}">view the product page</a>.</p>`,
           renderBatchTableHtml(rows, prod.name),
-          `<p><a href="/product/${escapeHtml(prod.slug)}">View the product page</a></p>`,
         ]),
         breadcrumb: [
           { name: "Home", item: `${SITE_URL}/` },
@@ -1738,8 +1773,13 @@ async function main() {
   // nothing secret, nothing fabricated.
   const buildMeta = {
     dbEnvPresent: hasDbEnv(),
-    features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic },
+    features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic, cartRecovery: BUILD_FEATURES.cartRecovery },
     hiddenCategories: [...hiddenSlugs].sort(),
+    hiddenSource,
+    // Opt cycle 12: the live probe's sitemap floor = this build's static
+    // routes + the LIVE build's permalink count (rows the owner can unpublish).
+    sitemapUrlCount: sitemapRoutes.length,
+    permalinkProductCount: batchHistoryRoutes.length,
     coaRowCount: Array.isArray(coaRows) ? coaRows.length : null,
     coaSource,
     sdsRowCount: Array.isArray(sdsRows) ? sdsRows.length : null,

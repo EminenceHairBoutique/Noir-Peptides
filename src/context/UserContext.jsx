@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { supabase } from "../lib/supabaseClient";
 import { siteOrigin } from "../lib/siteUrl";
 import { ATTESTATION_VERSION } from "../config/attestation";
+import { accountGet } from "../lib/accountApi";
 
 
 const UserContext = createContext();
@@ -52,13 +53,6 @@ const EMPTY_USER = {
    Helpers
 ========================= */
 
-const generateReferralCode = (idOrEmail = "") => {
-  const base =
-    idOrEmail.replace(/[^A-Za-z0-9]/g, "").slice(-5).toUpperCase() ||
-    Date.now().toString().slice(-5);
-  return `NP-${base}`;
-};
-
 const hydrateUser = (raw) => {
   if (!raw) return null;
 
@@ -72,9 +66,9 @@ const hydrateUser = (raw) => {
     ...(raw.referrals || {}),
   };
 
-  if (!mergedReferrals.code) {
-    mergedReferrals.code = generateReferralCode(raw.id || raw.email || "");
-  }
+  // Opt cycle 12: the referral code is ISSUED by the server
+  // (GET /api/account/referral-code → lib/rewards.js ensureReferralCode) and
+  // hydrated below; the client never invents one a friend could not redeem.
 
   return {
     ...EMPTY_USER,
@@ -306,6 +300,20 @@ export const UserProvider = ({ children }) => {
     return data;
   };
 
+  // Opt cycle 12: issue / fetch the server-side referral code once per session.
+  useEffect(() => {
+    if (!user?.id || user.referrals?.code) return undefined;
+    let alive = true;
+    accountGet("/api/account/referral-code")
+      .then((d) => {
+        if (!alive || !d?.code) return;
+        setUser((prev) => (prev && prev.id === user.id ? { ...prev, referrals: { ...prev.referrals, code: d.code } } : prev));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   // Re-pull profile (used after OAuth return or external changes).
   const refreshProfile = async () => {
     if (!user?.id) return;
@@ -318,35 +326,10 @@ export const UserProvider = ({ children }) => {
      (UNCHANGED FROM YOUR WORK)
   ========================= */
 
-  const addOrder = (order) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const orderWithDefaults = {
-        id: order.id || Date.now().toString(),
-        createdAt: order.createdAt || new Date().toISOString(),
-        status: order.status || "Processing",
-        items: order.items || [],
-        total: order.total || 0,
-      };
-      return {
-        ...prev,
-        orders: [orderWithDefaults, ...(prev.orders || [])],
-        loyaltyPoints:
-          (prev.loyaltyPoints || 0) +
-          Math.round((orderWithDefaults.total || 0) / 10),
-      };
-    });
-  };
-
-  const addLoyaltyPoints = (points) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        loyaltyPoints: (prev.loyaltyPoints || 0) + (points || 0),
-      };
-    });
-  };
+  // Opt cycle 12: the client no longer accrues or spends points itself — the
+  // balance is the server's (profiles.loyalty_points, hydrated above) and the
+  // earning rate lives in src/utils/loyalty.js; the old addOrder /
+  // addLoyaltyPoints helpers carried a second rate nothing could audit.
 
   const updateProfile = (updates) => {
     setUser((prev) => {
@@ -415,8 +398,6 @@ export const UserProvider = ({ children }) => {
         logout,
         recordAttestation,
         refreshProfile,
-        addOrder,
-        addLoyaltyPoints,
         updateProfile,
         toggleWishlistItem,
       }}

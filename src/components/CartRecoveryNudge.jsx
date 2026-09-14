@@ -15,29 +15,46 @@ const DISMISS_KEY = "np_cart_nudge_dismissed";
 function readDismissed() {
   try { return sessionStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
 }
+// The consent sheet (CookieBanner) owns the bottom of the viewport until it is
+// answered; the nudge waits for it (opt cycle 12).
+function consentAnswered() {
+  try { return Boolean(localStorage.getItem("np_cookie_consent")); } catch { return true; }
+}
 
 export default function CartRecoveryNudge() {
   const { items } = useCart();
   const location = useLocation();
   const [dismissed, setDismissed] = useState(readDismissed);
+  const [consented, setConsented] = useState(consentAnswered);
   const count = items.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
 
   useEffect(() => { setDismissed(readDismissed()); }, [location.pathname]);
+  useEffect(() => {
+    const onConsent = () => setConsented(consentAnswered());
+    window.addEventListener("se_consent_updated", onConsent);
+    return () => window.removeEventListener("se_consent_updated", onConsent);
+  }, []);
 
-  if (dismissed || count === 0 || HIDDEN_ON.some((re) => re.test(location.pathname))) return null;
+  if (dismissed || !consented || count === 0 || HIDDEN_ON.some((re) => re.test(location.pathname))) return null;
 
   const dismiss = () => {
     try { sessionStorage.setItem(DISMISS_KEY, "1"); } catch { /* private mode */ }
     setDismissed(true);
+    // The focused button is about to disappear — land on the page's main landmark.
+    document.getElementById("main")?.focus();
   };
 
   return (
+    /* Opt cycle 12 (4.10): clears the 52 px bottom nav below md with the same
+       offset the consent sheet uses; z-[45] sits above the bar (z-40) and below
+       the consent sheet (z-50). A named region with a polite live area. */
     <div
-      role="status"
+      role="region"
+      aria-label="Saved cart"
       data-testid="cart-recovery-nudge"
-      className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-sm z-40 glass-panel border border-se-concrete p-4 flex items-center gap-3"
+      className="fixed left-4 right-4 sm:left-auto sm:right-6 sm:max-w-sm z-[45] bottom-[max(1rem,env(safe-area-inset-bottom))] max-md:bottom-[calc(52px+1rem+env(safe-area-inset-bottom))] glass-panel border border-se-concrete p-4 flex items-center gap-3"
     >
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0" aria-live="polite">
         <p className="text-[13px] font-accent text-se-bone">Your cart is saved.</p>
         <p className="text-[11px] font-accent text-se-steel">
           {count} {count === 1 ? "item" : "items"} waiting. Prices are confirmed at checkout.

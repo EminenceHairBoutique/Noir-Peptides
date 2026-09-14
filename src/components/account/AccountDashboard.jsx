@@ -218,6 +218,11 @@ export default function AccountDashboard() {
                   {Number(user?.loyaltyPoints || 0).toLocaleString()}
                 </span>
               </div>
+              {!user?.referrals?.code && (
+                <p className="text-[11px] text-se-steel font-accent border-t border-se-concrete pt-4">
+                  Your referral code is being issued.
+                </p>
+              )}
               {user?.referrals?.code && (
                 <div className="border-t border-se-concrete pt-4">
                   <p className="text-se-steel text-[11px] uppercase tracking-[0.14em] font-accent mb-2">

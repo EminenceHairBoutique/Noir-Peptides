@@ -15,6 +15,8 @@ export const FIXTURES = {
 
 /** Every write the code under test performs, in order (for assertions). */
 export const LOG = [];
+/** Fault injection: the next insert / update returns a PostgREST-style error. */
+export const FAIL = { nextInsert: false, nextUpdate: false };
 
 /** Chainable builder; filters are applied when the promise is awaited. */
 function builder(table) {
@@ -52,6 +54,7 @@ function builder(table) {
       return api;
     },
     insert(rows) {
+      if (FAIL.nextInsert) { FAIL.nextInsert = false; return Promise.resolve({ data: null, error: { code: "XX000", message: "stub insert failure" } }); }
       const list = Array.isArray(rows) ? rows : [rows];
       for (const r of list) {
         (FIXTURES[table] ||= []).push({ id: `${table}-${FIXTURES[table].length + 1}`, ...r });
@@ -77,11 +80,13 @@ function builder(table) {
       return rows;
     },
     result() {
+      if (pendingUpdate && FAIL.nextUpdate) { FAIL.nextUpdate = false; return { data: null, error: { code: "XX000", message: "stub update failure" } }; }
       if (pendingUpdate) {
         const rows = api.rows();
         for (const r of rows) Object.assign(r, pendingUpdate);
         LOG.push({ op: "update", table, patch: pendingUpdate, matched: rows.length });
-        return { data: null, error: null };
+        // Like PostgREST with .select(): the rows the update touched (copies).
+        return { data: rows.map((r) => ({ ...r })), error: null, count: rows.length };
       }
       const rows = api.rows();
       return { data: headOnly ? null : rows, error: null, count: countMode ? rows.length : null };

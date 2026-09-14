@@ -121,6 +121,15 @@ console.log("\n3. Adjustment order (real computeAdjustments):");
   assert(!a.ok && /insufficient/i.test(a.error), "asking for more points than the balance fails the whole adjustment (no partial silent clamp)");
 }
 
+console.log("\n3b. No second earning or spending rate on the client (opt cycle 12):");
+{
+  const files = [];
+  (function walk(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (/\.(jsx|js)$/.test(e.name)) files.push(p); } })(path.join(process.cwd(), "src"));
+  const offenders = files.filter((f) => !f.endsWith(path.join("utils", "loyalty.js")) && /loyaltyPoints\s*[:=]\s*\(?\s*prev\.loyaltyPoints[^,]*[+-]/.test(stripComments(fs.readFileSync(f, "utf8")))).map((f) => path.relative(process.cwd(), f));
+  ok(offenders.length === 0, `no client file adds to or subtracts from loyaltyPoints (offenders: ${JSON.stringify(offenders)})`);
+  ok(!/addOrder|addLoyaltyPoints/.test(read("src/context/UserContext.jsx")), "UserContext no longer carries addOrder / addLoyaltyPoints");
+}
+
 console.log("\n4. Pricing is identity-blind (partner pricing dormant):");
 {
   for (const rel of ["lib/pricing.js", "lib/discounts.js", "lib/rewards.js"]) {

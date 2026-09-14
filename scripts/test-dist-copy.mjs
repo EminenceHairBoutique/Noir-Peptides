@@ -22,6 +22,13 @@ import { readdirSync, statSync, readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { scanCopy } from "../src/lib/complianceScan.js";
 import { renderedText, ACCEPTED, NEGATION } from "./_copy-scan.mjs";
+import { DISCLAIMER_FULL } from "../src/config/compliance.js";
+// Opt cycle 12: the site-wide RUO disclaimer sentence (src/config/compliance.js
+// DISCLAIMER_FULL — a negation) is rendered by React above every grid and, for
+// shell parity, by the prerendered /shop and category shells. That exact
+// constant is the only text removed before a page is scanned; one changed
+// character brings it back into the scan.
+const scanText = (html) => renderedText(html).split(DISCLAIMER_FULL).join(" ");
 
 const DIST = path.join(process.cwd(), "dist");
 const DUMP = process.argv.includes("--dump");
@@ -50,7 +57,7 @@ console.log(`Rendered copy — ${pages.length} prerendered pages scanned:`);
 const dump = {};
 let unexpected = 0, badNegation = 0;
 for (const [route, html] of pages) {
-  const text = renderedText(html);
+  const text = scanText(html);
   const r = scanCopy(text);
   const got = r.findings.map((f) => `${f.category}:${f.term.toLowerCase()}`).sort();
   if (got.length) dump[route] = got;
@@ -81,7 +88,11 @@ ok(stale.length === 0, `no allowlisted route is missing from dist (${JSON.string
 // Product, category and article pages — the pages that carry catalog copy —
 // must be scanner-clean with NO allowlist at all.
 const catalog = pages.filter(([p]) => /^\/(product|shop|research)\//.test(p));
-const dirty = catalog.filter(([, html]) => !scanCopy(renderedText(html)).clean).map(([p]) => p);
+// Opt cycle 12: the category shells carry the site-wide RUO disclaimer
+// sentence React renders above every grid (shell parity, Hy-008). That exact
+// constant — a negation, already accepted on /shop — is the only text
+// removed before the scan; a single changed character brings it back.
+const dirty = catalog.filter(([, html]) => !scanCopy(scanText(html)).clean).map(([p]) => p);
 ok(catalog.length >= 50, `catalog + article pages scanned (${catalog.length})`);
 ok(dirty.length === 0, `product / category / article pages carry zero scanner findings (${JSON.stringify(dirty)})`);
 // The retired tagline must not reach any rendered page either.

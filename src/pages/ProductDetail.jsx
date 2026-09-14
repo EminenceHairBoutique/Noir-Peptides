@@ -29,7 +29,8 @@ import {
   hasDiscreetPackaging,
   shipCutoffStatement,
 } from "../config/business";
-import { getCoasForProduct } from "../lib/coas";
+import { getCoasForProduct, getLatestCoaMap } from "../lib/coas";
+import { formatPurity } from "../lib/labVerify";
 import { getProductLabel } from "../lib/labelsApi";
 import MediaGallery from "../components/product3d/MediaGallery";
 import StickyBuyBar from "../components/StickyBuyBar";
@@ -39,6 +40,7 @@ import { trackViewItem } from "../utils/track";
 import { recordRecentlyViewed } from "../lib/recentlyViewed";
 import RecentlyViewed from "../components/RecentlyViewed";
 import { FREE_SHIP_THRESHOLD } from "../config/checkout";
+import { scrollBehavior } from "../lib/motion";
 
 const money = (n) => `$${Number(n || 0).toLocaleString()}`;
 
@@ -68,16 +70,24 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
   const [coas, setCoas] = useState([]);
+  // Opt cycle 12 (4.7 TBT): the grid's latest-certificate map loads with the
+  // page so the related cards mount managed (no per-card fetch + re-render),
+  // and the first variant's tiers load in the same settled batch — the tiers
+  // effect below skips the variant it already has, so the page renders ONCE
+  // after loading instead of three times (variants, then tiers, then cards).
+  const [latestCoaMap, setLatestCoaMap] = useState(null);
+  const tiersForRef = useRef(null);
 
   // Load product + its dosage variants.
   useEffect(() => {
     let active = true;
     setLoading(true);
     setQuantity(1);
-    setTiers([]);
+    setTiers((cur) => (cur.length ? [] : cur));
     setVariantId(null);
-    setCoas([]);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCoas((cur) => (cur.length ? [] : cur));
+    tiersForRef.current = null;
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
 
     (async () => {
       const [p, cats] = await Promise.all([getProduct(slug), getCategories()]);
@@ -85,16 +95,23 @@ export default function ProductDetail() {
       setProduct(p);
       setCategories(cats);
       if (p) {
-        const [vars, sameDomain, productCoas] = await Promise.all([
+        const [vars, sameDomain, productCoas, coaMap] = await Promise.all([
           getVariants(p.id),
           getProducts({ category: p.category_slug }),
           getCoasForProduct(p.id),
+          getLatestCoaMap(),
         ]);
         if (!active) return;
+        const firstId = vars[0]?.id || null;
+        const firstTiers = firstId ? await getTiers(firstId) : [];
+        if (!active) return;
+        tiersForRef.current = firstId;
         setVariants(vars);
-        setVariantId(vars[0]?.id || null);
+        setVariantId(firstId);
         setRelated(sameDomain.filter((x) => x.id !== p.id).slice(0, 4));
         setCoas(productCoas);
+        setLatestCoaMap(coaMap || {});
+        setTiers(firstTiers);
       } else {
         setVariants([]);
         setRelated([]);
@@ -116,12 +133,17 @@ export default function ProductDetail() {
   useEffect(() => {
     let active = true;
     if (!selectedVariant?.id) {
-      setTiers([]);
-      return;
+      setTiers((cur) => (cur.length ? [] : cur));
+      return undefined;
     }
+    // Loaded with the page (see the settled batch above): nothing to fetch.
+    if (tiersForRef.current === selectedVariant.id) return undefined;
     setQuantity(1);
     getTiers(selectedVariant.id).then((t) => {
-      if (active) setTiers(t);
+      if (active) {
+        tiersForRef.current = selectedVariant.id;
+        setTiers(t);
+      }
     });
     return () => {
       active = false;
@@ -259,6 +281,15 @@ export default function ProductDetail() {
     categories.find((c) => c.slug === product.category_slug)?.name ||
     "Research Material";
   const remainingForFreeShip = Math.max(0, FREE_SHIP_THRESHOLD - lineTotal);
+  // Opt cycle 12: purity / methods / endotoxin are read from the latest
+  // PUBLISHED certificate only — never from a seeded product constant.
+  const latestCert = coas[0] || null;
+  const certPurity = formatPurity(latestCert);
+  const certMethods = latestCert
+    ? [(latestCert.hplc || latestCert.purity_percent != null) && "HPLC", latestCert.ms_confirmed === true && "MS"]
+        .filter(Boolean)
+        .join(" / ")
+    : "";
   const specProduct = {
     ...product,
     vial_size_mg: selectedVariant?.vial_size_mg ?? product.vial_size_mg,
@@ -327,9 +358,11 @@ export default function ProductDetail() {
                 ) : (
                   <div className="vial-visual h-full w-full" aria-hidden="true" />
                 )}
-                <div className="absolute top-4 left-4 badge badge-new">
-                  ≥ {product.purity_percent}% PURE
-                </div>
+                {certPurity ? (
+                  <div className="absolute top-4 left-4 badge badge-new">
+                    {certPurity} HPLC
+                  </div>
+                ) : null}
                 {isOut && (
                   <div className="absolute top-4 right-4 badge badge-archive">
                     Out of stock
@@ -555,7 +588,7 @@ export default function ProductDetail() {
 
               {/* Specs (null-tolerant) */}
               <div className="mb-8">
-                <PeptideSpecsPanel product={specProduct} />
+                <PeptideSpecsPanel product={specProduct} latestCoa={latestCert} />
               </div>
 
               {/* Batch traceability */}
@@ -572,7 +605,7 @@ export default function ProductDetail() {
                   </div>
                   <div className="flex justify-between border-b border-se-concrete/50 py-1">
                     <dt className="text-se-steel">Methods</dt>
-                    <dd className="text-se-bone">HPLC · MS</dd>
+                    <dd className="text-se-bone">{certMethods || "Per lot — see certificate"}</dd>
                   </div>
                   <div className="flex justify-between border-b border-se-concrete/50 py-1">
                     <dt className="text-se-steel">COA status</dt>
@@ -603,18 +636,24 @@ export default function ProductDetail() {
                   </h2>
                 </div>
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[12px] font-accent mb-4">
+                  {/* Opt cycle 12: every value below comes from the latest published
+                      certificate; a row with no certificate value is omitted. */}
                   <div className="flex justify-between border-b border-se-concrete/50 py-1">
                     <dt className="text-se-steel">Purity</dt>
-                    <dd className="text-se-bone">≥ {product.purity_percent}% (HPLC)</dd>
+                    <dd className="text-se-bone">{certPurity ? `${certPurity} (HPLC)` : "Per lot — see certificate"}</dd>
                   </div>
-                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
-                    <dt className="text-se-steel">Methods</dt>
-                    <dd className="text-se-bone">HPLC / MS</dd>
-                  </div>
-                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
-                    <dt className="text-se-steel">Endotoxin</dt>
-                    <dd className="text-se-bone">LAL tested</dd>
-                  </div>
+                  {certMethods ? (
+                    <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                      <dt className="text-se-steel">Methods</dt>
+                      <dd className="text-se-bone">{certMethods}</dd>
+                    </div>
+                  ) : null}
+                  {latestCert?.endotoxin ? (
+                    <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                      <dt className="text-se-steel">Endotoxin</dt>
+                      <dd className="text-se-bone">{String(latestCert.endotoxin)}</dd>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between border-b border-se-concrete/50 py-1">
                     <dt className="text-se-steel">Lot</dt>
                     <dd className="text-se-bone break-all">
@@ -796,7 +835,7 @@ export default function ProductDetail() {
               </h2>
               <div className="grid grid-cols-2 max-[359px]:grid-cols-1 md:grid-cols-4 gap-5">
                 {related.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard key={p.id} product={p} latestCoa={latestCoaMap ? latestCoaMap[p.id] || null : undefined} />
                 ))}
               </div>
             </div>
@@ -814,7 +853,7 @@ export default function ProductDetail() {
         isOut={isOut}
         cartOpen={cartOpen}
         onAdd={handleAddToCart}
-        onNotify={() => notifyRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+        onNotify={() => notifyRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: "center" })}
       />
     </>
   );

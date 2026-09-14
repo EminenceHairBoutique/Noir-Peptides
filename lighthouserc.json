@@ -8,7 +8,10 @@
         "http://localhost:4181/",
         "http://localhost:4181/shop",
         "http://localhost:4181/product/bpc-157",
-        "http://localhost:4181/test-results"
+        "http://localhost:4181/test-results",
+        "http://localhost:4181/shop/tissue-repair-research",
+        "http://localhost:4181/test-results/bpc-157",
+        "http://localhost:4181/partners"
       ],
       "numberOfRuns": 3,
       "settings": {
