@@ -1,11 +1,66 @@
 # Noir Peptides — Launch Readiness
 
-_Last updated: 2026-09-13 (opt cycle 11)_
+_Last updated: 2026-09-14 (opt cycle 12)_
 
 This tracks the Launch Remediation work (6 tasks) and what remains before going
 live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
+
+## ✅ Done (Sept-14 optimization cycle 12 — branch `claude/opt-cycle-12-20260914`, base `main`, Draft PR)
+
+The addendum's "Cycle 5+ — hold at nine; promote to ten only from live
+evidence" (`OPTIMIZATION_LOG.md`, cycle 12). RECON was an adversarial
+re-read of cycles 10 + 11 (a workflow: 8 readers, 3 verifiers per finding):
+
+- **Purity is certificate-only.** Every card, product page and the specs
+  panel printed "≥ 99 % PURE" from a seeded constant (`purity_percent: 99`
+  on all 44 static products, 0009 seeds 99.0) that the site's own published
+  certificates contradict (KPV 98.54 %, Semax 98.80 %, Tesamorelin 98.49 %).
+  Purity now comes from the LATEST PUBLISHED certificate or is absent;
+  migration `0039` nulls the seeded value (update-only — apply is yours);
+  the Home page's "≥ 99 %" strings are gone; gated by `test-purity-honesty`.
+- **Partner application hardened:** no upsert-by-email (an existing
+  approved / rejected row is never overwritten, another account's row is
+  never touched), a failed store is a 502 (never "received"), profile →
+  `partner_pending` only on a NEW row, `partner_pending` no longer passes
+  the partner guard; the Control Room Partners tab shows every field and
+  lets you pick the tier on approval (`lib/partnerTiers.js`).
+- **Live-evidence readiness:** the post-deploy smoke had **never executed**
+  (all 16 production runs died in 2 s on a Playwright config check) — fixed
+  (`playwright.config.js` omits `webServer` for a remote URL; dispatch input),
+  so it fires for real on the first deployment after this merges. The live
+  probe expects the configured production host, checks that a payable rail
+  exists, derives the sitemap floor from build metadata and asserts hidden
+  categories stay out of the live sitemap. Both evidence workflows split into
+  a read-only job and a write-only publish job. **Observability is scored 7
+  until the first executed smoke and the first probe record exist.**
+- **Performance, deterministic:** the paint-first loader's two-frame trigger
+  raced Lighthouse's first paint and the LCP median flipped 1.5 ↔ 2.7 s run to
+  run (in cycle 11's numbers too); the loader now starts the app on the
+  `first-contentful-paint` entry (15 of 15 runs after the paint). Hydration is
+  time-sliced (the first render is a React transition) and the seeded pages no
+  longer render twice: TBT on `/shop` · product page · `/test-results`
+  205 / 138 / 171 → 77 / 32 / 53 ms locally, LCP and CLS unchanged; seven URLs
+  are now under the hard Lighthouse gate, with a shell-parity gate in CI.
+- **Accessibility on the money path:** checkout step changes move focus to
+  the step heading, errors are live regions, the order-summary jump lands on
+  a focusable target, programmatic scrolls honour reduced motion; the
+  saved-cart nudge clears the bottom nav and is a named region; the age gate
+  takes, traps and hands over focus with the page behind it inert; product
+  cards no longer nest a link in a link.
+- **Referral and loyalty real:** the referral code is issued server-side and
+  posted from step 2; point deduction is compare-and-swap with a shortfall
+  ledger (migration `0040`, a NOT VALID check — yours to apply); COA storage
+  removes replaced objects and `0041` caps the bucket (yours to apply).
+- **Docs to the truth:** the Copilot instructions' "auth wall" text rewritten
+  (the catalog is public), `PAYMENTS_STRIPE_LIVE_ACK` documented and shown on
+  the Owner Sprint D8 row, spec counts 11 / 33 and "transcribed" everywhere,
+  D2 proves 0038–0041 by data, migration-doc and doc-drift gates.
+
+**Owner Sprint status:** none complete. New for D2: migrations `0039`,
+`0040`, `0041`. D4 (`PROD_URL` / `CANONICAL_HOST`) is the single blocker for
+a meaningful live probe and for every 10.
 
 ## ✅ Done (Sept-13 optimization cycle 11 — branch `claude/opt-cycle-11-20260913`, stacked on cycle 10, Draft PR)
 
