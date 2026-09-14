@@ -73,7 +73,11 @@ unavailable — nobody can order until the Stripe live keys or the BTCPay
 env are set), axe 0, and Lighthouse on the live product page blocked the
 main thread for ~150 s (the approved-label 3D vial is the lead suspect;
 cycle-13 lead). `/shop` and `/test-results` improved live exactly as
-measured here (TBT 139 → 28, 218 → 165 ms).
+measured here (TBT 139 → 28, 218 → 165 ms). One honest red: the Evidence run
+on `main` for the merge commit reads the landing page's TBT at 557 then
+320 ms on two attempts (every other URL under 41 ms; the same tree read 0 on
+both PR-head runs) — performance is scored 8 until a `main` run is green;
+diagnosing it is cycle 13's first item.
 
 **Owner Sprint status:** none complete. New for D2: migrations `0039`,
 `0040`, `0041`. D4 (`PROD_URL` / `CANONICAL_HOST`) is the single blocker for
