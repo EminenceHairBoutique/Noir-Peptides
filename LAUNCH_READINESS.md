@@ -43,6 +43,9 @@ re-read of cycles 10 + 11 (a workflow: 8 readers, 3 verifiers per finding):
   longer render twice: TBT on `/shop` · product page · `/test-results`
   205 / 138 / 171 → 77 / 32 / 53 ms locally, LCP and CLS unchanged; seven URLs
   are now under the hard Lighthouse gate, with a shell-parity gate in CI.
+  **CI proof: the `Evidence` check is green on the PR head** (run 34810277084 —
+  LCP 1655–1660 ms on all seven URLs, TBT ≤ 80 ms, CLS ≤ 0.009, axe 0, 372
+  screenshots / 0 failing).
 - **Accessibility on the money path:** checkout step changes move focus to
   the step heading, errors are live regions, the order-summary jump lands on
   a focusable target, programmatic scrolls honour reduced motion; the

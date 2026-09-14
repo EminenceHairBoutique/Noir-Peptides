@@ -2479,7 +2479,7 @@ Cost/perf measurement lane (parity, gate coverage, two probes).
 | 14 | D2 proves 0038–0041; db:verify feature presence; migration-doc gate | `776e3fb` | Data probes for the update-only migrations; `test-migration-docs` enforces the convention for every migration. |
 | 15 | Owner-doc drift sweep | `81d5933` | Copilot "auth wall" rewritten (catalog public); Stripe live-ack documented, dead shipping variable gone; 11/33; "transcribed"; `test-doc-drift`. |
 | 16 | COA storage hygiene | `e4d244d` | Replaced objects removed; `lookupByLot` seed fallback; honest mirror ids; migration 0041 (apply ask-before). |
-| 17 | Workflows split | `79bbf4c` | PR-branch code runs with `contents: read`; only the publish job writes. |
+| 17 | Workflows split | `79bbf4c` · `a89ca82` | PR-branch code runs with `contents: read`; only the publish job writes. Follow-up from the first CI runs on #46: the publish jobs ran `always()` and failed on a missing artifact after a superseded push cancelled the build — now `!cancelled()` (a red build still publishes; a cancelled one never does). |
 | 18 | Partners tab | `dd6f617` | Every field; tier select validated against `lib/partnerTiers.js`. |
 | 19 | Hygiene | `b4e1527` | Dead client loyalty helpers deleted (gated); preload bound split (route ≤ 20, vendor ≤ 8). |
 | 20 | Measured levers (4.7) | `26a2c20` · `063c339` · `8422c1c` · `7f4d91a` | The first 7-URL lane on the finished tree was **red twice** — PDP LCP median 2706 ms (runs 1502 / 2706 / 2849 on one build) and `/shop` TBT 205 ms. Read per run (H-017): observed LCP = observed FCP in 21 of 21 runs (the shell paragraph never lost), so the flip lived in the simulation — the two-frame trigger issued the bundle request 5–30 ms before the observed paint and Lighthouse charged the bundle to first paint whenever that request finished first; the same flip is in cycle 11's own numbers (`/` 1503 / 1505 / 1504 / 1851 / 2161). Four levers, each built and measured on its target routes (`perf-lhci --urls`, 5 runs): **L1** the loader starts on the `first-contentful-paint` entry → 15 / 15 runs request after the paint, sim FCP a constant ~1205 ms, LCP 1503–1659 on every run, TBT unchanged; **L2** an identical live answer no longer replaces seeded state + the PDP settles in one batch → React scripting −8 – 13 %, TBT medians within ±10 ms; **L3** `memo(ProductCard)` + plain frames past the fold → `/shop` TBT 192 → 167, PDP 159 → 129; **L4** the initial render as a transition (time-sliced) → `/shop` 167 → **77**, PDP 129 → **32**, `/test-results` 111 → **53**; LCP, CLS and TTI unchanged by all four. Not measured this cycle: the Plex Mono preload (the per-run reading showed the font was not the cause; the remaining 150 ms LCP step 1503 → 1655 is the font wave — a cycle-13 measured-only probe). **L1 refined by the gate (`588bb50`):** the E2E lane read `/verify-lot` 1.5 s early — a client-only route's prerendered shell has nothing to paint, so the paint entry never came and the app waited for the timer; the loader now waits for the paint only on a shell with content and starts an empty shell on frames (the seven gated URLs all have shells; the request-after-paint property is unchanged there). |
@@ -2553,7 +2553,7 @@ Second pass on the finished tree (the first pass caught three things, all fixed 
 | 4.4 Trust | 9 | — | D5 · D5b (33 spec sets) | local: `test-purity-honesty` (certificate-only purity), `test-prerender-coverage` · 2026-09-14 |
 | 4.5 Commerce | 9 | — | D8 (+ BTCPay idempotency key, ask-before) | local: `test-referral-code`, `test-rewards`, `test-pricing-coherence`, `checkout-rewards.spec` |
 | 4.6 SEO | 9 | — | D4 | local: link-depth, routing, jsonld-shapes; generator hidden-category gate |
-| 4.7 Performance | 9 | — | live Lighthouse (D4 + first probe) | local: `evidence/lhci-cycle12-final` (7 URLs × 3, every run in budget) and the four lever lanes above · **CI: Evidence on this PR (the proof; cited in the PR thread)** |
+| 4.7 Performance | 9 | — | live Lighthouse (D4 + first probe) | **CI: Evidence run 34810277084 green on #46 head `a89ca82`** (7 URLs: LCP 1655–1660 ms, TBT ≤ 80, CLS ≤ 0.009) · local: `evidence/lhci-cycle12-final` (7 × 3, every run in budget) and the four lever lanes above |
 | 4.8 UI/UX | 8 | second review pass | D10 | local: `evidence/screens` (cycle 11) · card/nudge fixes this cycle |
 | 4.9 Accessibility | 9 | — | live axe (first probe) | local: all-routes sweep 0 / 0 (gate below) · CI on the PR |
 | 4.10 Mobile | 9 | — | D10 | local: mobile under `vite preview` (gate below) · CI E2E job on the PR |
@@ -2580,8 +2580,9 @@ by hand and cites both runs in the thread).
 
 - **From CI (read through `scripts/evidence-latest.mjs` at RECON):** `ci/latest.json` for
   `a04f331` (**main**, Evidence run 34796722607, green: LCP 1511 / 1656 / 1509 / 1509 ms, CLS 0,
-  TBT ≤ 156 ms, screens 372 / 0, axe 0). The cycle-12 PR's own Evidence run (7 URLs now) is the
-  proof for 4.7 and is cited in the PR thread when it lands.
+  TBT ≤ 156 ms, screens 372 / 0, axe 0). **From CI on this PR:** `ci/latest.json` for the #46
+  head (Evidence run 34810277084, 2026-09-14 05:59Z, green on seven URLs — numbers in the PR DRAFT
+  section); CI run 34810277109; DB gates run 34810277115.
 - **From this sandbox (2026-09-14):** every number above; `evidence/lhci-cycle12-parity`
   (the red baseline), `lhci-c12-L1` … `L4` (one lever each, 5 runs), `lhci-cycle12-final`
   (7 URLs × 3); the RECON workflow journal (`wf_23d8d950-8f2`, 198 agents); the gate log
@@ -2633,7 +2634,9 @@ commits with their own numbers, the fourth waited for its lane rather than ride 
 
 ### PR DRAFT (opened as a Draft per addendum C6, base = `main`)
 
-**Opened:** [#46](https://github.com/EminenceHairBoutique/Noir-Peptides/pull/46) at 2026-09-14 05:31Z (Draft; subscribed; steward check-in armed). CI on the head is the H-014 proof for 4.7 — cited here when it lands.
+**Opened:** [#46](https://github.com/EminenceHairBoutique/Noir-Peptides/pull/46) at 2026-09-14 05:31Z (Draft; subscribed; steward check-in armed).
+
+**CI green on head `a89ca82` (06:00Z, `mergeable_state: clean`):** CI run [34810277109](https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34810277109) (Lint · test · build, End-to-end, Migration hygiene) · DB gates run [34810277115](https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34810277115) · **Evidence run [34810277084](https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34810277084)** — `ci/latest.json` verdict green: Lighthouse median of 3 on seven URLs LCP `/` 1660 · `/shop` 1656 · PDP 1656 · `/test-results` 1655 · category 1656 · permalink 1655 · `/partners` 1655 ms, TBT 0 / 80 / 66 / 37 / 9 / 0 / 0 ms, CLS ≤ 0.009, perf 99–100; screens 372 views / 0 failing; axe 0; link-depth and hygiene green · GitGuardian · Vercel preview. Two earlier red `Publish` checks were on superseded heads under the old workflow file (`always()` after a cancelled build) — fixed by `a89ca82` (`!cancelled()`), one comment each side. **This is the H-014 CI proof for 4.7 = 9.**
 
 **Title:** Opt cycle 12 — purity only from certificates, partner hardening, deterministic paint-first + time-sliced hydration, live-evidence readiness
 
