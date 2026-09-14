@@ -1,0 +1,329 @@
+{
+  "schema": 1,
+  "kind": "live",
+  "url": "https://noir-peptides.vercel.app",
+  "canonicalHost": "noir-peptides.vercel.app",
+  "generated_at": "2026-09-14T05:05:18.460Z",
+  "run_url": "https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34808293233",
+  "checks": [
+    {
+      "id": "status /",
+      "pass": true,
+      "value": 200,
+      "expected": 200
+    },
+    {
+      "id": "canonical /",
+      "pass": true,
+      "value": "https://noir-peptides.vercel.app/",
+      "expected": "https://noir-peptides.vercel.app/"
+    },
+    {
+      "id": "scanner /",
+      "pass": true,
+      "value": [
+        "human-use:for human use",
+        "therapeutic-benefit:cure",
+        "therapeutic-benefit:treat"
+      ],
+      "expected": [
+        "human-use:for human use",
+        "therapeutic-benefit:cure",
+        "therapeutic-benefit:treat"
+      ],
+      "note": "accepted negations only (H-006)"
+    },
+    {
+      "id": "status /shop",
+      "pass": true,
+      "value": 200,
+      "expected": 200
+    },
+    {
+      "id": "canonical /shop",
+      "pass": true,
+      "value": "https://noir-peptides.vercel.app/shop",
+      "expected": "https://noir-peptides.vercel.app/shop"
+    },
+    {
+      "id": "scanner /shop",
+      "pass": true,
+      "value": [
+        "therapeutic-benefit:therapeutic"
+      ],
+      "expected": [
+        "therapeutic-benefit:therapeutic"
+      ],
+      "note": "accepted negations only (H-006)"
+    },
+    {
+      "id": "status /product/bpc-157",
+      "pass": true,
+      "value": 200,
+      "expected": 200
+    },
+    {
+      "id": "canonical /product/bpc-157",
+      "pass": true,
+      "value": "https://noir-peptides.vercel.app/product/bpc-157",
+      "expected": "https://noir-peptides.vercel.app/product/bpc-157"
+    },
+    {
+      "id": "scanner /product/bpc-157",
+      "pass": true,
+      "value": [],
+      "expected": [],
+      "note": "zero findings"
+    },
+    {
+      "id": "status /product/5-amino-1mq",
+      "pass": true,
+      "value": 200,
+      "expected": 200
+    },
+    {
+      "id": "canonical /product/5-amino-1mq",
+      "pass": true,
+      "value": "https://noir-peptides.vercel.app/product/5-amino-1mq",
+      "expected": "https://noir-peptides.vercel.app/product/5-amino-1mq"
+    },
+    {
+      "id": "scanner /product/5-amino-1mq",
+      "pass": true,
+      "value": [],
+      "expected": [],
+      "note": "zero findings"
+    },
+    {
+      "id": "status /product/ahk-cu",
+      "pass": true,
+      "value": 200,
+      "expected": 200
+    },
+    {
+      "id": "canonical /product/ahk-cu",
+      "pass": true,
+      "value": "https://noir-peptides.vercel.app/product/ahk-cu",
+      "expected": "https://noir-peptides.vercel.app/product/ahk-cu"
+    },
+    {
+      "id": "scanner /product/ahk-cu",
+      "pass": true,
+      "value": [],
+      "expected": [],
+      "note": "zero findings"
+    },
+    {
+      "id": "status /test-results",
+      "pass": true,
+      "value": 200,
+      "expected": 200
+    },
+    {
+      "id": "canonical /test-results",
+      "pass": true,
+      "value": "https://noir-peptides.vercel.app/test-results",
+      "expected": "https://noir-peptides.vercel.app/test-results"
+    },
+    {
+      "id": "scanner /test-results",
+      "pass": true,
+      "value": [],
+      "expected": [],
+      "note": "zero findings"
+    },
+    {
+      "id": "status /verify-lot",
+      "pass": true,
+      "value": 200,
+      "expected": 200
+    },
+    {
+      "id": "canonical /verify-lot",
+      "pass": true,
+      "value": "https://noir-peptides.vercel.app/verify-lot",
+      "expected": "https://noir-peptides.vercel.app/verify-lot"
+    },
+    {
+      "id": "scanner /verify-lot",
+      "pass": true,
+      "value": [],
+      "expected": [],
+      "note": "zero findings"
+    },
+    {
+      "id": "header content-security-policy",
+      "pass": true,
+      "value": "default-src 'self'; script-src 'self' 'unsafe-inline' *.stripe.com js.stripe.com *.google-analytics.com *.googletagmanager.com connect.facebook.net *.facebook.net; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: *.supabase.co *.google-analytics.com www.facebook.com; frame-src js.stripe.com *.stripe.com; connect-src 'self' *.supabase.co wss://*.supabase.co *.stripe.com *.google-analytics.com *.analytics.google.com *.googletagmanager.com *.facebook.com graph.facebook.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests;",
+      "expected": "default-src 'self'; script-src 'self' 'unsafe-inline' *.stripe.com js.stripe.com *.google-analytics.com *.googletagmanager.com connect.facebook.net *.facebook.net; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: *.supabase.co *.google-analytics.com www.facebook.com; frame-src js.stripe.com *.stripe.com; connect-src 'self' *.supabase.co wss://*.supabase.co *.stripe.com *.google-analytics.com *.analytics.google.com *.googletagmanager.com *.facebook.com graph.facebook.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests;",
+      "note": "byte-equal to scripts/csp.mjs (header variant)"
+    },
+    {
+      "id": "header strict-transport-security",
+      "pass": true,
+      "value": "max-age=63072000; includeSubDomains; preload",
+      "expected": "max-age=…"
+    },
+    {
+      "id": "header x-content-type-options",
+      "pass": true,
+      "value": "nosniff",
+      "expected": "nosniff"
+    },
+    {
+      "id": "status /prerender-meta.json",
+      "pass": true,
+      "value": 200,
+      "expected": 200
+    },
+    {
+      "id": "build dbEnvPresent",
+      "pass": true,
+      "value": true,
+      "expected": true,
+      "note": "the production build fetched real rows"
+    },
+    {
+      "id": "build coaRowCount ≥ 1",
+      "pass": true,
+      "value": 19,
+      "expected": "≥ 1"
+    },
+    {
+      "id": "test-results COA rows ≥ 1",
+      "pass": true,
+      "value": 19,
+      "expected": "≥ 1"
+    },
+    {
+      "id": "status /sitemap.xml",
+      "pass": true,
+      "value": 200,
+      "expected": 200
+    },
+    {
+      "id": "sitemap url count",
+      "pass": true,
+      "value": 89,
+      "expected": "≥ 89 (local build)"
+    },
+    {
+      "id": "sitemap hosts",
+      "pass": true,
+      "value": [
+        "noir-peptides.vercel.app"
+      ],
+      "expected": [
+        "noir-peptides.vercel.app"
+      ]
+    },
+    {
+      "id": "status /robots.txt",
+      "pass": true,
+      "value": 200,
+      "expected": 200
+    },
+    {
+      "id": "robots sitemap line",
+      "pass": true,
+      "value": "https://noir-peptides.vercel.app/sitemap.xml",
+      "expected": "https://noir-peptides.vercel.app/sitemap.xml"
+    },
+    {
+      "id": "rails envelope",
+      "pass": true,
+      "value": {
+        "status": 200,
+        "keys": [
+          "rails",
+          "cryptoDiscountPct",
+          "unavailable"
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "keys": [
+          "rails",
+          "cryptoDiscountPct",
+          "unavailable"
+        ]
+      }
+    },
+    {
+      "id": "unknown path → 404",
+      "pass": true,
+      "value": 404,
+      "expected": 404
+    }
+  ],
+  "counts": {
+    "pass": 35,
+    "fail": 0
+  },
+  "gates": {
+    "http": true,
+    "axe": false,
+    "lighthouse": false
+  },
+  "failing": [
+    "axe",
+    "lighthouse"
+  ],
+  "verdict": "red",
+  "axe": {
+    "findings": 2,
+    "byImpact": {
+      "serious": 4
+    },
+    "seriousOrCritical": 4,
+    "blockingRules": [
+      "target-size (/product/bpc-157@1280)",
+      "target-size (/product/glow@1280)"
+    ],
+    "pass": false
+  },
+  "lighthouse": {
+    "budget": {
+      "lcp": 2500,
+      "cls": 0.1,
+      "tbt": 200
+    },
+    "aggregation": "median",
+    "routes": {
+      "/": {
+        "runs": 3,
+        "lcpMs": 1228,
+        "cls": 0,
+        "tbtMs": 13,
+        "perf": 100,
+        "pass": true
+      },
+      "/shop": {
+        "runs": 3,
+        "lcpMs": 1383,
+        "cls": 0,
+        "tbtMs": 139,
+        "perf": 98,
+        "pass": true
+      },
+      "/product/bpc-157": {
+        "runs": 3,
+        "lcpMs": 1370,
+        "cls": 0,
+        "tbtMs": 153599,
+        "perf": 65,
+        "pass": false
+      },
+      "/test-results": {
+        "runs": 3,
+        "lcpMs": 1443,
+        "cls": 0,
+        "tbtMs": 218,
+        "perf": 96,
+        "pass": false
+      }
+    },
+    "pass": false
+  },
+  "missing": []
+}
