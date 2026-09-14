@@ -116,7 +116,7 @@ function storageBucket(bucket) {
       if (!objects[path]) return { data: null, error: { message: "Object not found", statusCode: "404" } };
       return { data: { signedUrl: `https://stub.supabase.co/storage/v1/object/sign/${bucket}/${path}?token=stub-${ttl}` }, error: null };
     },
-    async remove(paths) { for (const p of paths) delete objects[p]; return { data: paths.map((p) => ({ name: p })), error: null }; },
+    async remove(paths) { for (const p of paths) delete objects[p]; LOG.push({ table: `storage:${bucket}`, op: "remove", paths }); return { data: paths.map((p) => ({ name: p })), error: null }; },
   };
 }
 export const supabaseServer = { from: (table) => builder(table), storage: { from: (bucket) => storageBucket(bucket) } };

@@ -84,7 +84,7 @@ console.log("\nOwner Sprint panel:");
   const ENV2 = { VITE_SITE_URL: "https://www.noirpeptides.com", BTCPAY_URL: "https://btc.example", BTCPAY_API_KEY: "k", BTCPAY_STORE_ID: "s", BTCPAY_WEBHOOK_SECRET: "w", VITE_GA_MEASUREMENT_ID: "G-1" };
   d = await deriveOwnerSprint(ENV2);
   m = byId(d.rows);
-  ok(m.D2.status === "green" && /9\/9 proven/.test(m.D2.detail) && /0040 not provable/.test(m.D2.detail), `all columns present + data probes (0038 / 0039) → D2 green, 0040 named as unprovable (${m.D2.detail.slice(0, 60)}…)`);
+  ok(m.D2.status === "green" && /9\/9 proven/.test(m.D2.detail) && /0040, 0041 not provable/.test(m.D2.detail), `all columns present + data probes (0038 / 0039) → D2 green, 0040 named as unprovable (${m.D2.detail.slice(0, 60)}…)`);
   ok(m.D5.status === "green" && /2 published certificate\(s\): 2 lab-linked, 2 with CAS, 2 with a file; 1 lab\(s\), 1 with a lookup template/.test(m.D5.detail), `every published certificate lab-linked + CAS + file, lab has a template → D5 green (${m.D5.detail})`);
   ok(m.D6.status === "partial" && /1 product\(s\) with a code name/.test(m.D6.detail), "a code name set → D6 partial (the sign-off is the owner's)");
   ok(m.D5b.status !== "green" && /11 products: 0 with a sequence/.test(m.D5b.detail), `sequences absent → D5b not green, counts shown (${m.D5b.detail.slice(0, 60)}…)`);

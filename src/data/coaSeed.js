@@ -6,7 +6,7 @@
 // is reachable; never a place to add a certificate (that is the Control Room).
 export const COA_SEED = [
   {
-    "id": 1,
+    "id": "seed-1",
     "product_id": "bpc-157",
     "batch_number": "2026-05",
     "lot_number": "JAN-169304",
@@ -20,7 +20,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-16",
     "is_published": true,
-    "created_at": "2026-06-16",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -31,7 +31,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 2,
+    "id": "seed-2",
     "product_id": "tb-500",
     "batch_number": "2026-05",
     "lot_number": "JAN-169288",
@@ -45,7 +45,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-09",
     "is_published": true,
-    "created_at": "2026-06-09",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -56,7 +56,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 3,
+    "id": "seed-3",
     "product_id": "kpv",
     "batch_number": "2026-05",
     "lot_number": "JAN-169316",
@@ -70,7 +70,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-09",
     "is_published": true,
-    "created_at": "2026-06-09",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -81,7 +81,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 4,
+    "id": "seed-4",
     "product_id": "mots-c",
     "batch_number": "2026-05",
     "lot_number": "JAN-169314",
@@ -95,7 +95,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-09",
     "is_published": true,
-    "created_at": "2026-06-09",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -106,7 +106,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 5,
+    "id": "seed-5",
     "product_id": "ghk-cu",
     "batch_number": "2026-05",
     "lot_number": "JAN-169290",
@@ -120,7 +120,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-10",
     "is_published": true,
-    "created_at": "2026-06-10",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -131,7 +131,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 6,
+    "id": "seed-6",
     "product_id": "semax",
     "batch_number": "2026-05",
     "lot_number": "JAN-169317",
@@ -145,7 +145,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-09",
     "is_published": true,
-    "created_at": "2026-06-09",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -156,7 +156,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 7,
+    "id": "seed-7",
     "product_id": "selank",
     "batch_number": "2026-05",
     "lot_number": "JAN-169303",
@@ -170,7 +170,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-16",
     "is_published": true,
-    "created_at": "2026-06-16",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -181,7 +181,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 8,
+    "id": "seed-8",
     "product_id": "tesamorelin",
     "batch_number": "2026-05",
     "lot_number": "JAN-169289",
@@ -195,7 +195,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-08",
     "is_published": true,
-    "created_at": "2026-06-08",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -206,7 +206,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 9,
+    "id": "seed-9",
     "product_id": "nad-plus",
     "batch_number": "2026-05",
     "lot_number": "JAN-169315",
@@ -220,7 +220,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-05",
     "is_published": true,
-    "created_at": "2026-06-05",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -231,7 +231,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 10,
+    "id": "seed-10",
     "product_id": "cjc-1295-ipamorelin",
     "batch_number": "2026-05",
     "lot_number": "JAN-169310",
@@ -245,7 +245,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-08",
     "is_published": true,
-    "created_at": "2026-06-08",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -256,7 +256,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 11,
+    "id": "seed-11",
     "product_id": "bpc-157-tb-500",
     "batch_number": "2026-05",
     "lot_number": "JAN-169282",
@@ -270,7 +270,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-11",
     "is_published": true,
-    "created_at": "2026-06-11",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -281,7 +281,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 12,
+    "id": "seed-12",
     "product_id": "glow",
     "batch_number": "2026-05",
     "lot_number": "JAN-169284",
@@ -295,7 +295,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-11",
     "is_published": true,
-    "created_at": "2026-06-11",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -306,7 +306,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 13,
+    "id": "seed-13",
     "product_id": "klow",
     "batch_number": "2026-05",
     "lot_number": "JAN-169283",
@@ -320,7 +320,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-11",
     "is_published": true,
-    "created_at": "2026-06-11",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -331,7 +331,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 14,
+    "id": "seed-14",
     "product_id": "tirzepatide",
     "batch_number": "2026-06-20",
     "lot_number": "JAN-169300",
@@ -345,7 +345,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-29",
     "is_published": true,
-    "created_at": "2026-06-29",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -356,7 +356,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 15,
+    "id": "seed-15",
     "product_id": "tirzepatide",
     "batch_number": "2026-06-20",
     "lot_number": "JAN-169301",
@@ -370,7 +370,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-29",
     "is_published": true,
-    "created_at": "2026-06-29",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -381,7 +381,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 16,
+    "id": "seed-16",
     "product_id": "retatrutide",
     "batch_number": "2026-06-20",
     "lot_number": "JAN-169296",
@@ -395,7 +395,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-29",
     "is_published": true,
-    "created_at": "2026-06-29",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -406,7 +406,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 17,
+    "id": "seed-17",
     "product_id": "retatrutide",
     "batch_number": "2026-06-20",
     "lot_number": "JAN-169297",
@@ -420,7 +420,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-29",
     "is_published": true,
-    "created_at": "2026-06-29",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -431,7 +431,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 18,
+    "id": "seed-18",
     "product_id": "retatrutide",
     "batch_number": "2026-06-20",
     "lot_number": "JAN-169298",
@@ -445,7 +445,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-29",
     "is_published": true,
-    "created_at": "2026-06-29",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,
@@ -456,7 +456,7 @@ export const COA_SEED = [
     "file_path": null
   },
   {
-    "id": 19,
+    "id": "seed-19",
     "product_id": "retatrutide",
     "batch_number": "2026-06-20",
     "lot_number": "JAN-169299",
@@ -470,7 +470,7 @@ export const COA_SEED = [
     "endotoxin": null,
     "tested_at": "2026-06-29",
     "is_published": true,
-    "created_at": "2026-06-29",
+    "created_at": null,
     "lab_id": null,
     "lab_lookup_code": null,
     "purity_operator": null,

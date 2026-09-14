@@ -104,9 +104,17 @@ export async function getCoasForProduct(productId) {
  * trims whitespace. Matches lot_number first, then batch_number.
  * @returns {Promise<object|null>}
  */
+// Opt cycle 12: the same seed fallback every other reader has — a
+// seed-rendered certificate's "Verify this lot" link must resolve in the
+// same failure state that rendered it.
+const seedByLot = (needle) => {
+  const n = needle.toLowerCase();
+  return seedAll().find((r) => String(r.lot_number || "").toLowerCase() === n || String(r.batch_number || "").toLowerCase() === n) || null;
+};
 export async function lookupByLot(lot) {
   const needle = String(lot || "").trim();
-  if (!supabase || !needle) return null;
+  if (!needle) return null;
+  if (!supabase) return seedByLot(needle);
   try {
     const { data, error } = await selectDegrading(
       (cols) =>
@@ -119,10 +127,11 @@ export async function lookupByLot(lot) {
       COA_COLUMNS,
       COA_COLUMNS_BASE
     );
-    if (error || !data) return null;
+    if (error) return seedByLot(needle);
+    if (!data) return null; // a reachable database with no match is the answer
     return normalize(data);
   } catch {
-    return null;
+    return seedByLot(needle);
   }
 }
 

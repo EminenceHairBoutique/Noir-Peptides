@@ -54,6 +54,7 @@ export async function deriveOwnerSprint(env = process.env) {
     ["0038", "≥ 11 products with a transcribed molecular weight", (await countOf("products", (q) => q.not("molecular_weight", "is", null))) >= 11],
     ["0039", "no product left at the seeded purity 99.0", (await countOf("products", (q) => q.eq("purity_percent", 99))) === 0],
     ["0040", "profiles.loyalty_points ≥ 0 check constraint — not visible through the API; verify per docs/MIGRATIONS_0040.md", null],
+    ["0041", "coa-files bucket limits — not visible through the API; verify per docs/MIGRATIONS_0041.md", null],
   ];
   const provable = probes.filter((p) => p[2] !== null);
   const applied = provable.filter((p) => p[2] === true).map((p) => p[0]);
@@ -81,10 +82,10 @@ export async function deriveOwnerSprint(env = process.env) {
 
   const rows = [
     { id: "D1", title: "verify:rls on production", status: "grey", detail: "Only a run with the production keys proves this; the CI twin (DB gates) proves the script.", how: "npm run verify:rls  (RUNBOOK §1); paste the output into LAUNCH_READINESS.md" },
-    { id: "D2", title: "Apply 0031–0040, decide 0027",
+    { id: "D2", title: "Apply 0031–0041, decide 0027",
       status: missing.length === 0 && applied.length === provable.length ? "green" : applied.length ? "partial" : "grey",
       detail: `${applied.length}/${provable.length} proven by their columns or data${missing.length ? `; missing: ${missing.join(", ")}` : ""}${unprovable.length ? `; ${unprovable.join(", ")} not provable through the API (check per its doc)` : ""}${led.available ? `; ledger has ${led.versions.length} versions` : "; no CLI ledger (hand-applied database)"}`,
-      how: "docs/MIGRATIONS_0032_0033.md · _0034.md · _0036.md · _0037.md · _0038.md · _0039.md · _0040.md; then npm run db:verify (its feature-presence section lists each migration)" },
+      how: "docs/MIGRATIONS_0032_0033.md · _0034.md · _0036.md · _0037.md · _0038.md · _0039.md · _0040.md · _0041.md; then npm run db:verify (its feature-presence section lists each migration)" },
     { id: "D3", title: "Repository private", status: "grey", detail: "A GitHub setting; not visible from here.", how: "GitHub → Settings → Danger zone → Change visibility" },
     { id: "D4", title: "Domain + VITE_SITE_URL + repo variables", status: present(env, "VITE_SITE_URL") && !/localhost/.test(env.VITE_SITE_URL) ? "partial" : "grey",
       detail: present(env, "VITE_SITE_URL") ? "VITE_SITE_URL is set at build; DNS and the PROD_URL / CANONICAL_HOST repository variables are not visible from here." : "VITE_SITE_URL is not set in this environment.",

@@ -207,6 +207,7 @@ async function main() {
   const seeded99 = await countWhere("products", "purity_percent=eq.99");
   featureRows.push({ id: "0039", what: `seeded purity cleared (${seeded99 ?? "?"} products still at 99.0; needs 0)`, doc: "docs/MIGRATIONS_0039.md", state: seeded99 == null ? "unknown" : seeded99 === 0 ? "ok" : "missing" });
   featureRows.push({ id: "0040", what: "loyalty_points ≥ 0 check constraint — not visible through the API", doc: "docs/MIGRATIONS_0040.md (verify SQL)", state: "unknown" });
+  featureRows.push({ id: "0041", what: "coa-files bucket limits — not visible through the API", doc: "docs/MIGRATIONS_0041.md (verify SQL)", state: "unknown" });
   for (const f of featureRows) {
     const mark = f.state === "ok" ? green("✅") : f.state === "missing" ? red("⛔") : yellow("⚠️ ");
     console.log(`  ${mark}  ${f.id}  ${f.what.padEnd(58)}  ${f.doc}`);

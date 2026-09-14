@@ -104,5 +104,18 @@ console.log("\nreadRawBody:");
   ok(r.tooLarge, "a pre-parsed Buffer above the cap is too large");
 }
 
+console.log("\nRe-upload removes the replaced object (opt cycle 12):");
+{
+  const prev = FIXTURES.coas.find((c) => c.file_path);
+  if (prev) {
+    const before = prev.file_path;
+    const r = await upload(prev.id, Buffer.concat([PDF, Buffer.from("\n% revision 2\n")])); // different bytes → different object path
+    const removed = LOG.filter((l) => l.op === "remove" && l.table === "storage:coa-files");
+    ok(r.statusCode === 200 && r.payload?.replaced === true && removed.some((l) => l.paths.includes(before)), `the previous object ${before} is removed after the row points at the new one`);
+  } else {
+    console.log("  ⓘ no fixture row with a file_path to replace — skipped");
+  }
+}
+
 if (failures) { console.error(`\n${failures} COA upload check(s) FAILED`); process.exit(1); }
 console.log("\nAll COA upload checks passed.");

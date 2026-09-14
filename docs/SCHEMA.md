@@ -62,6 +62,7 @@ and all RLS policies.
 | 0038 | `product_specs` | GENERATED update-only: verified sequence / molecular weight / CAS for 11 products, coalesced (never overwrites) — opt cycle 11 |
 | 0039 | `null_seeded_purity` | update-only: clears the seeded `products.purity_percent = 99.0` (no public surface reads the column since opt cycle 12 — purity is shown only from a published certificate) |
 | 0040 | `loyalty_nonnegative` | check constraint `profiles.loyalty_points >= 0` (NOT VALID on apply; validate after checking balances) — backs the compare-and-swap deduction, opt cycle 12 |
+| 0041 | `coa_bucket_limits` | storage bucket `coa-files`: 4 MB, PDF/JPEG only (guarded; no-op without the storage schema) — opt cycle 12 |
 
 ## Tables by domain (29)
 

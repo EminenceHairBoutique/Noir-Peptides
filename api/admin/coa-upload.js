@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   const kind = sniffCoaFile(buffer);
   if (!kind) return json(res, 415, { error: "Only PDF or JPEG certificates are accepted (checked by content, not by file name)" });
 
-  const { data: coa } = await supabaseServer.from("coas").select("id, is_published").eq("id", id).maybeSingle();
+  const { data: coa } = await supabaseServer.from("coas").select("id, is_published, file_path").eq("id", id).maybeSingle();
   if (!coa) return json(res, 404, { error: "Not found" });
 
   const objectPath = objectPathFor(id, buffer, kind.ext);
@@ -42,5 +42,12 @@ export default async function handler(req, res) {
     .select("id, file_url, file_path, is_published")
     .maybeSingle();
   if (error) return failSafely(res, { status: 500, code: "coa_upload_link_failed", message: "The file was stored but the certificate could not be updated.", error, context: "admin/coa-upload:link" });
-  return json(res, 200, { coa: updated, bytes: buffer.length, type: kind.contentType });
+  // Opt cycle 12: a replaced certificate's previous object is removed (best
+  // effort) — every re-upload used to orphan a private object forever.
+  const previous = coa.file_path;
+  if (previous && previous !== objectPath) {
+    const rm = await supabaseServer.storage.from(COA_BUCKET).remove([previous]).catch((e) => ({ error: e }));
+    if (rm?.error) console.warn("coa-upload: previous object not removed", String(rm.error?.message || rm.error).slice(0, 120));
+  }
+  return json(res, 200, { coa: updated, bytes: buffer.length, type: kind.contentType, replaced: Boolean(previous && previous !== objectPath) });
 }
