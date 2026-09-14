@@ -587,7 +587,7 @@ export default function ProductDetail() {
                 </dl>
                 <p className="text-[11px] text-se-steel font-accent mt-3">
                   Each unit is traceable to its batch. Verify the lot printed on your vial via{" "}
-                  <Link to="/verify-lot" className="text-se-gold underline underline-offset-2">
+                  <Link to="/verify-lot" className="inline-block py-1.5 text-se-gold underline underline-offset-2">
                     lot verification
                   </Link>
                   .
@@ -651,13 +651,13 @@ export default function ProductDetail() {
                       {/* W4: per-product batch-history permalink */}
                       <Link
                         to={`/test-results/${product.slug}`}
-                        className="inline-block text-[12px] text-se-gold underline underline-offset-2 font-accent"
+                        className="inline-flex items-center min-h-[44px] text-[12px] text-se-gold underline underline-offset-2 font-accent"
                       >
                         Full batch history for {product.name} →
                       </Link>
                       <Link
                         to="/test-results"
-                        className="inline-block text-[12px] text-se-gold underline underline-offset-2 font-accent"
+                        className="inline-flex items-center min-h-[44px] text-[12px] text-se-gold underline underline-offset-2 font-accent"
                       >
                         All certificates &amp; lot verification →
                       </Link>
@@ -673,7 +673,7 @@ export default function ProductDetail() {
                     mass-spec identity, endotoxin). Browse the{" "}
                     <Link
                       to="/test-results"
-                      className="text-se-gold underline underline-offset-2"
+                      className="inline-block py-1.5 text-se-gold underline underline-offset-2"
                     >
                       test-results library
                     </Link>{" "}
@@ -706,11 +706,11 @@ export default function ProductDetail() {
                   <p className="text-[12px] text-se-steel font-accent leading-relaxed">
                     No Safety Data Sheet is published for this material yet.
                     Request one at{" "}
-                    <Link to="/contact" className="text-se-gold underline underline-offset-2">
+                    <Link to="/contact" className="inline-block py-1.5 text-se-gold underline underline-offset-2">
                       contact
                     </Link>
                     , or browse the{" "}
-                    <Link to="/documents" className="text-se-gold underline underline-offset-2">
+                    <Link to="/documents" className="inline-block py-1.5 text-se-gold underline underline-offset-2">
                       document library
                     </Link>
                     .
@@ -753,11 +753,11 @@ export default function ProductDetail() {
                   <li>Tracking emailed on dispatch; free US shipping over ${FREE_SHIP_THRESHOLD}.</li>
                   <li>
                     Questions? See{" "}
-                    <Link to="/legal/shipping" className="text-se-gold underline underline-offset-2">
+                    <Link to="/legal/shipping" className="inline-block py-1.5 text-se-gold underline underline-offset-2">
                       shipping &amp; returns
                     </Link>{" "}
                     or{" "}
-                    <Link to="/contact" className="text-se-gold underline underline-offset-2">
+                    <Link to="/contact" className="inline-block py-1.5 text-se-gold underline underline-offset-2">
                       contact support
                     </Link>
                     .

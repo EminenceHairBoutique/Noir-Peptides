@@ -12,6 +12,24 @@ export const LOYALTY = {
   programName: "Noir Research Rewards",
 };
 
+// Redemption rate (opt cycle 11, 4.14): the ONLY place the points→dollar
+// conversion is written. lib/rewards.js (server validation) and every client
+// spend control import these; scripts/test-pricing-coherence.mjs proves the
+// client never carries its own copy of the number.
+export const POINT_VALUE_USD = 0.05; // 100 points = $5
+export const REDEEM_INCREMENT = 100;
+
+/**
+ * Dollar value of a points redemption at the canonical rate, rounded to cents.
+ * @param {number} points
+ * @returns {number}
+ */
+export function redeemDollars(points) {
+  const p = Math.floor(Number(points) || 0);
+  if (p <= 0) return 0;
+  return Math.round(p * POINT_VALUE_USD * 100) / 100;
+}
+
 /**
  * Points earned for a purchase, given the paid amount in cents.
  * Floors to whole points; never negative.

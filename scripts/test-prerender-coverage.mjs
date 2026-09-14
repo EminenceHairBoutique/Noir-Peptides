@@ -208,6 +208,22 @@ if (buildMeta?.dbEnvPresent) {
   const dealsHtml = fs.readFileSync(path.join(DIST, "deals", "index.html"), "utf8");
   const dealsRoot = dealsHtml.slice(dealsHtml.indexOf('<div id="root">'), dealsHtml.indexOf("</body>"));
   ok(!/\$\d|\d+%\s|LOT[- ]?\d|COA[- ]?\d/i.test(dealsRoot), "/deals shell contains no row-like data");
+} else if (buildMeta?.coaSource === "seed") {
+  // Opt cycle 11: no database env, but the trust pages carry the MIRRORED
+  // 0019 seed — real, published certificates committed to the repo. That is
+  // not fabrication; what must hold is that the rows ARE the seed (count
+  // recorded), that every seeded product got its permalink, and that /deals
+  // stays a shell.
+  const { COA_SEED } = await import("../src/data/coaSeed.js");
+  const published = COA_SEED.filter((r) => r.is_published);
+  ok(buildMeta.coaRowCount === published.length, `build used the mirrored seed: ${buildMeta.coaRowCount} rows (seed publishes ${published.length})`);
+  const tr = fs.readFileSync(path.join(DIST, "test-results", "index.html"), "utf8");
+  ok(published.every((r) => tr.includes(r.lot_number)), "every seeded lot number is on the prerendered /test-results");
+  const slugs = [...new Set(published.map((r) => r.product_id))];
+  ok(slugs.every((slug) => fs.existsSync(path.join(DIST, "test-results", slug, "index.html"))), `every seeded product has a batch-history permalink (${slugs.length})`);
+  const dealsHtml = fs.readFileSync(path.join(DIST, "deals", "index.html"), "utf8");
+  const dealsRoot = dealsHtml.slice(dealsHtml.indexOf('<div id="root">'), dealsHtml.indexOf("</body>"));
+  ok(!/\$\d|\d+%\s|LOT[- ]?\d|COA[- ]?\d/i.test(dealsRoot), "/deals shell contains no row-like data");
 } else {
   for (const route of ["/deals", "/test-results"]) {
     const f = path.join(DIST, route.slice(1), "index.html");

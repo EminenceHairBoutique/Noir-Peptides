@@ -29,7 +29,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(PRECACHE)
-      .then((cache) => cache.addAll([SHELL, "/site.webmanifest", ...NP.assets]))
+      .then((cache) => cache.addAll([SHELL, "/boot.js", "/site.webmanifest", ...NP.assets]))
       .then(() => self.skipWaiting())
   );
 });

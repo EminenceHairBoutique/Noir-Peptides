@@ -29,7 +29,7 @@ const walk = (d, out = []) => {
 };
 
 // Names the platform (Vite / Node / Vercel / CI / Playwright) sets itself.
-const PLATFORM = new Set(["NODE_ENV", "DEV", "PROD", "MODE", "BASE_URL", "SSR", "CI", "VERCEL", "VERCEL_URL", "VERCEL_ENV", "PLAYWRIGHT_CHROMIUM_PATH", "HOME", "PATH"]);
+const PLATFORM = new Set(["NODE_ENV", "DEV", "PROD", "MODE", "BASE_URL", "SSR", "CI", "VERCEL", "VERCEL_URL", "VERCEL_ENV", "PLAYWRIGHT_CHROMIUM_PATH", "CHROME_PATH", "HOME", "PATH"]);
 // GitHub Actions sets GITHUB_* on every runner (opt cycle 9: the evidence
 // scripts read GITHUB_SHA / RUN_ID / … for provenance).
 const isPlatform = (n) => PLATFORM.has(n) || /^GITHUB_/.test(n);

@@ -4,9 +4,15 @@
   first visit, and the gated /cart + /checkout (steps 1 and 2, through the
   E2E auth fixture) × {320, 390, 768, 1280}, against the served dist.
 
-  Writes  evidence/screens/<route>/<width>.png   (full page)
-          evidence/screens.json                  (one record per view: HTTP
+  Writes  evidence/screens/<route>/<width>.png       (full page, after a
+          scroll-through so whileInView sections render)
+          evidence/screens/<route>/<width>-fold.png  (the viewport at load —
+          a sticky header prints mid-page in full-page captures)
+          evidence/screens.json                      (one record per view: HTTP
           status, page errors, console errors, horizontal overflow px)
+  Public views run with the age gate acknowledged and cookie consent recorded
+  (essential only) so the PAGE is what is reviewed; the first-visit dialogs
+  get their own view of "/".
   Exit 1 on any uncaught page error, or a ≥400 response on a sitemap route.
   Overflow is RECORDED here; the mobile suite and the axe sweep own that gate.
 
@@ -45,9 +51,28 @@ function attach(page, rec) {
   });
 }
 
+const CONSENT = JSON.stringify({ necessary: true, analytics: false, marketing: false, timestamp: 0, source: "evidence" });
+const acknowledgeDialogs = (context) => context.addInitScript((consent) => {
+  window.localStorage.setItem("np_age_ack_v1", "1");
+  window.localStorage.setItem("np_cookie_consent", consent);
+}, CONSENT);
+
 async function shoot(page, rec, file) {
+  // Opt cycle 11: with the paint-first loader the prerendered shell is on
+  // screen until React mounts; the fold shot is of the hydrated page (the
+  // shell frame itself is styled, see index.css). Bounded wait, never fails.
+  await page.waitForSelector("#root > main", { state: "detached", timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(400);
   rec.overflowPx = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  // The fold first (what a visitor sees at load), then a scroll-through so
+  // whileInView sections have rendered, then the full page from the top.
+  await page.screenshot({ path: file.replace(/\.png$/, "-fold.png"), fullPage: false });
+  await page.evaluate(async () => {
+    const step = Math.max(400, window.innerHeight - 80);
+    for (let y = 0; y < document.documentElement.scrollHeight; y += step) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 60)); }
+    window.scrollTo(0, 0);
+  });
+  await page.waitForTimeout(300);
   await page.screenshot({ path: file, fullPage: true });
   rec.file = path.relative(outDir, file);
 }
@@ -55,8 +80,8 @@ async function shoot(page, rec, file) {
 const browser = await chromium.launch({ executablePath: fs.existsSync(exe) ? exe : undefined });
 for (const width of WIDTHS) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, deviceScaleFactor: 1 });
-  // Public routes: age gate acknowledged so the page, not the modal, is what is reviewed.
-  await context.addInitScript(() => window.localStorage.setItem("np_age_ack_v1", "1"));
+  // Public routes: first-visit dialogs acknowledged so the page, not a modal, is what is reviewed.
+  await acknowledgeDialogs(context);
   await context.route(FAKE_HOST, (route) => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }));
   const queue = [...routes];
   const workers = Array.from({ length: CONCURRENCY }, async () => {
@@ -83,17 +108,17 @@ for (const width of WIDTHS) {
   await Promise.all(workers);
   await context.close();
 
-  // The age gate itself, on a first visit to the home page.
+  // The first-visit dialogs themselves (age gate + cookie consent) on the home page.
   {
     const ctx = await browser.newContext({ viewport: { width, height: 900 }, deviceScaleFactor: 1 });
     await ctx.route(FAKE_HOST, (route) => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }));
     const page = await ctx.newPage();
-    const rec = { route: "/ (age gate, first visit)", width, status: null, pageErrors: [], consoleErrors: [], fixtureNoise: 0, apiNoise: 0, overflowPx: null, file: null };
+    const rec = { route: "/ (first visit: age gate + cookie consent)", width, status: null, pageErrors: [], consoleErrors: [], fixtureNoise: 0, apiNoise: 0, overflowPx: null, file: null };
     attach(page, rec);
     try {
       const res = await page.goto(base + "/", { waitUntil: "networkidle", timeout: 45000 });
       rec.status = res?.status() ?? null;
-      const dir = path.join(screensDir, "home__age-gate");
+      const dir = path.join(screensDir, "home__first-visit");
       fs.mkdirSync(dir, { recursive: true });
       await shoot(page, rec, path.join(dir, `${width}.png`));
     } catch (e) {
@@ -111,6 +136,7 @@ for (const width of WIDTHS) {
     const gated = [];
     const mk = (label) => { const r = { route: label, width, status: null, pageErrors: [], consoleErrors: [], fixtureNoise: 0, apiNoise: 0, overflowPx: null, file: null, gated: true }; gated.push(r); return r; };
     try {
+      await acknowledgeDialogs(ctx);
       await installAuth(page);
       await seedCart(page, base);
       let rec = mk("/cart (authed)");
@@ -148,7 +174,7 @@ for (const width of WIDTHS) {
 }
 await browser.close();
 
-const failing = records.filter((r) => r.pageErrors.length || (!r.gated && !r.route.includes("age gate") && (r.status == null || r.status >= 400)));
+const failing = records.filter((r) => r.pageErrors.length || (!r.gated && !r.route.includes("first visit") && (r.status == null || r.status >= 400)));
 const overflow = records.filter((r) => (r.overflowPx ?? 0) > 1);
 const consoleErrors = records.filter((r) => r.consoleErrors.length);
 const summary = {

@@ -8,6 +8,7 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ─── Design Tokens (CSS Custom Properties) ──────────────────────────── */
+/* The ONLY place a palette hex is written (docs/DESIGN_TOKENS.md). */
 :root {
   --noir-bg: #05080f;
   --noir-surface: #0d1420;
@@ -20,7 +21,6 @@
 
   --noir-text: #e8edf5;
   --noir-muted: #8a9ab3;
-  --noir-subtle: #2d3f55;
 
   --noir-success: #10b981;
   --noir-warning: #f59e0b;
@@ -46,9 +46,6 @@
   --se-red: var(--noir-danger);
   --se-red-bright: #f87171;
 
-  --font-display: var(--font-heading);
-  --font-accent: var(--font-mono);
-  --font-signature: var(--font-heading);
 
   /* Spacing rhythm */
   --section-gap: clamp(4rem, 8vw, 8rem);
@@ -57,36 +54,86 @@
 }
 
 /* ─── Tailwind v4 Theme Extension ────────────────────────────────────── */
-@theme {
-  --color-se-black: #05080f;
-  --color-se-charcoal: #0d1420;
-  --color-se-asphalt: #131d2e;
-  --color-se-concrete: #1e2d40;
-  --color-se-steel: #8a9ab3;
-  --color-se-bone: #e8edf5;
-  --color-se-cream: #f4f7fc;
-  --color-se-white: #ffffff;
-  --color-se-gold: #00c2ff;
-  --color-se-gold-muted: #007aab;
-  --color-se-red: #ef4444;
-  --color-se-red-bright: #f87171;
+@theme inline {
+  /* Tailwind namespace → the :root tokens above (opt cycle 11, 4.8). Every
+     colour utility (bg-se-*, text-noir-*, …) resolves to ONE hex declared in
+     :root; nothing in this block is a literal. `inline` makes the utilities
+     carry the var() reference, so opacity modifiers (text-se-steel/70) keep
+     working through color-mix(). scripts/test-design-tokens.mjs gates it. */
+  --color-se-black: var(--se-black);
+  --color-se-charcoal: var(--se-charcoal);
+  --color-se-asphalt: var(--se-asphalt);
+  --color-se-concrete: var(--se-concrete);
+  --color-se-steel: var(--se-steel);
+  --color-se-bone: var(--se-bone);
+  --color-se-cream: var(--se-cream);
+  --color-se-white: var(--se-white);
+  --color-se-gold: var(--se-gold);
+  --color-se-gold-muted: var(--se-gold-muted);
+  --color-se-red: var(--se-red);
+  --color-se-red-bright: var(--se-red-bright);
 
-  --color-noir-bg: #05080f;
-  --color-noir-surface: #0d1420;
-  --color-noir-elevated: #131d2e;
-  --color-noir-border: #1e2d40;
-  --color-noir-accent: #00c2ff;
-  --color-noir-accent-dim: #007aab;
-  --color-noir-text: #e8edf5;
-  --color-noir-muted: #8a9ab3;
-  --color-noir-success: #10b981;
-  --color-noir-warning: #f59e0b;
-  --color-noir-danger: #ef4444;
-
-  --font-family-display: 'Syne', sans-serif;
-  --font-family-body: 'DM Sans', sans-serif;
-  --font-family-accent: 'IBM Plex Mono', monospace;
+  --color-noir-bg: var(--noir-bg);
+  --color-noir-surface: var(--noir-surface);
+  --color-noir-elevated: var(--noir-elevated);
+  --color-noir-border: var(--noir-border);
+  --color-noir-accent: var(--noir-accent);
+  --color-noir-accent-dim: var(--noir-accent-dim);
+  --color-noir-text: var(--noir-text);
+  --color-noir-muted: var(--noir-muted);
+  --color-noir-success: var(--noir-success);
+  --color-noir-warning: var(--noir-warning);
+  --color-noir-danger: var(--noir-danger);
 }
+
+/* ─── Pre-hydration shell (opt cycle 11, 4.7 / 4.8) ─────────────────────
+   With the paint-first loader the prerendered <main> inside #root is on
+   screen until React mounts (≈0.4 s locally, longer on slow devices). Style
+   it as a quiet branded frame instead of a raw document: nothing is hidden
+   (crawlers see the same text and links), the paragraph sizes set inline
+   by the generator (shell parity) are untouched, so the LCP candidate is
+   unchanged. React never renders a <main> as a direct child of #root, so
+   these rules cannot reach the hydrated app. */
+#root > main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 6.5rem 1.25rem 3rem;
+  font-family: var(--font-mono);
+  color: var(--noir-text);
+  line-height: 1.6;
+}
+#root > main h1 {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  margin: 0 0 1rem;
+}
+#root > main h2 {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--noir-accent);
+  margin: 1.5rem 0 0.5rem;
+}
+#root > main p { margin: 0 0 0.9rem; }
+#root > main a { color: var(--noir-muted); text-decoration: none; }
+#root > main ul,
+#root > main ol {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  font-size: 0.8rem;
+  color: var(--noir-muted);
+}
+#root > main nav { margin-top: 1.5rem; border-top: 1px solid var(--noir-border); padding-top: 1rem; }
+#root > main table { font-size: 0.8rem; border-collapse: collapse; margin: 0 0 1rem; }
+#root > main th, #root > main td { text-align: left; padding: 0.25rem 0.75rem 0.25rem 0; }
 
 /* ─── Base Styles ────────────────────────────────────────────────────── */
 body {
@@ -470,6 +517,12 @@ body::after {
     min-height: 44px;
     min-width: 44px;
   }
+  /* Opt cycle 10 (4.10): text inputs and selects are tap targets too. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  select,
+  textarea {
+    min-height: 44px;
+  }
   .tap-compact,
   .tap-compact * {
     min-height: unset;
@@ -637,7 +690,7 @@ table {
   z-index: 200;
   padding: 0.6rem 0.9rem;
   background: var(--se-gold, #c9a961);
-  color: #05080f;
+  color: var(--noir-bg);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -646,6 +699,21 @@ table {
 }
 .skip-link:focus-visible {
   top: calc(env(safe-area-inset-top) + 0.75rem);
-  outline: 2px solid #05080f;
+  outline: 2px solid var(--noir-bg);
   outline-offset: 2px;
+}
+
+/* Opt cycle 10 (4.10): every decorative keyframe animation honours the
+   user's reduced-motion setting. framer-motion already does (MotionConfig
+   reducedMotion="user"); these CSS classes did not. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-dropdown-in,
+  .animate-image-reveal,
+  .animate-line-grow,
+  .animate-subtle-pulse,
+  .animate-glow-pulse,
+  .animate-mega-drop {
+    animation: none !important;
+  }
 }

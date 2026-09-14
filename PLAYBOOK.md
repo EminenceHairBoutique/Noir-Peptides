@@ -67,13 +67,18 @@ wins and the conflict is logged here so the prompt can be revised.
   (`test-dist-copy.mjs`) found 3 findings on `/` that no corpus entry covered
   (all negations, now allowlisted) and 71 across 11 pages in total — the
   corpus gate had seen 11 of them. — yield: 1
-- **H-011** [added cycle 3] Measure through the production transport, or the
+- **H-011** [added cycle 3, extended cycle 10] Measure through the production transport, or the
   number is about the harness. — evidence: the RECON perf profile over the
   uncompressed test server reported LCP 5.0 s on `/`; the same build over the
   same server with gzip reported 2.2 s. The finding that survived the fix
   (a serialized route-chunk hop) was visible in the waterfall, not in the
   headline number. — yield: 1 (gzip in `serve-dist.mjs` + the preload item)
-
+  — extension (cycle 10): measure under the production CLIENT's conditions
+  too (Lighthouse's mobile simulation: 4× CPU, ~1.6 Mbps, 150 ms RTT).
+  Unthrottled local paint numbers gave 4.7 an "8" that survived seven
+  cycles; the first properly simulated run cut it to 7. And under that
+  simulator every request that STARTS before the observed paint is charged
+  to it, so "defer X" only helps if X starts after the paint.
 - **H-012** [added cycle 4] A timing hypothesis is tested by removing the
   suspected cause and re-reading the candidate SEQUENCE; if the sequence does
   not move, the mechanism is wrong even when the headline number improves.
@@ -110,19 +115,30 @@ wins and the conflict is logged here so the prompt can be revised.
   — RECON step 0 (B4): `node scripts/evidence-latest.mjs` before anything
   else; a dated artifact is scored with its date, stale (> 7 d) as SUSPECTED
 
+- **H-015** [added cycle 11] When a fix must pass a gate the site already
+  enforces (a strict CSP, a bytes budget, a copy scan), enumerate the shapes
+  the gate lets through BEFORE designing the fix, and pick the fix from that
+  set. Evidence: the "obvious" LCP fix was an inline loader; the meta-CSP
+  gate detects exactly one thing — an inline `<script>` — and would have
+  re-enabled `'unsafe-inline'` site-wide. An external `src` script is the
+  only loader shape the gate admits; it needed no CSP change and won by
+  1.4–1.7 s. Corollary: a stub that returns the fixture object itself hides
+  every before/after comparison — a harness must return copies, like the
+  real transport does (cycle 11 restock proof).
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
-| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 5 | 2 | cycle 9: 308 screenshots taken (evidence matrix); review deferred to cycle 11 — 0 yield |
-| Regulator walk | 9 | 8 | cycle 9 (the code_name field is public text — copy door at the API, proven with the real handler) |
+| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 6 | 6 | cycle 11 (per-route review of the matrix at 390: colliding card chips, consent sheet height, summary 3 000 px down, certificate chip clipping — 4 fixes) |
+| Regulator walk | 11 | 11 | cycle 11 (wholesale request copy: logistics only; cart reminder draft: count + link + RUO, no offer) |
 | Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 4 | 2 | cycle 4 (cart next-tier nudge — first hit since the rewrite) |
-| Data honesty sweep | 6 | 7 | cycle 9 (SCHEMA.md migration table stale since 0016 — completed; 4.7 corrected 8 → 7 by the first properly simulated measurement) |
-| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 7 | 5 | cycle 9 (static↔DB shape diff proven with an injected price drift + ghost product) |
-| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 9 | 7 | cycle 9 (measurement lane: LHCI median-of-3 finds LCP 3.1–3.4 s on all four gated routes — 1 finding, 0 shipped) |
-| Ops dry run | 8 | 9 | cycle 9 (evidence, live-probe and db-gates workflows + the sandbox reader) |
-| Inversion | 6 | 5 | cycle 9 ("what still imports a file nothing renders?" → legacy products.js deleted with proof) |
-| Accessibility sweep (axe) — added cycle 2 | 7 | 7 | cycle 9 (axe on EVERY route: /contact unlabeled controls + /about heading order — the 9-route sweep had never reached them) |
+| Data honesty sweep | 8 | 11 | cycle 11 (specs: 12 transcribed / 32 escalated, TB-500 excluded; certificates from the shipped seed, never synthetic; the card's COA chip only from a real row) |
+| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 9 | 10 | cycle 11 (loader fallback when rAF never fires; restock with a failing / unconfigured transport; QR chunk on a page that never scrolls) |
+| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 11 | 8 | cycle 11 (paint-first loader + shell parity: LCP 3.1–3.3 s → 1.4–1.9 s on every gated route, measured 5 runs; the QR chunk deferred to visibility) |
+| Ops dry run | 10 | 15 | cycle 11 (Control Room spec fields; D5b row; restock executed end to end) |
+| Inversion | 7 | 7 | cycle 11 ("which config does the build never read?" → tailwind.config.js + input.css deleted; "which token does nothing reference?" → four dead :root tokens) |
+| Accessibility sweep (axe) — added cycle 2 | 9 | 11 | cycle 11 (step-2 helper contrast 3.88:1; certificate chip target size — both found by the sweep on new surfaces) |
 
 ## Retired
 
@@ -212,23 +228,54 @@ wins and the conflict is logged here so the prompt can be revised.
   status: ESCALATED (owner + attorney; engine will not change catalog copy
   unilaterally because it desyncs static from DB).
 
-- **Hy-008 (refined cycle 9)** — under Lighthouse's mobile simulation (4×
-  CPU, ~1.6 Mbps, 150 ms RTT) LCP is 3.1–3.4 s on `/`, `/shop`, a PDP and
-  `/test-results` with FCP 2.1–2.4 s; CLS 0, TBT < 120 ms. The waterfall:
-  2 KB document → 15 KB CSS + two variable fonts (34 + 36 KB, preloaded,
-  High) + ~180 KB of High-priority module scripts all contend on the
-  simulated link before the hero text can paint in its web font. Candidate
-  levers (deterministic, "bytes & requests" lane): keep `vendor-supabase`
-  (43 KB, ~80 KB unused per Lighthouse) out of the landing closure; subset
-  the two variable fonts to Latin; both to be tested THROUGH the LHCI gate
-  (H-013). — status: OPEN, leads cycle 10's performance work.
+- **Hy-008 (refined cycle 10 — measured through the LHCI gate, 3–5 runs
+  per build, baseline reproduced within 30 ms)** — local medians: `/`
+  3097 ms · `/shop` 3313 · PDP 3140 · `/test-results` 3264 (CI: 3141 /
+  3637 / 2586 / 3305). Observed (unthrottled) the page is loaded by 89 ms
+  and the largest paint lands at 469 ms on `/` (React's hero paragraph,
+  after the age-gate paragraph at 180 ms) and at 165 ms on the PDP (the
+  PRERENDERED paragraph). Simulated LCP on `/` equals TTI in every run;
+  on the PDP a paint that observes at 165 ms still simulates to 3.1 s: the
+  simulator charges every request started before the observed paint — the
+  whole first wave (2.5 KB document, 15 KB CSS, 72 KB fonts, ~180 KB of
+  modulepreloaded JS, all dispatched at parse time) — to the paint, and
+  credits nothing that happens after it. Five levers, each measured, none
+  shipped: (A) Supabase client out of the boot path, three variants
+  (+11 … +151 ms — the deferred 44 KB then competes with the route chunk;
+  deferring it to `load` did not help either); (B) no entrance animation on
+  first paint (+114 … +141 ms); (C) Latin font subsets (2–3 KB per face —
+  the variable files are already near-Latin; not a lever); (E1) stylesheet
+  hoisted to the top of `<head>` (±12 ms — the CSS was not the long pole);
+  (E2) the three mono faces preloaded (+130 / +291 ms on `/shop` and the
+  PDP — bytes added to the wave are charged in full). Hydration CPU is
+  NOT the cost: a real profile shows < 60 ms of script; Lighthouse's own
+  tracing inflates it. **Path to 2.5 s (cycle 11 lead):** (1) a
+  paint-first loader — the JS wave must START after first paint (a tiny
+  hashed inline loader that appends the module script and its preloads
+  after the first frame; the strict meta CSP gains the hash); (2) shell
+  parity — each prerendered shell carries the route's largest above-the-
+  fold paragraph so the LCP candidate is prerendered text on every route;
+  (3) only then a boot-closure diet (motion 38 KB + supabase 44 KB behind
+  the loader's second stage). The lane: `node scripts/perf-lhci.mjs`. —
+  status: **RESOLVED cycle 11** — (1) + (2) shipped as `public/boot.js`
+  (an external `src` script, not an inline one: the CSP gate admits no
+  other shape, H-015) plus shell paragraphs sized ≥ React's on every gated
+  route. Local medians, 5 runs, same lane: `/` 3097 → **1366** ms · `/shop`
+  3313 → **1862** · PDP 3140 → **1503** · `/test-results` 3264 → **1504**;
+  CLS 0, TBT unchanged. The model held exactly: once the JS wave starts
+  after the first frame, the observed LCP is the prerendered paragraph and
+  the simulator charges only the document, CSS and fonts to it. Step (3),
+  the boot-closure diet, is now optional headroom, not a need. The CI
+  Evidence run on the cycle-11 PR is the H-014 proof.
 - **Hy-009** [opened cycle 9] `scripts/test-jsx-undefined.mjs`'s noise
   stripper treats an apostrophe in JSX text or a block comment as a string
   opener (`'s report code goes …`, line 185 of AdminHome.jsx already does
   this) and can swallow later declarations depending on parity; a new
   comment with quotes made every component in AdminHome "undeclared".
   Fix: strip block comments before strings, and ignore quotes inside JSX
-  text. — status: OPEN, small; do it when the file is next touched.
+  text. — status: **RESOLVED cycle 10** — a quote directly after a word
+  character or a closing bracket is prose, not a string opener (keywords
+  like `return` excepted); the gate still resolves every component in src/.
 
 ## Scorecard sharpenings (never loosenings)
 
@@ -373,6 +420,19 @@ wins and the conflict is logged here so the prompt can be revised.
 - 4.13: lint is 0 warnings, enforced by `--max-warnings 0`; test runtime
   budget recorded in the cycle log — cycle 9.
 
+- 4.4 / 4.11: "COA file upload" = content-sniffed, size-capped, private
+  bucket, served only through a signed redirect for PUBLISHED certificates;
+  a signed URL is never stored (file_url is baked into static HTML) — cycle 10.
+- 4.5: "duplicate-submit" = an E2E that double-clicks and counts exactly one
+  request; the guard is a ref, not state — cycle 10.
+- 4.10: "touch-target gate" = 44 px for controls and navigation, 24 px for
+  links inside running text, skip link exempt, in CI (the mobile suite now
+  runs there) — cycle 10. "Reduced motion" = no running animation on the
+  three key routes under `prefers-reduced-motion: reduce` — cycle 10.
+- 4.11: "every owner action has a screen" now includes the Owner Sprint tab
+  (status derived from data, never assumed) and the read-only flag screen
+  (names and on/off, never values) — cycle 10.
+
 ## Change log
 
 - **2026-09-13 (cycle 1)** — added H-001…H-005 (seeded, each re-verified or
@@ -429,3 +489,27 @@ wins and the conflict is logged here so the prompt can be revised.
   yielded on its first run. 4.7 corrected DOWN (8 → 7) — the honesty rule
   applied to the engine's own past scores. Scorecards 4.3, 4.7, 4.9, 4.12,
   4.13 sharpened.
+- **2026-09-13 (cycle 10)** — H-011 extended (measure under the production
+  client's conditions; the simulator charges every pre-paint request).
+  Hy-008 refined with a measured model (five levers, none shipped) and a
+  named path for cycle 11; Hy-009 resolved. Ops dry run yielded 4 (three
+  Control Room screens + mobile in CI); the tap-target gate yielded 13
+  fixes on its first run. Scorecards 4.4/4.11, 4.5, 4.10, 4.11 sharpened.
+- **2026-09-13 (cycle 11, CI follow-up)** — H-011 bit a third time: the
+  local mobile suite ran through `serve-dist` while CI runs it through
+  `vite preview`; under the faster transport the page hydrates after the
+  tests' first measurement, which exposed a real production bug (service
+  worker registration waited for a `load` event that had already fired)
+  and 11 tap-target/scroll findings. Rule sharpened: before pushing, run
+  every suite the way its CI job runs it (`npm run test:mobile` with no
+  `E2E_BASE_URL`, `npm run a11y` with `A11Y_ALL_ROUTES=1`).
+- **2026-09-13 (cycle 11)** — added H-015 (design the fix from the set of
+  shapes the existing gates admit; evidence: the external-`src` loader is
+  the only loader the CSP gate lets through, and it won by 1.4–1.7 s).
+  Hy-008 RESOLVED (paint-first loader + shell parity: every gated route
+  under 2.0 s locally, 5 runs). Cost/perf yielded the cycle's lead item on
+  a structural change after ten cycles of "measure, do not ship"; Data
+  honesty yielded 3 (transcribed specs, seeded certificates, real COA
+  chips); Inversion yielded 2 (dead config, dead tokens); the axe sweep
+  yielded 2 on brand-new surfaces; Buyer walk yielded its first fixes from
+  the matrix (4). Scorecards 4.4, 4.7, 4.8, 4.14 sharpened.

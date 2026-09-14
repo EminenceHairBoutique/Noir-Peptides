@@ -18,7 +18,7 @@ export default function AuthLayout({ title, seoTitle, subtitle, children, wide =
           }}
         />
         <div className="relative flex flex-col items-center px-6 pt-24 pb-20">
-          <Link to="/" className="flex items-center gap-2 leading-none mb-10">
+          <Link to="/" className="flex items-center gap-2 leading-none min-h-[44px] mb-8">
             <span className="font-display text-[18px] tracking-[0.22em] text-se-bone font-extrabold">
               NOIR
             </span>

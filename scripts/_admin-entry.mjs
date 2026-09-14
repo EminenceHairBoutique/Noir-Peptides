@@ -2,7 +2,7 @@
 // by an esbuild resolve plugin). Not shipped.
 export { default as coaHandler } from "../api/admin/coa.js";
 export { default as labsHandler, labTemplateError, pickLabFields } from "../api/admin/labs.js";
-export { FIXTURES, FAULTS, LOG } from "../lib/supabaseServer.js";
+export { FIXTURES, FAULTS, LOG, STORAGE } from "../lib/supabaseServer.js";
 export { default as ordersHandler, loadAttestation, ATTESTATION_COLUMNS } from "../api/admin/orders.js";
 export { default as catalogHandler, triggerRebuild } from "../api/admin/catalog.js";
 export { default as labelConfigsHandler } from "../api/admin/labels.js";
@@ -10,3 +10,8 @@ export { default as reviewsHandler } from "../api/reviews.js";
 export { failSafely, recordServerError } from "../lib/apiError.js";
 export { default as serverErrorsHandler } from "../api/admin/server-errors.js";
 export { default as discountsHandler } from "../api/admin/discounts.js";
+export { default as coaUploadHandler } from "../api/admin/coa-upload.js";
+export { default as coaFileHandler } from "../api/coa-file/[name].js";
+export { readRawBody } from "../api/_utils/body.js";
+export { default as flagsHandler, flagStates, FLAG_INVENTORY } from "../api/admin/flags.js";
+export { default as ownerSprintHandler, deriveOwnerSprint } from "../api/admin/owner-sprint.js";

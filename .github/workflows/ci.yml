@@ -117,6 +117,10 @@ jobs:
       # the production build above. See scripts/build-e2e.mjs.
       - run: npm run build:e2e
       - run: npm run test:e2e
+      # Mobile suite (opt cycle 10): 320/360/390 overflow + CLS guards,
+      # bottom nav, haptics, QR scan, tap targets, reduced motion — it had
+      # run locally every cycle and never in CI.
+      - run: npm run test:mobile
       # Accessibility sweep (opt cycle 2): axe-core over 9 routes at 390/1280
       # against the built dist. Exits 1 on serious/critical violations.
       - name: Accessibility sweep (axe)

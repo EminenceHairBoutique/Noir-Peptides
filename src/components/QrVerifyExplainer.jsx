@@ -22,7 +22,7 @@ export default function QrVerifyExplainer({ compact = false }) {
         Every vial label carries a QR code unique to its lot. Scanning it opens that
         lot&rsquo;s verification record — its batch details and, where published, the
         certificate of analysis for that exact batch. You can also{" "}
-        <Link to="/verify-lot" className="text-se-gold underline underline-offset-2 hover:text-se-bone">
+        <Link to="/verify-lot" className="text-se-gold underline underline-offset-2 hover:text-se-bone inline-block py-1">
           enter or scan a lot number
         </Link>{" "}
         directly.

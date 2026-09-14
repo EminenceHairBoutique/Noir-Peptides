@@ -50,7 +50,7 @@ for (const page of ["/cart", "/checkout", "/account/orders", "/admin/labels", "/
 ok(existsSync(path.join(ROOT, "dist/404.html")) && existsSync(path.join(ROOT, "dist/404/index.html")), "dist/404.html and dist/404/index.html both exist");
 if (existsSync(path.join(ROOT, "dist/404.html"))) {
   const h = readFileSync(path.join(ROOT, "dist/404.html"), "utf8");
-  ok(/noindex/.test(h) && /<script type="module"/.test(h), "404.html is the noindex SPA shell (client routes still hydrate if ever served)");
+  ok(/noindex/.test(h) && /<script src="\/boot\.js" defer data-entry="\/assets\/index-/.test(h), "404.html is the noindex SPA shell (client routes still hydrate through the boot loader if ever served)");
 }
 const serve = readFileSync(path.join(ROOT, "scripts/serve-dist.mjs"), "utf8");
 ok(/vercel\.json/.test(serve) && /CLIENT_ROUTES/.test(serve), "serve-dist.mjs reads the client routes from vercel.json");

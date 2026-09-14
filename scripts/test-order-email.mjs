@@ -13,7 +13,9 @@ import { readFileSync } from "node:fs";
 process.env.VITE_SUPABASE_URL ||= "https://placeholder.supabase.co";
 process.env.VITE_SUPABASE_ANON_KEY ||= "placeholder";
 process.env.SUPABASE_SERVICE_ROLE_KEY ||= "placeholder";
-const { orderConfirmationHtml } = await import("../lib/email.js");
+// Dynamic on purpose: lib/email.js pulls the server client, which needs the
+// placeholders above to exist BEFORE the module is evaluated.
+const { orderConfirmationHtml, orderStatusHtml, attestationReceiptHtml, cartReminderHtml } = await import("../lib/email.js");
 
 let failures = 0;
 const ok = (cond, msg) => {
@@ -55,6 +57,43 @@ const noUnit = orderConfirmationHtml({ orderNumber: "NP-2", amount: 100, items: 
 ok(/>—<\/td>/.test(noUnit), "unknown unit price renders as a dash, never a fabricated number");
 const eur = orderConfirmationHtml({ orderNumber: "NP-3", amount: 1000, currency: "eur" });
 ok(/\$10\.00 EUR/.test(eur), "non-USD currency is labelled");
+
+console.log("\nStatus (shipped) email — opt c10:");
+{
+  const shipped = orderStatusHtml({ orderNumber: "NP-9", status: "shipped", trackingUrl: "https://tools.usps.com/go/TrackConfirmAction?tLabels=9400" });
+  ok(/Your order <strong>NP-9<\/strong> has shipped\./.test(shipped), "shipped phrase renders with the order number");
+  ok(/href="https:\/\/tools\.usps\.com\/go\/TrackConfirmAction\?tLabels=9400"/.test(shipped) && /Track your shipment/.test(shipped), "https tracking link rendered");
+  ok(/For research use only\. Not for human or veterinary use\./.test(shipped), "RUO line present");
+  ok(!/href=/.test(orderStatusHtml({ orderNumber: "NP-9", status: "shipped", trackingUrl: "http://evil.test/track" })), "a non-https tracking link is not rendered");
+  ok(!/href=/.test(orderStatusHtml({ orderNumber: "NP-9", status: "shipped", trackingUrl: "javascript:alert(1)" })), "a javascript: link is not rendered");
+  const odd = orderStatusHtml({ orderNumber: "<b>x</b>", status: "<img src=x>" });
+  ok(!/<b>x<\/b>|<img/.test(odd) && /&lt;b&gt;x&lt;\/b&gt;/.test(odd) && /was updated to &lt;img/.test(odd), "order number and an unknown status are escaped; unknown status falls back to a neutral phrase");
+}
+
+console.log("\nAttestation receipt — opt c10:");
+{
+  const r = attestationReceiptHtml({ version: "v1.0", recordedAt: "2026-09-13T12:00:00.000Z", legalName: "Ada <Lovelace>", statements: ["I will use these materials for in-vitro research only.", "I am 21 or older & not a consumer."] });
+  ok(/Research-use attestation on record/.test(r) && /version <strong>v1\.0<\/strong>/.test(r) && /2026-09-13 12:00:00 UTC/.test(r), "version + timestamp render");
+  ok(/Ada &lt;Lovelace&gt;, your/.test(r), "legal name is escaped");
+  ok(/<li>I will use these materials for in-vitro research only\.<\/li>/.test(r) && /21 or older &amp; not a consumer/.test(r), "every statement is listed, escaped");
+  ok(/For research use only\. Not for human or veterinary use\./.test(r), "RUO line present");
+  ok(!/product|peptide|BPC|discount|%/i.test(r.replace(/research-use|Research-use/g, "")), "no product names, no marketing in a receipt");
+  const bare = attestationReceiptHtml({});
+  ok(/Your research-use attestation was recorded\./.test(bare) && !/<ol/.test(bare), "renders honestly with nothing but the fact of the record");
+}
+
+console.log("\nSaved-cart reminder — opt c11 draft template (no sender):");
+{
+  const r = cartReminderHtml({ itemCount: 3, cartUrl: "https://www.noirpeptides.com/cart" });
+  ok(/Your cart is saved/.test(r) && /3 items are waiting/.test(r), "item count renders");
+  ok(/href="https:\/\/www\.noirpeptides\.com\/cart"/.test(r), "https cart link renders");
+  ok(/For research use only\. Not for human or veterinary use\./.test(r), "RUO line present");
+  ok(!/href=/.test(cartReminderHtml({ itemCount: 1, cartUrl: "http://evil.test/cart" })), "a non-https link is not rendered");
+  ok(/1 item is waiting/.test(cartReminderHtml({ itemCount: 1 })), "singular form");
+  ok(!/product|peptide|BPC|discount|%|hurry|only \d+ left|expires/i.test(r.replace(/https?:\/\/\S+|research use|Noir Peptides/gi, "")), "no product names, no offer, no urgency (brand name aside)");
+  const emailSrc = readFileSync(new URL("../lib/email.js", import.meta.url), "utf8");
+  ok(!/sendCartReminder/.test(emailSrc), "no sender exists for the draft (nothing can mail it)");
+}
 
 console.log("\nWiring:");
 const ful = readFileSync(new URL("../lib/payments/fulfillment.js", import.meta.url), "utf8");

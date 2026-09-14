@@ -42,21 +42,26 @@ function LabelThumb({ label }) {
   );
 }
 
-const ProductCard = ({ product, label = null }) => {
+const ProductCard = ({ product, label = null, latestCoa: latestCoaProp }) => {
   // W5: latest PUBLISHED certificate for this product, from ONE shared,
   // module-memoized query (getLatestCoaMap) — no per-card requests. Null
   // until resolved or when none exists; the card then falls back to its
   // static behavior ("COA on request" only when genuinely none exists).
-  const [latestCoa, setLatestCoa] = useState(null);
+  // Opt cycle 11: a grid that already resolved the map passes the row in
+  // (`latestCoa`, null = none); a card mounted alone still resolves its own.
+  const [ownCoa, setOwnCoa] = useState(null);
+  const managed = latestCoaProp !== undefined;
   useEffect(() => {
+    if (managed) return undefined;
     let alive = true;
     getLatestCoaMap().then((map) => {
-      if (alive) setLatestCoa(map[product.id] || null);
+      if (alive) setOwnCoa(map[product.id] || null);
     });
     return () => {
       alive = false;
     };
-  }, [product.id]);
+  }, [product.id, managed]);
+  const latestCoa = managed ? latestCoaProp : ownCoa;
 
   const img = product.image_url || product.images?.[0] || null;
   const isOut = product.stock_status === "out_of_stock";
@@ -87,20 +92,19 @@ const ProductCard = ({ product, label = null }) => {
           />
         )}
 
-        {/* Purity chip */}
-        {product.purity_percent != null && (
-          <div className="absolute top-3 left-3 badge badge-new">
-            ≥ {product.purity_percent}% PURE
+        {/* Purity + stock chips. Opt cycle 11 (4.8 F6): one wrapping row —
+            two absolute corners collided on a 163 px card at 390 px. */}
+        <div className="absolute top-2 left-2 right-2 md:top-3 md:left-3 md:right-3 flex flex-wrap items-start justify-between gap-1">
+          {product.purity_percent != null ? (
+            <div className="badge badge-new">≥ {product.purity_percent}% PURE</div>
+          ) : <span />}
+          <div
+            className={`badge ${
+              isOut ? "badge-sold-out" : product.stock_status === "low_stock" ? "badge-limited" : "badge-success"
+            }`}
+          >
+            {STOCK_LABEL[product.stock_status] || "In Stock"}
           </div>
-        )}
-
-        {/* Stock */}
-        <div
-          className={`absolute top-3 right-3 badge ${
-            isOut ? "badge-sold-out" : product.stock_status === "low_stock" ? "badge-limited" : "badge-success"
-          }`}
-        >
-          {STOCK_LABEL[product.stock_status] || "In Stock"}
         </div>
 
         {/* Select dosage (navigates to PDP — dosage + bundle chosen there) */}
@@ -114,7 +118,7 @@ const ProductCard = ({ product, label = null }) => {
       </div>
 
       {/* Info */}
-      <div className="px-4 pt-4 pb-4">
+      <div className="px-3 pt-3 pb-3 md:px-4 md:pt-4 md:pb-4">
         <p className="text-[9px] tracking-[0.22em] uppercase text-se-gold font-accent mb-1.5">
           {category ? category.replace(/-/g, " ") : "Research Material"}
         </p>
@@ -129,7 +133,9 @@ const ProductCard = ({ product, label = null }) => {
           {product.displayName || product.name}
         </h3>
 
-        <p className="text-[11px] text-se-steel font-accent mb-3 line-clamp-1">
+        {/* Identical on every card; below 480 px the grid carries it once in
+            the page header instead (F6). */}
+        <p className="max-[479px]:hidden text-[11px] text-se-steel font-accent mb-3 line-clamp-1">
           {product.form || "Lyophilized powder"}
         </p>
 
@@ -154,16 +160,21 @@ const ProductCard = ({ product, label = null }) => {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="shrink-0 whitespace-nowrap text-[9px] font-accent uppercase tracking-[0.1em] text-se-gold border border-se-gold/40 px-2 py-1 hover:bg-se-gold/[0.08] transition"
+              className="shrink-0 inline-flex items-center min-h-[44px] whitespace-nowrap text-[9px] font-accent uppercase tracking-[0.1em] text-se-gold border border-se-gold/40 px-2 py-1.5 hover:bg-se-gold/[0.08] transition"
               aria-label={`Certificate of Analysis for lot ${latestCoa.lot}${latestCoa.tested_at ? `, tested ${String(latestCoa.tested_at).slice(0, 10)}` : ""}`}
             >
               ✓ COA · {latestCoa.lot}
-              {latestCoa.tested_at ? ` · ${String(latestCoa.tested_at).slice(0, 10)}` : ""}
+              {latestCoa.tested_at ? (
+                /* the date clipped a 163 px card at 390 (F6); the aria-label keeps it */
+                <span className="max-[479px]:hidden">{` · ${String(latestCoa.tested_at).slice(0, 10)}`}</span>
+              ) : null}
             </a>
           ) : product.coa_url ? (
             <div className="shrink-0"><COABadge coaUrl={product.coa_url} /></div>
           ) : (
-            <span className="shrink-0 whitespace-nowrap text-[9px] font-accent uppercase tracking-[0.1em] text-se-steel">
+            /* same height as the certificate chip so the row never grows when
+               the map resolves (page height stable after a scroll to the end) */
+            <span className="shrink-0 inline-flex items-center min-h-[44px] whitespace-nowrap text-[9px] font-accent uppercase tracking-[0.1em] text-se-steel">
               COA on request
             </span>
           )}

@@ -86,11 +86,11 @@ export default function PublicLanding() {
               © {new Date().getFullYear()} Noir Peptides
             </p>
             <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center text-[11px] font-accent text-se-steel">
-              <Link to="/legal/research-use-policy" className="hover:text-se-gold transition">Research-Use Policy</Link>
-              <Link to="/legal/fda-disclaimer" className="hover:text-se-gold transition">FDA Disclaimer</Link>
-              <Link to="/legal/terms" className="hover:text-se-gold transition">Terms</Link>
-              <Link to="/legal/privacy" className="hover:text-se-gold transition">Privacy</Link>
-              <Link to="/legal/shipping" className="hover:text-se-gold transition">Shipping</Link>
+              <Link to="/legal/research-use-policy" className="inline-flex items-center min-h-[44px] px-2 -mx-1 hover:text-se-gold transition">Research-Use Policy</Link>
+              <Link to="/legal/fda-disclaimer" className="inline-flex items-center min-h-[44px] px-2 -mx-1 hover:text-se-gold transition">FDA Disclaimer</Link>
+              <Link to="/legal/terms" className="inline-flex items-center min-h-[44px] px-2 -mx-1 hover:text-se-gold transition">Terms</Link>
+              <Link to="/legal/privacy" className="inline-flex items-center min-h-[44px] px-2 -mx-1 hover:text-se-gold transition">Privacy</Link>
+              <Link to="/legal/shipping" className="inline-flex items-center min-h-[44px] px-2 -mx-1 hover:text-se-gold transition">Shipping</Link>
             </div>
           </div>
           <div className="content-wide pb-6">

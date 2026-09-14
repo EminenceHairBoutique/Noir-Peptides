@@ -74,13 +74,14 @@ const Footer = () => {
           <div>
             <p className="text-label text-se-gold mb-5">Catalog</p>
             <div className="text-[13px] font-accent">
-              <Link to="/shop" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Research Catalog</Link>
-              <Link to="/shop/tissue-repair-research" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Tissue &amp; Repair Research</Link>
-              <Link to="/shop/gh-secretagogue-research" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">GH-Secretagogue Research</Link>
-              <Link to="/shop/neuropeptide-research" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Neuropeptide Research</Link>
-              <Link to="/shop/mitochondrial-metabolic-research" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Mitochondrial &amp; Metabolic Research</Link>
-              <Link to="/deals" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Deals &amp; Bundle Pricing</Link>
-              <Link to="/test-results" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Test Results (COA Library)</Link>
+              <Link to="/shop" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Research Catalog</Link>
+              <Link to="/shop/tissue-repair-research" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Tissue &amp; Repair Research</Link>
+              <Link to="/shop/gh-secretagogue-research" className="block py-3 text-se-bone/60 hover:text-se-gold transition">GH-Secretagogue Research</Link>
+              <Link to="/shop/neuropeptide-research" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Neuropeptide Research</Link>
+              <Link to="/shop/mitochondrial-metabolic-research" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Mitochondrial &amp; Metabolic Research</Link>
+              <Link to="/deals" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Deals &amp; Bundle Pricing</Link>
+              <Link to="/partners" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Wholesale &amp; Institutional Supply</Link>
+              <Link to="/test-results" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Test Results (COA Library)</Link>
             </div>
           </div>
 
@@ -88,14 +89,14 @@ const Footer = () => {
           <div>
             <p className="text-label text-se-gold mb-5">Compliance</p>
             <div className="text-[13px] font-accent">
-              <Link to="/test-results" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Test Results &amp; COAs</Link>
-              <Link to="/documents" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Document Library</Link>
-              <Link to="/coa-policy" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">COA Policy</Link>
-              <Link to="/quality" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Quality &amp; Batch Standards</Link>
-              <Link to="/faqs" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">FAQ</Link>
-              <Link to="/legal/research-use-policy" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Research-Use Policy</Link>
-              <Link to="/legal/ruo-agreement" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Research-Use Agreement</Link>
-              <Link to="/legal/fda-disclaimer" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">FDA Disclaimer</Link>
+              <Link to="/test-results" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Test Results &amp; COAs</Link>
+              <Link to="/documents" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Document Library</Link>
+              <Link to="/coa-policy" className="block py-3 text-se-bone/60 hover:text-se-gold transition">COA Policy</Link>
+              <Link to="/quality" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Quality &amp; Batch Standards</Link>
+              <Link to="/faqs" className="block py-3 text-se-bone/60 hover:text-se-gold transition">FAQ</Link>
+              <Link to="/legal/research-use-policy" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Research-Use Policy</Link>
+              <Link to="/legal/ruo-agreement" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Research-Use Agreement</Link>
+              <Link to="/legal/fda-disclaimer" className="block py-3 text-se-bone/60 hover:text-se-gold transition">FDA Disclaimer</Link>
             </div>
           </div>
 
@@ -104,9 +105,9 @@ const Footer = () => {
             <div>
               <p className="text-label text-se-gold mb-5">Company</p>
               <div className="text-[13px] font-accent">
-                <Link to="/about" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">About</Link>
-                <Link to="/contact" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Contact</Link>
-                <Link to="/account" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Account</Link>
+                <Link to="/about" className="block py-3 text-se-bone/60 hover:text-se-gold transition">About</Link>
+                <Link to="/contact" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Contact</Link>
+                <Link to="/account" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Account</Link>
               </div>
             </div>
           )}
@@ -115,10 +116,10 @@ const Footer = () => {
           <div>
             <p className="text-label text-se-gold mb-5">Legal</p>
             <div className="text-[13px] font-accent">
-              <Link to="/legal/terms" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Terms &amp; Conditions</Link>
-              <Link to="/legal/privacy" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Privacy Policy</Link>
-              <Link to="/legal/shipping" className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">Shipping &amp; Refunds</Link>
-              <a href={`mailto:${BRAND.supportEmail}`} className="block py-1.5 text-se-bone/60 hover:text-se-gold transition">{BRAND.supportEmail}</a>
+              <Link to="/legal/terms" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Terms &amp; Conditions</Link>
+              <Link to="/legal/privacy" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Privacy Policy</Link>
+              <Link to="/legal/shipping" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Shipping &amp; Refunds</Link>
+              <a href={`mailto:${BRAND.supportEmail}`} className="block py-3 text-se-bone/60 hover:text-se-gold transition">{BRAND.supportEmail}</a>
               {/* Renders phone/address/guarantee/cutoff only when configured in
                   src/config/business.js — nothing (byte-identical) by default. */}
               <BusinessIdentity variant="footer" />
@@ -167,10 +168,10 @@ const Footer = () => {
           </div>
 
           <div className="flex flex-wrap gap-6 text-[11px] text-se-steel font-accent">
-            <Link to="/legal/research-use-policy" className="inline-block py-[14px] -my-[14px] hover:text-se-gold transition">Research-Use Policy</Link>
-            <Link to="/legal/fda-disclaimer" className="inline-block py-[14px] -my-[14px] hover:text-se-gold transition">FDA Disclaimer</Link>
-            <Link to="/legal/privacy" className="inline-block py-[14px] -my-[14px] hover:text-se-gold transition">Privacy</Link>
-            <Link to="/legal/terms" className="inline-block py-[14px] -my-[14px] hover:text-se-gold transition">Terms</Link>
+            <Link to="/legal/research-use-policy" className="inline-block min-w-[44px] text-center py-[14px] -my-[14px] hover:text-se-gold transition">Research-Use Policy</Link>
+            <Link to="/legal/fda-disclaimer" className="inline-block min-w-[44px] text-center py-[14px] -my-[14px] hover:text-se-gold transition">FDA Disclaimer</Link>
+            <Link to="/legal/privacy" className="inline-block min-w-[44px] text-center py-[14px] -my-[14px] hover:text-se-gold transition">Privacy</Link>
+            <Link to="/legal/terms" className="inline-block min-w-[44px] text-center py-[14px] -my-[14px] hover:text-se-gold transition">Terms</Link>
           </div>
 
           <p className="text-[11px] text-se-steel font-accent">

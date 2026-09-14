@@ -32,6 +32,8 @@ import {
   getVisibleProductsInCategory,
   hiddenCategorySlugs as staticHiddenCategorySlugs,
 } from "../src/data/tier1Catalog.js";
+import { HERO_DISCLAIMER, DISCLAIMER_FULL } from "../src/config/compliance.js";
+import { COA_SEED } from "../src/data/coaSeed.js";
 import { displayNameOf } from "../src/lib/displayName.js";
 
 // Opt cycle 9 (C7): products.code_name, fetched at build when the database is
@@ -51,6 +53,8 @@ import {
   DEALS_SHELL,
   TEST_RESULTS_SHELL,
   HOME_COPY,
+  SHOP_COPY,
+  PARTNERS_COPY,
 } from "../src/data/pageCopy.js";
 import {
   RESEARCH_USE_POLICY_DOC,
@@ -173,9 +177,10 @@ function sourceFileForRoute(pathname) {
   if (pathname.startsWith("/research")) return "src/data/research.js";
   if (pathname.startsWith("/legal/")) return "src/config/legalCopy.js";
   if (pathname === "/faqs") return "src/data/faqs.js";
-  if (pathname === "/about" || pathname === "/contact") return "src/data/pageCopy.js";
+  if (pathname === "/about" || pathname === "/contact" || pathname === "/partners") return "src/data/pageCopy.js";
   if (pathname === "/deals") return "src/pages/Deals.jsx";
   if (pathname === "/test-results") return "src/pages/TestResults.jsx";
+  if (pathname.startsWith("/test-results/")) return "src/data/coaSeed.js";
   if (pathname === "/verify-lot") return "src/pages/VerifyLot.jsx";
   if (pathname === "/calculator") return "src/pages/Calculator.jsx";
   return null;
@@ -212,13 +217,12 @@ function ensureSiteUrl(pathname) {
 // chunk in <head>. Never the heavy lazy vendors (3D / PDF / QR) — the PDP
 // preload guard (test-pdp-preload.mjs) enforces that; a chunk is only ever
 // listed here when it is a STATIC import of the page.
-// The landing page (/) is deliberately NOT mapped: with its 4 KB chunk
-// resident before the main bundle finishes, the throttled-mobile profile
-// (npm run perf) showed its largest paint landing ~900 ms LATER (2.0 s →
-// 2.9 s, 5 of 6 runs) while /shop improved by ~380 ms; the mechanism is
-// suspected to be the route fade-in competing with initial script work.
-// Re-test after the fade is revisited (PLAYBOOK Hy-007).
+// The landing page (/) was unmapped from cycle 3 to 10 on a perf:compare
+// measurement (Hy-007, refuted as to mechanism). With paint-first loading
+// (opt cycle 11) every preload starts after the first frame, so the landing
+// chunk rides along — re-measured through the LHCI gate.
 const ROUTE_PAGE_SOURCES = [
+  [/^\/$/, "PublicLanding"],
   [/^\/shop(\/|$)/, "Shop"],
   [/^\/product\//, "ProductDetail"],
   [/^\/test-results$/, "TestResults"],
@@ -236,6 +240,7 @@ const ROUTE_PAGE_SOURCES = [
   [/^\/faqs$/, "Faqs"],
   [/^\/about$/, "About"],
   [/^\/contact$/, "Contact"],
+  [/^\/partners$/, "Partners"],
   [/^\/deals$/, "Deals"],
   [/^\/coa-policy$/, "CoaPolicy"],
   [/^\/quality$/, "Quality"],
@@ -254,6 +259,51 @@ async function loadViteManifest() {
     return null;
   }
 }
+// ── Paint-first loading (opt cycle 11, scorecard 4.7) ─────────────────────
+// Vite hoists the entry <script type="module"> and its vendor modulepreloads
+// into <head>, so the whole JavaScript wave starts at parse time — BEFORE the
+// prerendered page paints — and Lighthouse's simulator charges every one of
+// those requests to the largest paint (measured: the shell paragraph never got
+// a frame; React's paint was the LCP on every route). The build now replaces
+// that tag with /boot.js, an EXTERNAL loader (an inline script would flip the
+// CSP gate) that appends the same preloads and the entry after the first
+// painted frame. The per-route chunk list rides on the same tag.
+const ENTRY_TAG_RE = /[ \t]*<script type="module" crossorigin src="(\/assets\/index-[\w-]+\.js)"><\/script>\n?/;
+const VENDOR_PRELOAD_RE = /[ \t]*<link rel="modulepreload" crossorigin href="(\/assets\/[\w.-]+\.js)">\n?/g;
+const BOOT_TAG_RE = /<script src="\/boot\.js" defer data-entry="[^"]*" data-preload="[^"]*"><\/script>/;
+export function renderBootTag(entry, preloads) {
+  return `<script src="/boot.js" defer data-entry="${entry}" data-preload="${preloads.join(",")}"></script>`;
+}
+/** Rewrites Vite's entry script + vendor preloads into the boot tag; returns what it removed. */
+export function paintFirst(html) {
+  const entryMatch = html.match(ENTRY_TAG_RE);
+  if (!entryMatch) return { html, entry: null, vendorPreloads: [] };
+  const entry = entryMatch[1];
+  const vendorPreloads = [...html.matchAll(VENDOR_PRELOAD_RE)].map((m) => m[1]);
+  let out = html.replace(VENDOR_PRELOAD_RE, "");
+  const indent = (entryMatch[0].match(/^[ \t]*/) || [""])[0];
+  out = out.replace(ENTRY_TAG_RE, `${indent}${renderBootTag(entry, vendorPreloads)}\n`);
+  return { html: out, entry, vendorPreloads };
+}
+/** The route's page chunk + its static imports, minus what the boot tag already lists. */
+export function routePreloadFiles(pathname, manifest, already = new Set()) {
+  if (!manifest) return [];
+  const key = routePageSource(pathname);
+  if (!key || !manifest[key]) return [];
+  const files = [];
+  const seen = new Set();
+  const visit = (k) => {
+    if (seen.has(k) || !manifest[k]) return;
+    seen.add(k);
+    const entry = manifest[k];
+    const href = entry.file ? `/${entry.file}` : null;
+    if (href && !NEVER_PRELOAD.test(href) && !already.has(href)) files.push(href);
+    for (const imp of entry.imports || []) visit(imp);
+  };
+  visit(key);
+  return files;
+}
+
 /** <link rel="modulepreload"> tags for a route's page chunk + its static imports. */
 export function renderRoutePreloads(pathname, manifest, baseHtml) {
   if (!manifest) return "";
@@ -472,7 +522,7 @@ function fmtUsd(n) {
   return `$${s.endsWith(".00") ? s.slice(0, -3) : s}`;
 }
 
-function renderProductBody(p, related = []) {
+function renderProductBody(p, related = [], hasBatchHistory = false) {
   const from = Math.min(...p.variants.map((v) => Number(v.price)));
   const sizes = p.variants
     .map((v) => `<li>${escapeHtml(v.size_label)} — ${fmtUsd(v.price)}</li>`)
@@ -485,6 +535,7 @@ function renderProductBody(p, related = []) {
     `<p>From ${fmtUsd(from)}</p>`,
     `<p>${escapeHtml(p.description)}</p>`,
     `<h2>Available sizes</h2><ul>${sizes}</ul>`,
+    ...(hasBatchHistory ? [`<p><a href="/test-results/${escapeHtml(p.slug)}">Full batch history for ${escapeHtml(dn(p))}</a></p>`] : []),
     // Task 5 — internal linking for crawl depth. Real, already-public catalog
     // data (same category, excluding self); no invented relationships.
     related.length
@@ -503,7 +554,7 @@ function renderProductBody(p, related = []) {
   ].join("");
 }
 
-function renderListBody(heading, intro, prods, trail) {
+function renderListBody(heading, intro, prods, trail, extraBlocks = []) {
   const crumbs = trail
     ? `<nav aria-label="Breadcrumb">${trail
         .map((c, i) => `${i ? " / " : ""}<a href="${escapeHtml(c.href)}">${escapeHtml(c.name)}</a>`)
@@ -521,7 +572,8 @@ function renderListBody(heading, intro, prods, trail) {
     "<main>",
     crumbs,
     `<h1>${escapeHtml(heading)}</h1>`,
-    `<p>${escapeHtml(intro)}</p>`,
+    `<p style="font-family:var(--font-mono);font-size:17px;line-height:1.6">${escapeHtml(intro)}</p>`,
+    ...extraBlocks,
     `<ul>${items}</ul>`,
     `<p><strong>${RUO_LINE}</strong></p>`,
     renderFooterNav(),
@@ -543,7 +595,11 @@ function renderHomeBody(categories) {
   return [
     "<main>",
     "<h1>Noir Peptides — Research-Grade Peptide Reference Materials</h1>",
-    `<p>${escapeHtml(HOME_COPY.intro)} ${escapeHtml(HOME_COPY.posture)}</p>`,
+    // Shell parity (opt cycle 11): the same sentence React renders, in the same
+    // face and one pixel larger, so the FIRST paint is the page's largest
+    // paint and hydration never moves it (Hy-008).
+    `<p style="font-family:var(--font-mono);font-size:16px;line-height:1.65">${escapeHtml(HOME_COPY.intro)} ${escapeHtml(HOME_COPY.posture)}</p>`,
+    `<p style="font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase">${escapeHtml(HERO_DISCLAIMER)}</p>`,
     "<p>Batch-documented peptide reference materials for laboratory research. " +
       "Per-batch certificate of analysis available.</p>",
     `<nav aria-label="Research catalog"><ul>` +
@@ -574,6 +630,7 @@ const FOOTER_NAV = [
   { href: "/quality", label: "Quality & Batch Standards" },
   { href: "/faqs", label: "FAQ" },
   { href: "/contact", label: "Contact" },
+  { href: "/partners", label: "Wholesale & Institutional Supply" },
   { href: "/legal/research-use-policy", label: "Research-Use Policy" },
   { href: "/legal/ruo-agreement", label: "Research-Use Agreement" },
   { href: "/legal/fda-disclaimer", label: "FDA Disclaimer" },
@@ -714,6 +771,27 @@ function renderContactBody() {
   ]);
 }
 
+// Opt cycle 11 (4.14b): /partners — the wholesale / institutional request
+// page. Static copy only; the form hydrates client-side.
+function renderPartnersBody() {
+  const lists = PARTNERS_COPY.lists
+    .map(
+      (l) =>
+        `<h2>${escapeHtml(l.heading)}</h2><ul>${l.items
+          .map((i) => `<li>${escapeHtml(i)}</li>`)
+          .join("")}</ul>`
+    )
+    .join("");
+  return wrapBody([
+    `<h1>${escapeHtml(PARTNERS_COPY.heading)}</h1>`,
+    `<p>${escapeHtml(PARTNERS_COPY.intro)}</p>`,
+    `<p>${escapeHtml(PARTNERS_COPY.eligibility)}</p>`,
+    `<p>${escapeHtml(PARTNERS_COPY.noGuidance)}</p>`,
+    lists,
+    `<p>${escapeHtml(PARTNERS_COPY.formNote)} Questions first? <a href="/contact">Contact</a>.</p>`,
+  ]);
+}
+
 // ── Task 2: /documents static body ───────────────────────────────────────
 // The policy list and cross-links are static and always emitted. The SDS list
 // is emitted ONLY from rows that actually came back from the database; when the
@@ -795,7 +873,7 @@ function renderDocumentsBody(sdsRows) {
 function renderShellBody(shell, extraBlocks = []) {
   return wrapBody([
     `<h1>${escapeHtml(shell.heading)}</h1>`,
-    `<p>${escapeHtml(shell.intro)}</p>`,
+    `<p style="font-size:18px;line-height:1.6">${escapeHtml(shell.intro)}</p>`,
     ...(shell.sectionHeading ? [`<h2>${escapeHtml(shell.sectionHeading)}</h2>`] : []),
     ...extraBlocks,
   ]);
@@ -1093,7 +1171,11 @@ async function main() {
   await fs.mkdir(DIST_DIR, { recursive: true });
 
   const indexPath = path.join(DIST_DIR, "index.html");
-  const baseHtml = await fs.readFile(indexPath, "utf8");
+  const paint = paintFirst(await fs.readFile(indexPath, "utf8"));
+  const baseHtml = paint.html;
+  if (paint.entry) console.log(`[seo] paint-first: entry ${paint.entry} + ${paint.vendorPreloads.length} vendor preload(s) moved behind /boot.js`);
+  else console.warn("[seo] paint-first: Vite entry tag not found — pages keep the parse-time script");
+  const bootAlready = new Set([...paint.vendorPreloads, ...(paint.entry ? [paint.entry] : [])]);
 
   // WHAT THIS SCRIPT EMITS (keep this accurate — do not "fix" toward an
   // auth-wall model; the catalog IS meant to be indexable).
@@ -1117,7 +1199,18 @@ async function main() {
 
   // W2/W4: published COA rows for the trust-surface prerender (null when the
   // build has no database access — shell-only, honestly logged).
-  const coaRows = await fetchPublishedCoasAtBuild();
+  let coaRows = await fetchPublishedCoasAtBuild();
+  // Opt cycle 11: a build WITHOUT database env prerenders the trust pages and
+  // the batch-history permalinks from the mirrored 0019 seed — the same
+  // published certificates the database holds. With env present a failed
+  // fetch stays a failure (the data-presence assertion below catches it);
+  // the seed never masks a live outage.
+  let coaSource = coaRows ? "db" : null;
+  if (!coaRows && !hasDbEnv()) {
+    coaRows = COA_SEED.filter((r) => r.is_published);
+    coaSource = "seed";
+    console.log(`[seo] no database env — trust pages prerender from the mirrored seed (${coaRows.length} published certificates)`);
+  }
   const sdsRows = await fetchSdsProductsAtBuild();
   codeNames = await fetchCodeNamesAtBuild();
   const coaStats = coaRows ? deriveCoaStats(coaRows) : null;
@@ -1152,6 +1245,13 @@ async function main() {
       description:
         "Safety Data Sheets (GHS 16-section), batch certificates of analysis, lot verification and policy documents for Noir Peptides research reference materials. For research use only.",
       bodyHtml: renderDocumentsBody(sdsRows),
+    },
+    {
+      pathname: "/partners",
+      title: "Wholesale & Institutional Supply | Noir Peptides",
+      description:
+        "Recurring reference-material supply for laboratories, contract research organisations and academic groups. Volume pricing quoted per account after review. For research use only. Not for human or veterinary use.",
+      bodyHtml: renderPartnersBody(),
     },
     {
       pathname: "/contact",
@@ -1375,11 +1475,12 @@ async function main() {
       title: "Research Peptide Catalog",
       description:
         "Browse batch-documented peptide reference materials for laboratory research. Per-batch COA available. For research use only. Not for human or veterinary use.",
-      bodyHtml: renderListBody(
-        "Research Peptide Catalog",
-        "Batch-documented peptide reference materials for laboratory research. For research use only. Not for human or veterinary use.",
-        catalogProducts
-      ),
+      // Shell parity (opt cycle 11): React also renders the RUO banner above the
+      // grid; in the shell it is the same sentence one pixel larger, so the first
+      // paint stays the largest paint after hydration (Hy-008).
+      bodyHtml: renderListBody("Research Peptide Catalog", SHOP_COPY.intro, catalogProducts, undefined, [
+        `<p style="font-family:var(--font-mono);font-size:14px;line-height:1.625">${escapeHtml(DISCLAIMER_FULL)}</p>`,
+      ]),
     },
     ...catalogCategories.map((cat) => ({
       pathname: `/shop/${cat.slug}`,
@@ -1420,7 +1521,8 @@ async function main() {
     ],
     bodyHtml: renderProductBody(
       p,
-      withDisplayNames(getVisibleProductsInCategory(p.category_slug)).filter((r) => r.slug !== p.slug).slice(0, 6)
+      withDisplayNames(getVisibleProductsInCategory(p.category_slug)).filter((r) => r.slug !== p.slug).slice(0, 6),
+      coaGroups.has(p.id)
     ),
   }));
 
@@ -1540,9 +1642,12 @@ async function main() {
       jsonLd,
     });
 
-    const preloads = renderRoutePreloads(pathname, viteManifest, baseHtml);
-    if (preloads) preloadedRoutes++;
-    const withSeo = replaceSeoBlock(baseHtml, preloads ? `${seoBlock.trim()}\n${preloads}` : seoBlock);
+    const routeFiles = routePreloadFiles(pathname, viteManifest, bootAlready);
+    if (routeFiles.length) preloadedRoutes++;
+    const withBoot = paint.entry
+      ? baseHtml.replace(BOOT_TAG_RE, renderBootTag(paint.entry, [...paint.vendorPreloads, ...routeFiles]))
+      : baseHtml;
+    const withSeo = replaceSeoBlock(withBoot, seoBlock);
     const finalHtml = injectBody(withSeo, route.bodyHtml);
 
     const outFile =
@@ -1636,6 +1741,7 @@ async function main() {
     features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic },
     hiddenCategories: [...hiddenSlugs].sort(),
     coaRowCount: Array.isArray(coaRows) ? coaRows.length : null,
+    coaSource,
     sdsRowCount: Array.isArray(sdsRows) ? sdsRows.length : null,
     codeNameCount: codeNames.size,
   };

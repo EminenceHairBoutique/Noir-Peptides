@@ -200,6 +200,28 @@ engine scores from them (never a `?` when a dated artifact exists).
 
 ## 6. Known open items (owner decisions)
 
+**The live list is the Control Room → Owner Sprint tab** (opt cycle 10): one
+row per step D1–D12 of the Path-to-Ten addendum, green when the database
+proves it, amber when partly there, grey when only you can know — each with
+its screen or command. The same twelve, with the exact command:
+
+| # | Step | Screen / command |
+| --- | --- | --- |
+| D1 | RLS verified on production | `npm run verify:rls` with the production keys (§1); the DB gates workflow proves the script on every PR |
+| D2 | Migrations 0031–0037 applied; 0027 decided | `docs/MIGRATIONS_0032_0033.md`, `_0034.md`, `_0036.md`, `_0037.md`; then `npm run db:verify` |
+| D3 | Repository private | GitHub → Settings → Danger zone |
+| D4 | Domain, `VITE_SITE_URL`, `PROD_URL` + `CANONICAL_HOST` variables | Vercel → Domains / Environment Variables; GitHub → Settings → Variables |
+| D5 | Labs, lookup codes, CAS, certificate files | Control Room → COA Manager (Upload PDF / JPG per certificate) |
+| D5b | Sequence · molecular weight · CAS for the 33 products without them (11 transcribed in cycle 11; never engine-invented) | Control Room → Catalog → product row → Specs (format-validated; the Owner Sprint tab counts coverage) |
+| D6 | Counsel: category posture, code names | Control Room → Catalog (soft-launch toggle; Code name per product) |
+| D7 | GLP-1 pricing | state the prices → re-seed |
+| D8 | BTCPay live smoke | `docs/LAUNCH_CHECKLIST.md` |
+| D9 | Analytics posture | Vercel → Environment Variables (`VITE_GA_MEASUREMENT_ID` or none); Control Room → Feature flags shows what is on |
+| D10 | iPhone walk-through | screenshots → `owner/<date>/` on the `evidence` branch or a GitHub issue |
+| D11 | Backup / restore dry-run | Supabase → Backups; log the date in `LAUNCH_READINESS.md` |
+| D12 | Rotate secrets (after D3) | `ROTATION_CHECKLIST.md` |
+
+
 - CS10 (Cagrilintide + Semaglutide) price is a placeholder ($85) — now
   editable in the Catalog tab, no code change needed.
 - Migration 0027 (label FK RESTRICT) awaits your approval.

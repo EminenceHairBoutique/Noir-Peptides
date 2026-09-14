@@ -33,7 +33,8 @@ for (const v of ["1", "true", "TRUE", " on ", "yes", "Yes"]) ok(parseFlag(v) ===
 for (const v of [undefined, null, "", "0", "false", "off", "no", "enabled", "2", " "]) ok(parseFlag(v) === false, `${JSON.stringify(v)} → off`);
 
 console.log("\nresolvers default OFF:");
-ok(clientFeatures({}).calculator === false && clientFeatures({}).aiPublic === false, "clientFeatures({}) → both off");
+ok(clientFeatures({}).calculator === false && clientFeatures({}).aiPublic === false && clientFeatures({}).cartRecovery === false, "clientFeatures({}) → all off");
+ok(clientFeatures({ VITE_FEATURE_CART_RECOVERY: "1" }).cartRecovery === true, "VITE_FEATURE_CART_RECOVERY=1 → cartRecovery on");
 ok(serverFeatures({}).aiPublic === false, "serverFeatures({}) → off");
 ok(clientFeatures({ VITE_FEATURE_CALCULATOR: "1" }).calculator === true, "VITE_FEATURE_CALCULATOR=1 → calculator on");
 ok(clientFeatures({ VITE_FEATURE_AI_PUBLIC: "true" }).aiPublic === true, "VITE_FEATURE_AI_PUBLIC=true → aiPublic on");
@@ -103,7 +104,7 @@ for (const name of ADMIN) ok(!/gateFeature|features\.js/.test(read(`../api/ai/${
   const server = read("../api/_utils/features.js");
   ok(/serverFeatures\(process\.env\)/.test(server) && !/=\s*true/.test(server), "server mirror only reads env; no literal true");
   const env = read("../.env.example");
-  for (const k of ["VITE_FEATURE_CALCULATOR", "VITE_FEATURE_AI_PUBLIC", "FEATURE_AI_PUBLIC"]) {
+  for (const k of ["VITE_FEATURE_CALCULATOR", "VITE_FEATURE_AI_PUBLIC", "FEATURE_AI_PUBLIC", "VITE_FEATURE_CART_RECOVERY"]) {
     ok(env.includes(k), `.env.example documents ${k}`);
     ok(!new RegExp(`^\\s*${k}\\s*=\\s*(1|true|on|yes)`, "im").test(env), `.env.example does not enable ${k}`);
   }
@@ -115,7 +116,12 @@ for (const name of ADMIN) ok(!/gateFeature|features\.js/.test(read(`../api/ai/${
   const gen = read("../scripts/generate-static-seo.mjs");
   ok(/BUILD_FEATURES\.calculator\s*\?/.test(gen) && /\.\.\.\(BUILD_FEATURES\.calculator \? \["\/calculator"\] : \[\]\)/.test(gen), "prerenderer swaps /calculator to the 404 body and drops it from the allowlist when off");
   const checklist = read("../LAUNCH_CHECKLIST.md");
-  ok(/Owner decisions/.test(checklist) && /VITE_FEATURE_CALCULATOR/.test(checklist) && /FEATURE_AI_PUBLIC/.test(checklist), "LAUNCH_CHECKLIST documents both flags under Owner decisions");
+  ok(/Owner decisions/.test(checklist) && /VITE_FEATURE_CALCULATOR/.test(checklist) && /FEATURE_AI_PUBLIC/.test(checklist) && /VITE_FEATURE_CART_RECOVERY/.test(checklist), "LAUNCH_CHECKLIST documents all three flags under Owner decisions");
+  ok(/\{FEATURES\.cartRecovery && !isBare && <CartRecoveryNudge \/>\}/.test(app), "App.jsx mounts the cart nudge only behind the flag (opt c11)");
+  const nudge = read("../src/components/CartRecoveryNudge.jsx");
+  ok(/useCart\(\)/.test(nudge) && !/checkoutDraft|noir_checkout|sessionStorage\.getItem\("noir/.test(nudge), "the nudge reads the persisted cart through CartContext, never the checkout draft");
+  ok(!/fetch\(|\/api\//.test(nudge), "the nudge makes no network call");
+  ok(!/cartReminderHtml/.test(read("../lib/payments/fulfillment.js")) && !/cartReminderHtml/.test(read("../api/stripe-webhook.js")), "nothing sends the cart reminder draft");
 }
 
 if (failures) {

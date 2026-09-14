@@ -4,14 +4,18 @@
 // (up to 4 materials, analytical fields only), and premium loading/empty/error
 // states. All data is RLS-gated via lib/catalog; no static product fallback.
 import React, { useEffect, useMemo, useState } from "react";
+import { SHOP_COPY } from "../data/pageCopy";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Search, SlidersHorizontal, X, GitCompare, Check } from "lucide-react";
 import { motion as Motion } from "framer-motion";
+
+const ANIMATED_CARDS = 8;
 
 import { getProducts, getCategories, getAllVariants } from "../lib/catalog";
 import { getAllCoas } from "../lib/coas";
 import { getApprovedProductLabels } from "../lib/labelsApi";
 import ProductCard from "../components/ProductCard";
+import { getLatestCoaMap, getSeedLatestCoaMap } from "../lib/coas";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import SEO from "../components/SEO";
 import BottomSheet from "../components/ui/BottomSheet";
@@ -43,6 +47,18 @@ const COMPARE_ROWS = [
 ];
 
 export default function Shop() {
+  // Opt cycle 11 (4.7 TBT): one certificate map for the whole grid, resolved
+  // once here and passed down — 44 cards each awaiting the same promise meant
+  // 44 separate state updates and re-renders on the main thread.
+  // Seeded synchronously so the certificate chips are in the first render —
+  // a chip that arrives later wraps the price row and grows the page after a
+  // scroll to the end (the bottom-nav "footer above the bar" gate).
+  const [latestCoaMap, setLatestCoaMap] = useState(() => getSeedLatestCoaMap());
+  useEffect(() => {
+    let alive = true;
+    getLatestCoaMap().then((map) => { if (alive) setLatestCoaMap(map); });
+    return () => { alive = false; };
+  }, []);
   const { category: categorySlug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
@@ -262,7 +278,7 @@ export default function Shop() {
               {pageTitle.toUpperCase()}
             </h1>
             <p className="text-[14px] text-se-bone/55 mt-4 max-w-xl font-accent">
-              {activeCategory ? activeCategory.description : "Batch-documented peptide reference materials for qualified laboratory research."}
+              {activeCategory ? activeCategory.description : SHOP_COPY.intro}
             </p>
           </div>
         </section>
@@ -273,7 +289,7 @@ export default function Shop() {
             {/* Category tabs. py+negative-my expands each link's hit box to
                 44px without changing the strip's visual height. */}
             <div className="flex items-center gap-6 overflow-x-auto pb-3 scrollbar-hide">
-              <Link to="/shop" className={`inline-flex items-center py-[14px] -my-[14px] text-[11px] font-accent uppercase tracking-[0.18em] whitespace-nowrap transition ${!activeCategory ? "text-se-gold" : "text-se-steel hover:text-se-bone"}`}>All</Link>
+              <Link to="/shop" className={`inline-flex items-center justify-center min-w-[44px] py-[14px] -my-[14px] text-[11px] font-accent uppercase tracking-[0.18em] whitespace-nowrap transition ${!activeCategory ? "text-se-gold" : "text-se-steel hover:text-se-bone"}`}>All</Link>
               {categories.map((cat) => (
                 <Link key={cat.slug} to={`/shop/${cat.slug}`} className={`inline-flex items-center py-[14px] -my-[14px] text-[11px] font-accent uppercase tracking-[0.18em] whitespace-nowrap transition ${activeCategory?.slug === cat.slug ? "text-se-gold" : "text-se-steel hover:text-se-bone"}`}>{cat.name}</Link>
               ))}
@@ -392,7 +408,10 @@ export default function Shop() {
                   return (
                     <Motion.div
                       key={product.id}
-                      initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
+                      // Opt cycle 11 (4.7 TBT): only the first eight cards (the fold on
+                      // any width) run the entrance animation; the other 36 mount static.
+                      // 44 simultaneous tweens put /shop over the 200 ms TBT budget in CI.
+                      initial={i < ANIMATED_CARDS ? { opacity: 0, y: 15 } : false} animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, delay: Math.min(i * 0.04, 0.4), ease: [0.2, 0, 0, 1] }}
                       className="relative"
                     >
@@ -408,7 +427,7 @@ export default function Shop() {
                           {selected ? <Check size={12} /> : null} {selected ? "Selected" : "Compare"}
                         </button>
                       )}
-                      <ProductCard product={product} label={labelByProduct[product.id] || null} />
+                      <ProductCard product={product} label={labelByProduct[product.id] || null} latestCoa={latestCoaMap ? latestCoaMap[product.id] || null : undefined} />
                     </Motion.div>
                   );
                 })}
