@@ -56,7 +56,8 @@ ok(existsSync(path.join(DIST, "boot.js")), "dist/boot.js is shipped");
   const boot = readFileSync(path.join(DIST, "boot.js"), "utf8");
   ok(/first-contentful-paint/.test(boot) && /observe\(\{ type: "paint", buffered: true \}\)/.test(boot), "boot.js waits for the first-contentful-paint entry before requesting the app");
   ok(/requestAnimationFrame\(start\)/.test(boot) && /setTimeout\(start, 1500\)/.test(boot), "boot.js keeps the frame fallback and the 1500 ms timer");
-  ok(!/<script|innerHTML|eval\(/.test(boot), "boot.js contains no inline-script or eval shape (CSP gate stays honest)");
+  const bootCode = boot.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  ok(!/<script|innerHTML|eval\(|new Function/.test(bootCode), "boot.js code contains no inline-script or eval shape (CSP gate stays honest)");
 }
 // Batch-history pages exist only when the build had database access.
 const batches = pages.filter(([p]) => /^\/test-results\/[^/]+$/.test(p));

@@ -12,7 +12,7 @@ import { ChevronLeft } from "lucide-react";
 import SEO from "../components/SEO";
 import BatchHistoryTable from "../components/BatchHistoryTable";
 import QrVerifyExplainer from "../components/QrVerifyExplainer";
-import { getCoasForProduct, getSeedCoasForProduct } from "../lib/coas";
+import { getCoasForProduct, getSeedCoasForProduct, sameCoaRows } from "../lib/coas";
 import { getAllProducts } from "../data/tier1Catalog";
 import { publishedOnly } from "../lib/coaStats";
 
@@ -33,11 +33,14 @@ export default function TestResultsProduct() {
     let alive = true;
     if (!product) return undefined;
     const seeded = publishedOnly(getSeedCoasForProduct(product.id));
-    setCoas(seeded);
+    // Opt cycle 12 (4.7 TBT): neither the seed nor an identical live answer
+    // replaces state the page already holds — no re-render of the table.
+    setCoas((cur) => (sameCoaRows(cur, seeded) ? cur : seeded));
     setLoading(seeded.length === 0);
     getCoasForProduct(product.id).then((rows) => {
       if (alive) {
-        setCoas(publishedOnly(rows));
+        const next = publishedOnly(rows);
+        setCoas((cur) => (sameCoaRows(cur, next) ? cur : next));
         setLoading(false);
       }
     });

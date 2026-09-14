@@ -14,7 +14,7 @@ const ANIMATED_CARDS = 8;
 import { getProducts, getCategories, getAllVariants } from "../lib/catalog";
 import { getApprovedProductLabels } from "../lib/labelsApi";
 import ProductCard from "../components/ProductCard";
-import { getLatestCoaMap, getSeedLatestCoaMap } from "../lib/coas";
+import { getLatestCoaMap, getSeedLatestCoaMap, sameLatestCoaMap } from "../lib/coas";
 import { formatPurity } from "../lib/labVerify";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import SEO from "../components/SEO";
@@ -60,7 +60,9 @@ export default function Shop() {
   const coaProductIds = useMemo(() => new Set(Object.keys(latestCoaMap || {}).filter((id) => latestCoaMap[id])), [latestCoaMap]);
   useEffect(() => {
     let alive = true;
-    getLatestCoaMap().then((map) => { if (alive) setLatestCoaMap(map); });
+    // Opt cycle 12 (4.7 TBT): the live answer replaces the seed only when it
+    // differs — an identical map would re-render every card for nothing.
+    getLatestCoaMap().then((map) => { if (alive) setLatestCoaMap((cur) => (sameLatestCoaMap(cur, map) ? cur : map)); });
     return () => { alive = false; };
   }, []);
   const { category: categorySlug } = useParams();

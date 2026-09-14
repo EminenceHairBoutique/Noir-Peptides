@@ -163,6 +163,33 @@ export function getSeedLatestCoaMap() {
   return seedLatest();
 }
 
+// Opt cycle 12 (4.7 TBT): pages seed their state from the mirror and then
+// ask the database. When the answer is the same certificates, replacing the
+// state re-renders the whole grid or table for nothing — /shop hydrated its
+// 44 cards twice, /test-results its 19 rows twice. These compare STRUCTURE
+// (sorted keys, every field), so a row that changed in any column still
+// replaces the state and a byte-identical answer is a no-op.
+const canon = (v) =>
+  JSON.stringify(v, (_k, val) =>
+    val && typeof val === "object" && !Array.isArray(val)
+      ? Object.keys(val).sort().reduce((o, key) => { o[key] = val[key]; return o; }, {})
+      : val
+  );
+/** True when two certificate lists hold the same rows in the same order. */
+export function sameCoaRows(a, b) {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  return canon(a) === canon(b);
+}
+/** True when two latest-certificate maps (product id → row) are the same. */
+export function sameLatestCoaMap(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  const ka = Object.keys(a);
+  if (ka.length !== Object.keys(b).length) return false;
+  return ka.every((k) => k in b) && canon(a) === canon(b);
+}
+
 export function getLatestCoaMap() {
   if (!_latestCoaPromise) {
     _latestCoaPromise = (async () => {

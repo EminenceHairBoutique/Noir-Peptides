@@ -29,7 +29,7 @@ import {
   hasDiscreetPackaging,
   shipCutoffStatement,
 } from "../config/business";
-import { getCoasForProduct } from "../lib/coas";
+import { getCoasForProduct, getLatestCoaMap } from "../lib/coas";
 import { formatPurity } from "../lib/labVerify";
 import { getProductLabel } from "../lib/labelsApi";
 import MediaGallery from "../components/product3d/MediaGallery";
@@ -70,15 +70,23 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
   const [coas, setCoas] = useState([]);
+  // Opt cycle 12 (4.7 TBT): the grid's latest-certificate map loads with the
+  // page so the related cards mount managed (no per-card fetch + re-render),
+  // and the first variant's tiers load in the same settled batch — the tiers
+  // effect below skips the variant it already has, so the page renders ONCE
+  // after loading instead of three times (variants, then tiers, then cards).
+  const [latestCoaMap, setLatestCoaMap] = useState(null);
+  const tiersForRef = useRef(null);
 
   // Load product + its dosage variants.
   useEffect(() => {
     let active = true;
     setLoading(true);
     setQuantity(1);
-    setTiers([]);
+    setTiers((cur) => (cur.length ? [] : cur));
     setVariantId(null);
-    setCoas([]);
+    setCoas((cur) => (cur.length ? [] : cur));
+    tiersForRef.current = null;
     window.scrollTo({ top: 0, behavior: scrollBehavior() });
 
     (async () => {
@@ -87,16 +95,23 @@ export default function ProductDetail() {
       setProduct(p);
       setCategories(cats);
       if (p) {
-        const [vars, sameDomain, productCoas] = await Promise.all([
+        const [vars, sameDomain, productCoas, coaMap] = await Promise.all([
           getVariants(p.id),
           getProducts({ category: p.category_slug }),
           getCoasForProduct(p.id),
+          getLatestCoaMap(),
         ]);
         if (!active) return;
+        const firstId = vars[0]?.id || null;
+        const firstTiers = firstId ? await getTiers(firstId) : [];
+        if (!active) return;
+        tiersForRef.current = firstId;
         setVariants(vars);
-        setVariantId(vars[0]?.id || null);
+        setVariantId(firstId);
         setRelated(sameDomain.filter((x) => x.id !== p.id).slice(0, 4));
         setCoas(productCoas);
+        setLatestCoaMap(coaMap || {});
+        setTiers(firstTiers);
       } else {
         setVariants([]);
         setRelated([]);
@@ -118,12 +133,17 @@ export default function ProductDetail() {
   useEffect(() => {
     let active = true;
     if (!selectedVariant?.id) {
-      setTiers([]);
-      return;
+      setTiers((cur) => (cur.length ? [] : cur));
+      return undefined;
     }
+    // Loaded with the page (see the settled batch above): nothing to fetch.
+    if (tiersForRef.current === selectedVariant.id) return undefined;
     setQuantity(1);
     getTiers(selectedVariant.id).then((t) => {
-      if (active) setTiers(t);
+      if (active) {
+        tiersForRef.current = selectedVariant.id;
+        setTiers(t);
+      }
     });
     return () => {
       active = false;
@@ -815,7 +835,7 @@ export default function ProductDetail() {
               </h2>
               <div className="grid grid-cols-2 max-[359px]:grid-cols-1 md:grid-cols-4 gap-5">
                 {related.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard key={p.id} product={p} latestCoa={latestCoaMap ? latestCoaMap[p.id] || null : undefined} />
                 ))}
               </div>
             </div>

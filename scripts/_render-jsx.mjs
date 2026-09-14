@@ -6,7 +6,9 @@ import { build } from "esbuild";
 import path from "node:path";
 import fs from "node:fs";
 
-export async function bundleComponents(entrySource, tag = "render") {
+// opts.realCoas: bundle src/lib/coas.js for real (only the Supabase client is
+// stubbed) — for tests of the certificate helpers themselves.
+export async function bundleComponents(entrySource, tag = "render", opts = {}) {
   const outfile = path.join(process.cwd(), `.render-test-${tag}-${Date.now()}.mjs`);
   const entry = path.join(process.cwd(), `scripts/_render-entry-${tag}.tmp.mjs`);
   fs.writeFileSync(entry, entrySource);
@@ -17,7 +19,7 @@ export async function bundleComponents(entrySource, tag = "render") {
       define: { "import.meta.env": "{}" },
       external: ["react", "react-dom", "react-router", "react-router-dom", "lucide-react"],
       plugins: [{ name: "stubs", setup(b) {
-        b.onResolve({ filter: /(^|\/)lib\/coas(\.js)?$/ }, () => ({ path: "coas-stub", namespace: "stub" }));
+        if (!opts.realCoas) b.onResolve({ filter: /(^|\/)lib\/coas(\.js)?$/ }, () => ({ path: "coas-stub", namespace: "stub" }));
         b.onResolve({ filter: /supabaseClient(\.js)?$/ }, () => ({ path: "sb-stub", namespace: "stub" }));
         b.onLoad({ filter: /.*/, namespace: "stub" }, (a) => ({
           contents: a.path === "coas-stub"
