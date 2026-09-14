@@ -126,19 +126,42 @@ wins and the conflict is logged here so the prompt can be revised.
   every before/after comparison — a harness must return copies, like the
   real transport does (cycle 11 restock proof).
 
+- **H-016** [added cycle 12] A gate that has never executed is not a gate.
+  Before a scorecard row cites a workflow, a spec or a script as its proof,
+  confirm it has a green run on record for THIS repository (a run id, a
+  report artifact, a journal line) — "the step exists in the YAML" proves
+  nothing. Evidence: the cycle-8 post-deploy smoke was scored VERIFIED
+  while every one of its 16 production runs had died in two seconds on a
+  Playwright config check; the live probe had zero runs. Corollary for
+  the engine's own gates: run them the way CI runs them (H-011) and read
+  the run, not the exit code of a piped tail.
+
+- **H-017** [added cycle 12] A median hides a race; read every run. When a
+  timing lane is bimodal on the SAME build, the cause is an ordering race in
+  the mechanism, not noise — find the two orderings in the per-run records
+  (observed vs simulated, request start vs paint) before touching the code,
+  and fix the ordering, not the average. Evidence: the paint-first loader's
+  two-frame trigger issued the bundle request 5–30 ms before the observed
+  first paint; Lighthouse charged the bundle to first paint whenever the
+  request happened to finish first, the LCP flipped 1.5 s ↔ 2.7 s run to
+  run for two cycles, and three-run medians passed or failed by luck. A
+  trigger that waits for the paint-timing entry itself made 15 of 15 runs
+  start the request after the paint. Corollary: `perf-lhci --urls` and five
+  runs per route for any lever that changes WHEN something happens.
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
 | --- | --- | --- | --- |
-| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 6 | 6 | cycle 11 (per-route review of the matrix at 390: colliding card chips, consent sheet height, summary 3 000 px down, certificate chip clipping — 4 fixes) |
-| Regulator walk | 11 | 11 | cycle 11 (wholesale request copy: logistics only; cart reminder draft: count + link + RUO, no offer) |
+| Buyer walk (static) — rewritten cycle 2: BFS over the prerendered link graph from a landing page, plus screenshots when a browser is available (0 yield in cycle 1 as a live walk; egress blocked) | 7 | 7 | cycle 12 (first-visit keyboard path: the age gate neither took nor trapped focus) |
+| Regulator walk | 12 | 12 | cycle 12 ("≥ 99 % PURE" on every card — a seeded constant the site's own certificates contradicted) |
 | Competitor delta (mechanics) — rewritten cycle 3 after 0 yield in cycles 2–3: compare ONE interaction per cycle (cart edit, checkout step count, order-status email, COA lookup flow) instead of trust-page content, which is owner-data-bound | 4 | 2 | cycle 4 (cart next-tier nudge — first hit since the rewrite) |
-| Data honesty sweep | 8 | 11 | cycle 11 (specs: 12 transcribed / 32 escalated, TB-500 excluded; certificates from the shipped seed, never synthetic; the card's COA chip only from a real row) |
-| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 9 | 10 | cycle 11 (loader fallback when rAF never fires; restock with a failing / unconfigured transport; QR chunk on a page that never scrolls) |
-| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 11 | 8 | cycle 11 (paint-first loader + shell parity: LCP 3.1–3.3 s → 1.4–1.9 s on every gated route, measured 5 runs; the QR chunk deferred to visibility) |
-| Ops dry run | 10 | 15 | cycle 11 (Control Room spec fields; D5b row; restock executed end to end) |
-| Inversion | 7 | 7 | cycle 11 ("which config does the build never read?" → tailwind.config.js + input.css deleted; "which token does nothing reference?" → four dead :root tokens) |
-| Accessibility sweep (axe) — added cycle 2 | 9 | 11 | cycle 11 (step-2 helper contrast 3.88:1; certificate chip target size — both found by the sweep on new surfaces) |
+| Data honesty sweep | 9 | 15 | cycle 12 (purity only from a published certificate; specs "transcribed" not "verified"; mirror ids/created_at honest; 11/33 everywhere; D2 proves 0038–0041 by data) |
+| Failure injection (stale state) — rewritten cycle 3 after 0 yield in cycles 2–3: inject STALE state (an old service worker, an expired attestation, a category hidden between build and runtime, a row missing a cycle-N column) and assert degradation, instead of killing env | 10 | 14 | cycle 12 (partner rebind / demotion / failed store; concurrent redemption double-spend; remote-URL smoke that never ran; a hide that never reached the rebuild) |
+| Cost/perf profile — REWRITTEN cycle 7 as "Bytes & requests": deterministic counts only (per-route transfer KB, request count, precache size, image bytes, chunks in a page's closure) against budgets; paint TIMING is a measurement-only lane (`perf:compare`, ≥4 runs, real delivery path per H-013) that never ships a change on its own | 12 | 9 | cycle 12 (parity on 23 more pages + a parity gate; 7 gated URLs; the preload bound split) |
+| Ops dry run | 11 | 18 | cycle 12 (D2 data probes, db:verify feature presence, migration-doc gate; partners tab with every field + tier; referral code issued server-side) |
+| Inversion | 8 | 9 | cycle 12 ("which gate has never run?" → post-deploy smoke, live probe; "which helper does nothing call?" → addOrder / addLoyaltyPoints) |
+| Accessibility sweep (axe) — added cycle 2 | 10 | 17 | cycle 12 (link-in-link on 15 cards, step-change focus, live-region errors, focusable summary target, reduced-motion scrolls, nudge focus — found by adversarial reading, then gated) |
 
 ## Retired
 
@@ -267,6 +290,19 @@ wins and the conflict is logged here so the prompt can be revised.
   the simulator charges only the document, CSS and fonts to it. Step (3),
   the boot-closure diet, is now optional headroom, not a need. The CI
   Evidence run on the cycle-11 PR is the H-014 proof.
+- **Hy-008 (cycle 12 — the residual flip, RESOLVED)** — with the paint-first
+  loader in place the PDP still read 1502 / 2706 / 2849 ms on one build (the
+  category page 1502 / 2791 / 1503; `/partners` 1510 / 1893 / 2630). The
+  element never changed: observed LCP equalled observed FCP — the shell
+  paragraph — in 21 of 21 runs, so the flip was entirely inside the
+  simulation. The saved network timings show why: the two-frame trigger
+  fired 5–30 ms before the observed paint, and whenever the react chunk's
+  request finished before that paint the simulator counted the bundle
+  toward first paint (sim FCP 1354 → 1916–2000). Starting the request on
+  the `first-contentful-paint` entry instead made every run start it after
+  the paint (15 of 15): sim FCP a constant ~1205 ms, LCP 1503–1659 on every
+  run of `/shop`, the PDP and `/test-results`. The remaining 150 ms step
+  (1503 vs 1655) is the font wave, not a race.
 - **Hy-009** [opened cycle 9] `scripts/test-jsx-undefined.mjs`'s noise
   stripper treats an apostrophe in JSX text or a block comment as a string
   opener (`'s report code goes …`, line 185 of AdminHome.jsx already does
@@ -503,6 +539,20 @@ wins and the conflict is logged here so the prompt can be revised.
   and 11 tap-target/scroll findings. Rule sharpened: before pushing, run
   every suite the way its CI job runs it (`npm run test:mobile` with no
   `E2E_BASE_URL`, `npm run a11y` with `A11Y_ALL_ROUTES=1`).
+- **2026-09-14 (cycle 12)** — added H-016 (a gate that has never executed
+  is not a gate; evidence: 16 dead post-deploy runs behind a VERIFIED row,
+  a live probe with zero runs) and H-017 (a median hides a race; read every
+  run — the loader's two-frame trigger raced the observed paint and the LCP
+  median flipped by luck for two cycles; Hy-008 closed for good with the
+  paint-entry trigger, 15 of 15 runs). RECON ran as a workflow for the first time
+  (8 lens readers → 63 findings → 3 adversarial verifiers each → 61
+  confirmed → one ranked plan): the adversarial pass found a hard-rule
+  defect the cycle-11 specs pass had walked past (the seeded purity
+  constant), two security defects in code the engine itself had shipped a
+  cycle earlier (partner upsert-by-email, partner_pending accepted by the
+  guard) and a production regression of the paint-first loader (the
+  service-worker registration). Scorecards 4.4, 4.7, 4.8, 4.12, 4.14
+  sharpened; the yield table's first cycle where every generator yielded.
 - **2026-09-13 (cycle 11)** — added H-015 (design the fix from the set of
   shapes the existing gates admit; evidence: the external-`src` loader is
   the only loader the CSP gate lets through, and it won by 1.4–1.7 s).
