@@ -2551,14 +2551,14 @@ Second pass on the finished tree (the first pass caught three things, all fixed 
 | 4.2 Security | 9 | — | D1 · D3 · D12 | local: `test-partner-apply` (18 cases), `test-rewards` race · CI: DB gates on this PR |
 | 4.3 Data | 9 | — | D2 (apply 0031–**0041**), `db:verify` on prod | local: `test-migration-docs`, `test-coa-seed-sync`, `test-coa-state` · CI: DB gates + migration hygiene |
 | 4.4 Trust | 9 | — | D5 · D5b (33 spec sets) | local: `test-purity-honesty` (certificate-only purity), `test-prerender-coverage` · 2026-09-14 |
-| 4.5 Commerce | 9 | — | D8 (+ BTCPay idempotency key, ask-before) | local: `test-referral-code`, `test-rewards`, `test-pricing-coherence`, `checkout-rewards.spec` |
+| 4.5 Commerce | 9 | — | **D8 — the live site has NO payable rail** (`rails available: []`, live probe run #2): Stripe live keys + `PAYMENTS_STRIPE_LIVE_ACK` or the BTCPay env; BTCPay idempotency key (ask-before) | local: `test-referral-code`, `test-rewards`, `test-pricing-coherence`, `checkout-rewards.spec` · live: smoke 401 / 401 executed; rails envelope shape green, rails empty |
 | 4.6 SEO | 9 | — | D4 | local: link-depth, routing, jsonld-shapes; generator hidden-category gate |
 | 4.7 Performance | 9 | — | live Lighthouse (D4 + first probe) | **CI: Evidence run 34810277084 green on #46 head `a89ca82`** (7 URLs: LCP 1655–1660 ms, TBT ≤ 80, CLS ≤ 0.009) · local: `evidence/lhci-cycle12-final` (7 × 3, every run in budget) and the four lever lanes above |
 | 4.8 UI/UX | 8 | second review pass | D10 | local: `evidence/screens` (cycle 11) · card/nudge fixes this cycle |
 | 4.9 Accessibility | 9 | — | live axe (first probe) | local: all-routes sweep 0 / 0 (gate below) · CI on the PR |
 | 4.10 Mobile | 9 | — | D10 | local: mobile under `vite preview` (gate below) · CI E2E job on the PR |
 | 4.11 Admin | 9 | — | owner order dry-run | local: `test-admin-screens` (D2 probes 0038 / 0039; 0040 / 0041 named unprovable) |
-| 4.12 Observability | **7** | an executed post-deploy run; a recorded live-probe run | D4 (`PROD_URL` / `CANONICAL_HOST`), D11 | `evidence/live/latest.json`: **none**; post-deploy: 0 executed runs (config fixed `618467f`) |
+| 4.12 Observability | **8** (after merge) | a green live-probe record | D4 (`PROD_URL` / `CANONICAL_HOST`), D11 | post-deploy smoke **executed** on production (run 34828889535, 2 / 2 + 2 skipped); live-probe records #1 / #2 in `live/latest.json` (verdict red — host config, rails, PDP TBT); issue #45 |
 | 4.13 Hygiene | 9 | — (9 = 10) | — | lint 0 / 0 · unit chain green · 2026-09-14 |
 | 4.14 Growth | 7 | first observed redemption / application (data) | attributed repeat order | local: the executed referral / partner / rewards tests |
 
@@ -2590,6 +2590,17 @@ by hand and cites both runs in the thread).
 - **Live:** none (`evidence/live/latest.json` absent; 0 live-probe runs; 0 executed
   post-deploy runs — the latter's config defect is fixed in `618467f`).
 
+### LIVE EVIDENCE (after merge — 2026-09-14, the first records the engine has ever read)
+
+**Merge:** #46 merged into `main` as `aef0995` at 09:35Z (the owner marked it ready and merged).
+
+- **Post-deploy smoke — first executed production run** ([34828889535](https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34828889535), fired by Vercel's production `deployment_status` at 09:36Z, 43 s): `checkout-attestation-gate.spec.js` against the production deployment (`noir-peptides-<hash>-sryle-eternal.vercel.app`) — **2 passed** (unauthenticated checkout → 401, unauthenticated attestation → 401), 2 credential-gated cases skipped by design. The 16 earlier runs had died in 2 s on the Playwright config check fixed in `618467f`. **4.12 → 8** by the criterion set above.
+- **Live probe run #1** ([34808293233](https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34808293233), the cron at 05:04Z, on the PRE-cycle-12 production `a04f331`): HTTP 35 / 35 (CSP byte-equal to the builder, HSTS preload, nosniff, `dbEnvPresent` true, 19 certificate rows live, sitemap 89 on one host, rails envelope, 404), **red** on axe (4 serious `target-size` on `/product/bpc-157@1280` and `/product/glow@1280` — live pages carry DB data the CI shells lack) and Lighthouse (`/` 1228 · `/shop` 1383 / TBT 139 · PDP LCP 1370 / **TBT 153 599 ms**, perf 65 · `/test-results` 1443 / TBT 218). Opened issue **#45** "Live probe failing".
+- **Live probe run #2** ([34828863373](https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34828863373), dispatched at 09:36Z on the merged code): 26 / 37 — **9 host-config reds** (canonical × 7, sitemap hosts, robots line: the site canonicalises to `www.noirpeptides.com`, the probe reaches it at `noir-peptides.vercel.app`; expected until D4 or the domain), `scanner /shop` red (**my regression**: the dist gate had learned to remove the RUO disclaimer constant, the probe had not — fixed in `92a4c41`, both readers now share `scanText`), **`rails available: []`** (the production `/api/payment-rails` lists every rail as unavailable — **no order can be placed on the live site today**; owner env, D8), **axe 0** (run #1's `target-size` gone with the cycle-12 card / chip fixes), Lighthouse live: `/` 1571 · **`/shop` 1507 / TBT 28** (was 139) · PDP 1359 / **TBT 149 681 ms** (perf 65 — persists) · **`/test-results` 1556 / TBT 165** (was 218) · category 1374 · permalink 1358 · `/partners` 1357. The cycle-12 levers show on the live site; the PDP's pathological TBT is real and live-only (the approved-label 3D vial — `vendor-three`, WebGL in a headless software-GL runner — is the lead suspect: CI and local builds have no approved label, so no vial).
+- **Evidence on `main`** ([34828821181](https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34828821181), the merge commit): `ci/latest.json` for `aef0995` **red on Lighthouse `/` only — TBT 557 ms (median of 3), LCP 1507**; the other six URLs 0–125 ms TBT, screens 372 / 0, axe 0, crawls green. The same tree read `/` TBT 0 on both PR-head runs (34810277084, 34815199851). Failed job re-run once (queued 09:58Z) to establish whether it reproduces; result in the 10:36Z check-in note below.
+
+**Cycle-13 leads from the live records (RECON input):** (1) the live PDP's main-thread block with an approved label present — reproduce locally with a label fixture, measure the vial path, defer WebGL to interaction / visibility or ship a static render; (2) publish a per-route TBT / long-task breakdown into `summary.json` so a red can be diagnosed from `ci/latest.json` without the 167 MB artifact; (3) the `/` TBT 557 on `main` if it reproduces; (4) the axe `target-size` finding appears only with live data — the sweep needs a certificate-bearing PDP with DB rows (a seeded-label / seeded-COA E2E fixture).
+
 ### GENERATOR YIELDS (cycle 12)
 
 Inversion + adversarial verification 2 (the workflow: "which gate has never run?" → the
@@ -2604,8 +2615,11 @@ keyboard path) · Competitor delta not run.
 
 ### ESCALATIONS (owner-only; ranked)
 
-1. **This PR** (Draft; base `main`). Merge when the checks are green; the post-deploy smoke then
-   executes for the first time on Vercel's deployment status.
+0. **(after merge, from the live record) No payable rail in production:** `/api/payment-rails` on
+   the live site returns `rails: []` with every rail in `unavailable` — no order can be placed. Set
+   the Stripe live keys and `PAYMENTS_STRIPE_LIVE_ACK` (RUNBOOK §2) or the BTCPay env (D8); the
+   next live-probe run proves it (`rails available` turns green).
+1. ~~This PR~~ **merged** (`aef0995`); the post-deploy smoke executed for the first time.
 2. **D4** repo variables `PROD_URL` (the real production origin) and `CANONICAL_HOST` — the live
    probe defaults to the `*.vercel.app` host and reads red on nine host-config checks until set;
    4.12 cannot pass 7, and 4.7 / 4.9 cannot reach 10, without a recorded run against the real host.
