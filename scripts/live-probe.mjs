@@ -173,7 +173,7 @@ fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(record, null, 2) + "\n");
 // LHCI config for the browser-based pass against the same site.
 fs.writeFileSync(path.join(path.dirname(out), "lighthouserc.live.json"), JSON.stringify({ ci: {
-  collect: { url: ["/", "/shop", "/product/bpc-157", "/test-results"].map((r) => base + r), numberOfRuns: 3, settings: { chromeFlags: "--no-sandbox --headless=new" } },
+  collect: { url: ["/", "/shop", "/product/bpc-157", "/test-results", "/shop/tissue-repair-research", "/test-results/bpc-157", "/partners"].map((r) => base + r), numberOfRuns: 3, settings: { chromeFlags: "--no-sandbox --headless=new" } },
   assert: { assertions: { "largest-contentful-paint": ["error", { maxNumericValue: 2500, aggregationMethod: "median" }], "cumulative-layout-shift": ["error", { maxNumericValue: 0.1, aggregationMethod: "median" }], "total-blocking-time": ["error", { maxNumericValue: 200, aggregationMethod: "median" }] } },
   upload: { target: "filesystem", outputDir: path.join(path.dirname(out), "lighthouse-live"), reportFilenamePattern: "%%PATHNAME%%-%%DATETIME%%.%%EXTENSION%%" },
 } }, null, 2));

@@ -12,7 +12,7 @@ import { ChevronLeft } from "lucide-react";
 import SEO from "../components/SEO";
 import BatchHistoryTable from "../components/BatchHistoryTable";
 import QrVerifyExplainer from "../components/QrVerifyExplainer";
-import { getCoasForProduct } from "../lib/coas";
+import { getCoasForProduct, getSeedCoasForProduct } from "../lib/coas";
 import { getAllProducts } from "../data/tier1Catalog";
 import { publishedOnly } from "../lib/coaStats";
 
@@ -22,13 +22,19 @@ export default function TestResultsProduct() {
     () => getAllProducts().find((p) => p.slug === productSlug || p.id === productSlug) || null,
     [productSlug]
   );
-  const [coas, setCoas] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Opt cycle 12 (CLS): start from the mirrored published rows — the same
+  // rows the prerendered HTML carries — so hydration never swaps the table
+  // for "Loading…" and back (the /test-results fix, applied to the 15
+  // permalinks). The live answer replaces them when it arrives.
+  const [coas, setCoas] = useState(() => (product ? publishedOnly(getSeedCoasForProduct(product.id)) : []));
+  const [loading, setLoading] = useState(() => !product || publishedOnly(getSeedCoasForProduct(product.id)).length === 0);
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
     if (!product) return undefined;
+    const seeded = publishedOnly(getSeedCoasForProduct(product.id));
+    setCoas(seeded);
+    setLoading(seeded.length === 0);
     getCoasForProduct(product.id).then((rows) => {
       if (alive) {
         setCoas(publishedOnly(rows));

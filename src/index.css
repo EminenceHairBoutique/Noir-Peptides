@@ -119,7 +119,7 @@
   margin: 1.5rem 0 0.5rem;
 }
 #root > main p { margin: 0 0 0.9rem; }
-#root > main a { color: var(--noir-muted); text-decoration: none; }
+#root > main a { color: var(--noir-text); text-decoration: underline; text-underline-offset: 2px; }
 #root > main ul,
 #root > main ol {
   list-style: none;

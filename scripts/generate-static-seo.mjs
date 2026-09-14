@@ -835,7 +835,8 @@ const DOCUMENTS_POLICY_LINKS = [
 function renderDocumentsBody(sdsRows) {
   const blocks = [
     "<h1>Document Library</h1>",
-    "<p>Safety Data Sheets, batch certificates of analysis, lot verification and the " +
+    // Shell parity (opt cycle 12): sized to React's intro so the first paint stays the largest.
+    '<p style="font-size:18px;line-height:1.6">Safety Data Sheets, batch certificates of analysis, lot verification and the ' +
       "policies under which these materials are supplied.</p>",
     "<h2>Certificates and verification</h2>",
     "<ul>" +
@@ -913,7 +914,7 @@ function renderResearchIndexBody(articles) {
     .join("");
   return wrapBody([
     "<h1>Research &amp; Education</h1>",
-    `<p>${escapeHtml(
+    `<p style="font-size:18px;line-height:1.6">${escapeHtml(
       "Educational articles on certificates of analysis, HPLC purity, and how peptide reference materials are studied in the laboratory."
     )}</p>`,
     `<ul>${items}</ul>`,
@@ -1516,6 +1517,8 @@ async function main() {
       pathname: `/shop/${cat.slug}`,
       title: `${cat.name} — Research Reference Materials`,
       description: `${cat.description} For research use only. Not for human or veterinary use.`,
+      // Shell parity (opt cycle 12): the same RUO sentence /shop carries — on
+      // the 8 category pages React's banner used to win LCP.
       bodyHtml: renderListBody(
         cat.name,
         cat.description,
@@ -1524,7 +1527,8 @@ async function main() {
           { name: "Home", href: "/" },
           { name: "Shop", href: "/shop" },
           { name: cat.name, href: `/shop/${cat.slug}` },
-        ]
+        ],
+        [`<p style="font-family:var(--font-mono);font-size:14px;line-height:1.625">${escapeHtml(DISCLAIMER_FULL)}</p>`]
       ),
       // Mirrors the trail rendered immediately above.
       breadcrumb: [
@@ -1572,10 +1576,11 @@ async function main() {
           // Visible trail mirrors the BreadcrumbList JSON-LD below — the
           // structured data never claims markup the page does not render.
           `<nav aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/test-results">Test Results</a> / ${escapeHtml(prod.name)}</nav>`,
-          `<h1>${escapeHtml(prod.name)} — Batch Test History</h1>`,
-          `<p>Every published certificate for this material, newest first.</p>`,
+          // Shell parity (opt cycle 12): the h1 at React's mobile size and the
+          // page's full intro, so the first paint is the largest paint here too.
+          `<h1 style="font-size:30px;line-height:1.15">${escapeHtml(prod.name)} — Batch Test History</h1>`,
+          `<p style="font-size:18px;line-height:1.6">Every published certificate for this material, newest first. Each row is a specific tested lot; <a href="/product/${escapeHtml(prod.slug)}">view the product page</a>.</p>`,
           renderBatchTableHtml(rows, prod.name),
-          `<p><a href="/product/${escapeHtml(prod.slug)}">View the product page</a></p>`,
         ]),
         breadcrumb: [
           { name: "Home", item: `${SITE_URL}/` },
@@ -1768,7 +1773,7 @@ async function main() {
   // nothing secret, nothing fabricated.
   const buildMeta = {
     dbEnvPresent: hasDbEnv(),
-    features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic },
+    features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic, cartRecovery: BUILD_FEATURES.cartRecovery },
     hiddenCategories: [...hiddenSlugs].sort(),
     hiddenSource,
     // Opt cycle 12: the live probe's sitemap floor = this build's static
