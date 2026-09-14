@@ -2633,6 +2633,8 @@ commits with their own numbers, the fourth waited for its lane rather than ride 
 
 ### PR DRAFT (opened as a Draft per addendum C6, base = `main`)
 
+**Opened:** [#46](https://github.com/EminenceHairBoutique/Noir-Peptides/pull/46) at 2026-09-14 05:31Z (Draft; subscribed; steward check-in armed). CI on the head is the H-014 proof for 4.7 — cited here when it lands.
+
 **Title:** Opt cycle 12 — purity only from certificates, partner hardening, deterministic paint-first + time-sliced hydration, live-evidence readiness
 
 **Summary.** Adversarial RECON of cycles 10 + 11 (a workflow: 8 readers, 3 verifiers per
