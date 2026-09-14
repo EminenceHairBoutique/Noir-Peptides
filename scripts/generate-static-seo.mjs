@@ -71,7 +71,7 @@ const SITE_NAME = "Noir Peptides";
 const DEFAULT_DESCRIPTION =
   "Batch-documented peptide reference materials for laboratory research. COA available. For research use only. Not for human or veterinary use.";
 
-const PRODUCTION_DEFAULT = "https://www.noirpeptides.com";
+import { PRODUCTION_SITE_URL as PRODUCTION_DEFAULT } from "../lib/siteUrl.js";
 
 // ── Category visibility at build: static ∪ database (opt cycle 12, 4.6) ────
 // The Control Room flips product_categories.soft_launch_hidden and triggers a
@@ -1771,6 +1771,10 @@ async function main() {
     features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic },
     hiddenCategories: [...hiddenSlugs].sort(),
     hiddenSource,
+    // Opt cycle 12: the live probe's sitemap floor = this build's static
+    // routes + the LIVE build's permalink count (rows the owner can unpublish).
+    sitemapUrlCount: sitemapRoutes.length,
+    permalinkProductCount: batchHistoryRoutes.length,
     coaRowCount: Array.isArray(coaRows) ? coaRows.length : null,
     coaSource,
     sdsRowCount: Array.isArray(sdsRows) ? sdsRows.length : null,

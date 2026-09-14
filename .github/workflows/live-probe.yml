@@ -1,7 +1,8 @@
 # Live probe (opt cycle 9 — addendum B2; scorecards 4.1 / 4.2 / 4.6 / 4.12).
 # The engine cannot reach production from its sandbox; this workflow can.
 # Every 6 hours (and on demand) it probes PROD_URL — a repository variable,
-# default the Vercel deployment; set CANONICAL_HOST too once the domain is
+# default the Vercel deployment; set CANONICAL_HOST (default: the site's
+# configured production host, lib/siteUrl.js) once the domain is
 # attached — with plain HTTP checks (scripts/live-probe.mjs), axe-core and
 # Lighthouse (median of 3), writes evidence/live-probe.json, publishes it to
 # the orphan `evidence` branch, and keeps ONE issue titled "Live probe
@@ -92,8 +93,10 @@ jobs:
             const label = "live-probe";
             const { owner, repo } = context.repo;
             const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
-            const rows = (rec.checks || []).filter((c) => c.pass === false)
-              .map((c) => `| \`${c.id}\` | \`${JSON.stringify(c.value)}\` | \`${JSON.stringify(c.expected)}\` |`);
+            const failed = (rec.checks || []).filter((c) => c.pass === false);
+            const fmt = (c) => `| \`${c.id}\` | \`${JSON.stringify(c.value)}\` | \`${JSON.stringify(c.expected)}\` |`;
+            const rows = failed.filter((c) => c.group !== "host-config").map(fmt);
+            const hostRows = failed.filter((c) => c.group === "host-config").map(fmt);
             if (rec.axe && rec.axe.pass === false) rows.push(`| axe | ${rec.axe.seriousOrCritical} serious/critical (${(rec.axe.blockingRules || []).slice(0, 5).join(", ")}) | 0 |`);
             for (const [route, v] of Object.entries((rec.lighthouse && rec.lighthouse.routes) || {})) if (!v.pass) rows.push(`| lighthouse ${route} | LCP ${v.lcpMs} ms · CLS ${v.cls} · TBT ${v.tbtMs} ms | ≤ 2500 · ≤ 0.1 · ≤ 200 |`);
             for (const m of rec.missing || []) rows.push(`| ${m} | no result (step crashed) | a result |`);
@@ -101,6 +104,7 @@ jobs:
               `**Site:** ${rec.url}  ·  **Verdict:** ${rec.verdict}  ·  **Run:** ${runUrl}  ·  **At:** ${rec.generated_at}`,
               "",
               "| check | got | expected |", "| --- | --- | --- |", ...rows,
+              ...(hostRows.length ? ["", "**Host configuration** — these read red until the repository variables `PROD_URL` (the real production origin) and `CANONICAL_HOST` (its host) are set; every build canonicalises to the configured production domain:", "", "| check | got | expected |", "| --- | --- | --- |", ...hostRows] : []),
               "",
               "_Refreshed automatically by the Live probe workflow every 6 h; this issue closes itself when the probe is green. Full record: `live/latest.json` on the `evidence` branch._",
             ].join("\n");
