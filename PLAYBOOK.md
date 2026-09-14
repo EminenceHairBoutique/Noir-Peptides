@@ -149,6 +149,23 @@ wins and the conflict is logged here so the prompt can be revised.
   start the request after the paint. Corollary: `perf-lhci --urls` and five
   runs per route for any lever that changes WHEN something happens.
 
+- **H-018** [added cycle 12 follow-up] Check BOTH poles of a gate. H-016 says
+  a gate that has never executed is not a gate; the mirror image is a gate
+  that can never pass. Before a gate is trusted, run it on an input that must
+  fail AND on an input that must pass — and where the passing input cannot be
+  produced locally, synthesise it (a record, a fixture, a file) and execute
+  against that. Evidence: the cycle-12 split of `live-probe.yml` into a
+  read-only probe job and a write-capable publish job left the verdict step's
+  guard, `if: steps.verdict.outcome != 'success'`, in the publish job while
+  the `verdict` id stayed in the probe job. A `steps.<id>` reference does not
+  cross a job boundary: it reads as the empty string, `'' != 'success'` is
+  always true, so the step always ran and the run could never be green —
+  while the sibling `continue-on-error: true` steps made the probe job always
+  green. Four runs reported red and nobody looked, because the site was red
+  too. Corollary: when a gate's verdict lives in DATA (a published record),
+  gate on the data, not on a step outcome — data can be replayed at both
+  poles, an outcome cannot.
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
@@ -539,6 +556,14 @@ wins and the conflict is logged here so the prompt can be revised.
   and 11 tap-target/scroll findings. Rule sharpened: before pushing, run
   every suite the way its CI job runs it (`npm run test:mobile` with no
   `E2E_BASE_URL`, `npm run a11y` with `A11Y_ALL_ROUTES=1`).
+- **2026-09-14 (cycle 12 follow-up)** — added H-018 (check both poles of a
+  gate) after the owner's screenshot of Live probe run #4: the cycle-12
+  job split had made the workflow structurally incapable of reporting green.
+  Fixed by gating on the published record (`live-probe.mjs --gate`), proven at
+  both poles by `test-live-probe-gate.mjs`, and the whole class (a
+  `steps.<id>` reference or a `needs:` that names something outside its job)
+  is now caught by `test-workflow-shape.mjs` — itself proven against the
+  exact shape that shipped.
 - **2026-09-14 (cycle 12)** — added H-016 (a gate that has never executed
   is not a gate; evidence: 16 dead post-deploy runs behind a VERIFIED row,
   a live probe with zero runs) and H-017 (a median hides a race; read every

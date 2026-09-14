@@ -79,6 +79,14 @@ on `main` for the merge commit reads the landing page's TBT at 557 then
 both PR-head runs) — performance is scored 8 until a `main` run is green;
 diagnosing it is cycle 13's first item.
 
+One more honest correction (2026-09-14, from the owner's screenshot of Live
+probe run #4): the probe workflow's own verdict step could never pass — the
+cycle-12 job split left its guard reading a step in the other job, so every
+run reported red whatever the site did. The run now fails or passes on the
+published record itself, and two new gates keep that honest. The site's own
+red (host configuration, no payable rail, the product page's main-thread
+block) is unchanged by this.
+
 **Owner Sprint status:** none complete. New for D2: migrations `0039`,
 `0040`, `0041`. D4 (`PROD_URL` / `CANONICAL_HOST`) is the single blocker for
 a meaningful live probe and for every 10; **D8 (a payable rail) blocks any
