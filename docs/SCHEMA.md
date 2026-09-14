@@ -61,6 +61,7 @@ and all RLS policies.
 | 0037 | `coa_files` | private `coa-files` storage bucket + `coas.file_path` (certificate uploads served via signed URL) — opt cycle 10 C8 |
 | 0038 | `product_specs` | GENERATED update-only: verified sequence / molecular weight / CAS for 11 products, coalesced (never overwrites) — opt cycle 11 |
 | 0039 | `null_seeded_purity` | update-only: clears the seeded `products.purity_percent = 99.0` (no public surface reads the column since opt cycle 12 — purity is shown only from a published certificate) |
+| 0040 | `loyalty_nonnegative` | check constraint `profiles.loyalty_points >= 0` (NOT VALID on apply; validate after checking balances) — backs the compare-and-swap deduction, opt cycle 12 |
 
 ## Tables by domain (29)
 

@@ -85,7 +85,8 @@ function builder(table) {
         const rows = api.rows();
         for (const r of rows) Object.assign(r, pendingUpdate);
         LOG.push({ op: "update", table, patch: pendingUpdate, matched: rows.length });
-        return { data: null, error: null };
+        // Like PostgREST with .select(): the rows the update touched (copies).
+        return { data: rows.map((r) => ({ ...r })), error: null, count: rows.length };
       }
       const rows = api.rows();
       return { data: headOnly ? null : rows, error: null, count: countMode ? rows.length : null };
