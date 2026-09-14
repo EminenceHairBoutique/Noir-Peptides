@@ -5,7 +5,7 @@
   reports under evidence/lhci-<label>/ with a medians.json, so two builds can
   be compared through the SAME delivery path and gate that scores the card.
 
-    node scripts/perf-lhci.mjs <label> [--runs 5]  # collect + upload + medians
+    node scripts/perf-lhci.mjs <label> [--runs 5] [--urls /shop,/product/bpc-157]  # collect + upload + medians
     node scripts/perf-lhci.mjs --compare <a> <b>  # medians side by side (b − a)
 
   Never asserts; the gate is lighthouserc.json in CI.
@@ -32,6 +32,10 @@ if (args[0] === "--compare") {
 
 const runsIdx = args.indexOf("--runs");
 const runs = runsIdx >= 0 ? Number(args[runsIdx + 1]) || 3 : 3;
+// Opt cycle 12: `--urls /a,/b` narrows a lever run to the routes it targets
+// (same server, same config, same gate); no flag = every gated URL.
+const urlsIdx = args.indexOf("--urls");
+const urls = urlsIdx >= 0 ? String(args[urlsIdx + 1] || "").split(",").map((u) => u.trim()).filter(Boolean) : [];
 const label = args[0];
 if (!label || !/^[\w.-]+$/.test(label)) { console.error("usage: node scripts/perf-lhci.mjs <label> | --compare <a> <b>"); process.exit(2); }
 if (!fs.existsSync("dist/index.html")) { console.error("dist/ missing — build first"); process.exit(1); }
@@ -41,7 +45,7 @@ fs.rmSync(outDir, { recursive: true, force: true });
 const env = { ...process.env, CHROME_PATH: process.env.CHROME_PATH || process.env.PLAYWRIGHT_CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" };
 const run = (a) => { const r = spawnSync("npx", [...LHCI, ...a], { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", env }); if (r.status !== 0) { console.error(r.stdout, r.stderr); process.exit(r.status ?? 1); } return r.stdout; };
 const t0 = Date.now();
-run(["collect", "--config=lighthouserc.json", `--collect.numberOfRuns=${runs}`]);
+run(["collect", "--config=lighthouserc.json", `--collect.numberOfRuns=${runs}`, ...urls.map((u) => `--collect.url=http://localhost:4181${u.startsWith("/") ? u : `/${u}`}`)]);
 run(["upload", "--config=lighthouserc.json", `--upload.outputDir=${outDir}`]);
 const m = lighthouseMedians(outDir);
 const runsSeen = Object.values(m.routes)[0]?.runs ?? 0;

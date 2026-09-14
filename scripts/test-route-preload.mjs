@@ -48,6 +48,16 @@ const home = pages.find(([p]) => p === "/");
 ok(home && preloads(home[1]).some((h) => /\/assets\/PublicLanding-/.test(h)), "/ preloads its route chunk behind the boot tag");
 ok(pages.every(([, html]) => /<script src="\/boot\.js" defer data-entry="\/assets\/index-[\w-]+\.js"/.test(html) && !/<script type="module" crossorigin src="\/assets\/index-/.test(html)), "every page loads the app through /boot.js — no parse-time module script");
 ok(existsSync(path.join(DIST, "boot.js")), "dist/boot.js is shipped");
+// Opt cycle 12 (4.7): the loader starts the app on the first-contentful-paint
+// entry (never before the paint — two animation frames raced it and the
+// Lighthouse LCP median flipped run to run), keeps the frame fallback for
+// browsers without paint timing, and the 1500 ms timer for no paint at all.
+{
+  const boot = readFileSync(path.join(DIST, "boot.js"), "utf8");
+  ok(/first-contentful-paint/.test(boot) && /observe\(\{ type: "paint", buffered: true \}\)/.test(boot), "boot.js waits for the first-contentful-paint entry before requesting the app");
+  ok(/requestAnimationFrame\(start\)/.test(boot) && /setTimeout\(start, 1500\)/.test(boot), "boot.js keeps the frame fallback and the 1500 ms timer");
+  ok(!/<script|innerHTML|eval\(/.test(boot), "boot.js contains no inline-script or eval shape (CSP gate stays honest)");
+}
 // Batch-history pages exist only when the build had database access.
 const batches = pages.filter(([p]) => /^\/test-results\/[^/]+$/.test(p));
 if (batches.length) ok(batches.every(([, html]) => preloads(html).some((h) => /\/assets\/TestResultsProduct-/.test(h))), `every batch-history page (${batches.length}) preloads the TestResultsProduct chunk`);
