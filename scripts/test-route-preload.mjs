@@ -63,8 +63,14 @@ ok(heavy.length === 0, `no page preloads vendor-three / vendor-pdf / jsQR (${JSO
 // The list is the page chunk's STATIC import closure (the browser needs every
 // one of them before the page module can run), so its size is the page's own
 // import graph — the PDP's is 20 today. A bound still catches a runaway graph.
-const bloated = pages.filter(([, html]) => preloads(html).length > 24).map(([p, html]) => `${p}:${preloads(html).length}`);
-ok(bloated.length === 0, `no page carries more than 24 modulepreloads (${JSON.stringify(bloated.slice(0, 5))})`);
+// Opt cycle 12: the bound is split — the vendor wave (shared, ≤ 8) and the
+// route's own closure (≤ 20; the PDP is 16 today) — so a vendor split can
+// never quietly raise the route budget or vice versa.
+const isVendor = (h) => /\/assets\/vendor-/.test(h);
+const bloated = pages.filter(([, html]) => preloads(html).filter((h) => !isVendor(h)).length > 20).map(([p, html]) => `${p}:${preloads(html).filter((h) => !isVendor(h)).length}`);
+ok(bloated.length === 0, `no page carries more than 20 route-chunk modulepreloads (${JSON.stringify(bloated.slice(0, 5))})`);
+const vendorHeavy = pages.filter(([, html]) => preloads(html).filter(isVendor).length > 8).map(([p, html]) => `${p}:${preloads(html).filter(isVendor).length}`);
+ok(vendorHeavy.length === 0, `no page preloads more than 8 vendor chunks (${JSON.stringify(vendorHeavy.slice(0, 5))})`);
 const missing = pages.filter(([, html]) => preloads(html).some((h) => !existsSync(path.join(DIST, h)))).map(([p]) => p);
 ok(missing.length === 0, `every modulepreload on every page resolves to a file in dist (${JSON.stringify(missing.slice(0, 5))})`);
 ok(!existsSync(path.join(DIST, ".vite")), "the Vite manifest is not left in dist (build input, not a deliverable)");

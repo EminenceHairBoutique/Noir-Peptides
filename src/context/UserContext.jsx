@@ -326,35 +326,10 @@ export const UserProvider = ({ children }) => {
      (UNCHANGED FROM YOUR WORK)
   ========================= */
 
-  const addOrder = (order) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const orderWithDefaults = {
-        id: order.id || Date.now().toString(),
-        createdAt: order.createdAt || new Date().toISOString(),
-        status: order.status || "Processing",
-        items: order.items || [],
-        total: order.total || 0,
-      };
-      return {
-        ...prev,
-        orders: [orderWithDefaults, ...(prev.orders || [])],
-        loyaltyPoints:
-          (prev.loyaltyPoints || 0) +
-          Math.round((orderWithDefaults.total || 0) / 10),
-      };
-    });
-  };
-
-  const addLoyaltyPoints = (points) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        loyaltyPoints: (prev.loyaltyPoints || 0) + (points || 0),
-      };
-    });
-  };
+  // Opt cycle 12: the client no longer accrues or spends points itself — the
+  // balance is the server's (profiles.loyalty_points, hydrated above) and the
+  // earning rate lives in src/utils/loyalty.js; the old addOrder /
+  // addLoyaltyPoints helpers carried a second rate nothing could audit.
 
   const updateProfile = (updates) => {
     setUser((prev) => {
@@ -423,8 +398,6 @@ export const UserProvider = ({ children }) => {
         logout,
         recordAttestation,
         refreshProfile,
-        addOrder,
-        addLoyaltyPoints,
         updateProfile,
         toggleWishlistItem,
       }}
