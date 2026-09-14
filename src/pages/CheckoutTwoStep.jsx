@@ -29,6 +29,7 @@ import { isStep1Valid } from "../lib/checkoutValidation";
 import { CHECKOUT_ATTESTATION_VERSION, CHECKOUT_ATTESTATION_IDS } from "../config/checkoutAttestations";
 import { trackBeginCheckout } from "../utils/track";
 import { REDEEM_INCREMENT, redeemDollars } from "../utils/loyalty";
+import { scrollBehavior } from "../lib/motion";
 
 const money = (n) => `$${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const emptyAddr = { institution: "", contactName: "", line1: "", line2: "", city: "", state: "", zip: "", phone: "" };
@@ -110,6 +111,12 @@ export default function CheckoutTwoStep() {
   const [promoCode, setPromoCode] = useState("");
   const [redeemPoints, setRedeemPoints] = useState(0);
   const [referralCode, setReferralCode] = useState("");
+  const stepHeadingRef = useRef(null);
+  const firstStepRender = useRef(true);
+  useEffect(() => {
+    if (firstStepRender.current) { firstStepRender.current = false; return; }
+    stepHeadingRef.current?.focus();
+  }, [step]);
   const pointsBalance = Math.max(0, Math.floor(Number(user?.loyaltyPoints) || 0));
   const redeemable = Math.floor(pointsBalance / REDEEM_INCREMENT) * REDEEM_INCREMENT;
   const pointsToRedeem = Math.min(Math.max(0, Math.floor(redeemPoints / REDEEM_INCREMENT) * REDEEM_INCREMENT), redeemable);
@@ -149,7 +156,7 @@ export default function CheckoutTwoStep() {
       try { window.sessionStorage.setItem("noir_checkout_compliance_id", complianceId || ""); } catch { /* ignore */ }
       trackBeginCheckout({ items, value: subtotal });
       setStep(2);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: scrollBehavior() });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -227,7 +234,10 @@ export default function CheckoutTwoStep() {
             {/* Opt c7 (4.9): the page's level-one heading — axe flagged both steps
             without one. Visually the progress bar carries the step; the h1 is
             for the document outline and screen readers. */}
-        <h1 className="sr-only">Checkout — step {step} of 2: {step === 1 ? "Personal" : "Payment"}</h1>
+        {/* Opt cycle 12 (4.9): the step heading takes focus on every step change so
+            keyboard and screen-reader users hear where they are (focus used to fall
+            to <body> and nothing announced step 2). */}
+        <h1 ref={stepHeadingRef} tabIndex={-1} className="sr-only">Checkout — step {step} of 2: {step === 1 ? "Personal" : "Payment"}</h1>
         <ProgressBar step={step} />
             <DisclaimerBanner className="mb-6" />
             {step === 1 && (
@@ -241,7 +251,17 @@ export default function CheckoutTwoStep() {
                   </p>
                   <p className="text-[11px] font-accent text-se-steel">Shipping calculated at payment</p>
                 </div>
-                <a href="#order-summary" className="shrink-0 inline-flex items-center min-h-[44px] px-3 text-[11px] font-accent uppercase tracking-[0.14em] text-se-gold hover:text-se-bone">
+                <a
+                  href="#order-summary"
+                  onClick={(e) => {
+                    const el = document.getElementById("order-summary");
+                    if (!el) return;
+                    e.preventDefault();
+                    el.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
+                    el.focus();
+                  }}
+                  className="shrink-0 inline-flex items-center min-h-[44px] px-3 text-[11px] font-accent uppercase tracking-[0.14em] text-se-gold hover:text-se-bone"
+                >
                   View summary
                 </a>
               </div>
@@ -250,18 +270,20 @@ export default function CheckoutTwoStep() {
               <StepPersonal submitting={submitting} state={form} setState={setForm} subtotalDollars={subtotal}
                 showErrors={showErrors} onContinue={onContinue} user={user} />
             ) : (
-              <StepPayment onBack={() => { setStep(1); window.scrollTo({ top: 0 }); }} onPay={onPay}
+              <StepPayment onBack={() => { setStep(1); window.scrollTo({ top: 0, behavior: scrollBehavior() }); }} onPay={onPay}
                 promoCode={promoCode} setPromoCode={setPromoCode}
                 referralCode={referralCode} setReferralCode={setReferralCode}
                 redeemPoints={pointsToRedeem} setRedeemPoints={setRedeemPoints} pointsBalance={pointsBalance}
                 submitting={submitting} error={error} selectedRail={selectedRail} setSelectedRail={setSelectedRail} />
             )}
-            {step === 1 && error && <p className="text-[12px] text-se-red-bright font-accent mt-4">{error}</p>}
+            {step === 1 && (
+              <p role="alert" aria-live="assertive" className={`text-[12px] text-se-red-bright font-accent${error ? " mt-4" : ""}`}>{error || ""}</p>
+            )}
           </div>
 
           {/* Order summary */}
           <div className="lg:col-span-5">
-            <div id="order-summary" className="sticky top-28 glass-panel p-6 scroll-mt-28">
+            <div id="order-summary" tabIndex={-1} className="sticky top-28 glass-panel p-6 scroll-mt-28 outline-none">
               <h2 className="font-display text-[14px] tracking-[0.1em] mb-6">ORDER SUMMARY</h2>
               <div className="space-y-4">
                 {items.map((item) => (

@@ -40,6 +40,7 @@ import { trackViewItem } from "../utils/track";
 import { recordRecentlyViewed } from "../lib/recentlyViewed";
 import RecentlyViewed from "../components/RecentlyViewed";
 import { FREE_SHIP_THRESHOLD } from "../config/checkout";
+import { scrollBehavior } from "../lib/motion";
 
 const money = (n) => `$${Number(n || 0).toLocaleString()}`;
 
@@ -78,7 +79,7 @@ export default function ProductDetail() {
     setTiers([]);
     setVariantId(null);
     setCoas([]);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
 
     (async () => {
       const [p, cats] = await Promise.all([getProduct(slug), getCategories()]);
@@ -832,7 +833,7 @@ export default function ProductDetail() {
         isOut={isOut}
         cartOpen={cartOpen}
         onAdd={handleAddToCart}
-        onNotify={() => notifyRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+        onNotify={() => notifyRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: "center" })}
       />
     </>
   );

@@ -111,9 +111,10 @@ export default function StepPayment({
             spellCheck="false"
             maxLength={32}
             disabled={submitting}
+            aria-describedby="promo-help"
             className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent tracking-[0.12em] placeholder:text-se-steel focus:outline-none focus:border-se-gold transition disabled:opacity-50"
           />
-          <p className="text-[10px] text-se-steel font-accent mt-1.5">
+          <p id="promo-help" className="text-[10px] text-se-steel font-accent mt-1.5">
             Validated by the server at payment. Bundles and kits are excluded.
           </p>
         </div>
@@ -154,6 +155,7 @@ export default function StepPayment({
             value={redeemPoints}
             onChange={(e) => setRedeemPoints(Number(e.target.value))}
             disabled={submitting}
+            aria-describedby="redeem-help"
             className="w-full px-4 py-3 bg-se-charcoal border border-se-concrete text-se-bone text-[13px] font-accent focus:outline-none focus:border-se-gold transition disabled:opacity-50"
           >
             <option value={0}>Do not redeem points</option>
@@ -163,7 +165,7 @@ export default function StepPayment({
               </option>
             ))}
           </select>
-          <p className="text-[10px] text-se-steel font-accent mt-1.5">
+          <p id="redeem-help" className="text-[10px] text-se-steel font-accent mt-1.5">
             {REDEEM_INCREMENT} pts = ${redeemDollars(REDEEM_INCREMENT)}. Checked against your balance at payment.
           </p>
         </div>
@@ -174,7 +176,8 @@ export default function StepPayment({
           becomes a chargeback. Renders nothing until the config is set. */}
       <FulfillmentStatements variant="inline" />
 
-      {error && <p className="text-[12px] text-se-red-bright font-accent">{error}</p>}
+      {/* Always present so the announcement fires when the text arrives (opt cycle 12). */}
+      <p role="alert" aria-live="assertive" className="text-[12px] text-se-red-bright font-accent">{error || ""}</p>
 
       <div className="flex gap-3">
         <button type="button" onClick={onBack} disabled={submitting} className="btn-outline flex-1 disabled:opacity-50">

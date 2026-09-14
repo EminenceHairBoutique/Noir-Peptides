@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { askAi } from "../lib/aiApi";
+import { scrollBehavior } from "../lib/motion";
 
 export default function AiChat({ endpoint, placeholder = "Ask a research question…", intro }) {
   const [messages, setMessages] = useState([]); // {role,content,refused?}
@@ -15,7 +16,7 @@ export default function AiChat({ endpoint, placeholder = "Ask a research questio
   const endRef = useRef(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    endRef.current?.scrollIntoView({ behavior: scrollBehavior() });
   }, [messages, busy]);
 
   const send = async (e) => {

@@ -98,6 +98,16 @@ test.describe("gated checkout, keyboard-only (attested researcher)", () => {
     await expect(page.getByText(/BTCPay/i).first()).toBeVisible({ timeout: 15_000 });
     const pay = page.getByRole("button", { name: /pay|continue|place/i }).last();
     await expect(pay).toBeVisible();
+    // Opt cycle 12: the step change moves focus to the step heading (announced).
+    const f2 = await focusInfo(page);
+    expect(f2.tag, "focus left <body> after Continue").not.toBe("BODY");
+    expect(f2.text || "", "the focused element names step 2").toMatch(/step 2/i);
+    await page.getByRole("button", { name: /^back$/i }).click();
+    await expect(page.locator("#ct-first")).toBeVisible({ timeout: 15_000 });
+    const f1 = await focusInfo(page);
+    expect(f1.text || "", "Back moves focus to the step 1 heading").toMatch(/step 1/i);
+    await page.getByRole("button", { name: /continue to payment/i }).click();
+    await expect(page.getByText(/BTCPay/i).first()).toBeVisible({ timeout: 15_000 });
     await page.screenshot({ path: testInfo.outputPath("checkout-step2.png"), fullPage: true });
   });
 

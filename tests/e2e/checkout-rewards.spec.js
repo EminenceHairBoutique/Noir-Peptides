@@ -61,3 +61,15 @@ test("with no balance there is no points select, and an empty promo posts nothin
   expect(posted).not.toHaveProperty("discountCode");
   expect(posted).not.toHaveProperty("referralCode");
 });
+
+test("a failed rail request is announced through the payment step's live region", async ({ page }) => {
+  await installAuth(page, { profile: profileFor({ points: 0 }) });
+  await page.route("**/api/btcpay/create-invoice", (route) =>
+    route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "Payment could not be started. Please try again." }) }));
+  await seedCart(page, "");
+  await page.goto("/checkout");
+  await fillCheckoutStep1(page);
+  await continueToPayment(page);
+  await page.getByRole("button", { name: /complete payment/i }).click();
+  await expect(page.getByRole("alert")).toContainText(/could not be started/i);
+});
