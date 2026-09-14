@@ -13,18 +13,24 @@ email is **Resend**; AI features use the **Anthropic API** (server-side only).
 > administration, cycling, or disease-treatment language anywhere (copy, product
 > data, AI output, schema). AI endpoints must refuse such requests.
 
-## The auth wall (do not regress)
+## What is public and what is gated (do not regress)
 
-The storefront is gated. The real lock is **Supabase RLS**; the client guards are
-UX on top of it.
+The **catalog is public**: product, variant, category and published-certificate
+rows are readable without an account (migration `0013`, reconciled in `0024`),
+the storefront, `/shop`, product pages, `/test-results` and `/documents` are
+crawlable, and nothing may put catalog browsing behind login — that is a hard
+rule of the site. What IS gated is identity and commerce: `/account`,
+`/checkout`, `/cart`, `/admin`, orders, attestations, loyalty. The real lock is
+**Supabase RLS**; the client guards are UX on top of it.
 
 - `src/context/UserContext.jsx` — explicit state machine (`loading → splash`,
   never bounce a logged-in user to `/login` on refresh).
-- `src/components/RequireAuth.jsx` / `RequireAdmin.jsx` — route guards.
+- `src/components/RequireAuth.jsx` / `RequireAdmin.jsx` — route guards for the
+  gated surfaces only.
 - Attestation: `lib/attestationStatements.js` is the canonical source (8
   statements, confirm phrase, `ATTESTATION_VERSION`); `src/config/attestation.js`
   re-exports it; `api/attestation.js` enforces version + every required ID.
-- Migration `0003` gates catalog/COA reads on `is_attested()`; `0004+` extend it.
+  Purchasing requires a current attestation; browsing does not.
 
 ## Architecture map
 
@@ -33,8 +39,9 @@ src/
   pages/        # route components (lazy-loaded in App.jsx)
   components/   # UI + guards + SEO + analytics
   context/      # UserContext, CartContext, ToastContext
-  lib/          # supabaseClient (anon), catalog (RLS-gated data layer)
-  data/         # products.js (server/seed source), research.js (public education)
+  lib/          # supabaseClient (anon), catalog (data layer; public reads, static fallback)
+  data/         # tier1Catalog.js (catalog source of truth), productSpecs.js,
+                # coaSeed.js (mirrored published certificates), research.js
   utils/        # track.js (provider-agnostic analytics), loyalty.js, format, etc.
   config/       # attestation, compliance, brand
 api/
@@ -45,7 +52,7 @@ api/
   subscribe.js, partners/**, admin/**
 lib/            # supabaseServer (service role), email (Resend), orderNumber,
                 # attestationStatements
-supabase/migrations/  # 0001..0008 (additive, idempotent)
+supabase/migrations/  # 0001..0040 (additive, idempotent; docs/MIGRATIONS_*.md per apply)
 ```
 
 ## Data flow rules

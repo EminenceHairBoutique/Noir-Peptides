@@ -36,7 +36,7 @@ function staticProducts({ category } = {}) {
     // Opt cycle 9 (C7): the static mirror of products.code_name (set on nothing).
     code_name: p.codeName ?? null,
     displayName: displayNameOf({ name: p.name, code_name: p.codeName }),
-    // Verified dry specs (opt cycle 11) — null when not on record.
+    // Transcribed dry specs (opt cycle 11; source named in productSpecs.js) — null when not on record.
     peptide_sequence: p.specs?.sequence ?? null,
     molecular_weight: p.specs?.molecularWeight ?? null,
     cas_number: p.specs?.cas ?? null,

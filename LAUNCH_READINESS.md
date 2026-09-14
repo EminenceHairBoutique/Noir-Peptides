@@ -20,12 +20,14 @@ The addendum's "Cycle 4 — polish to nine everywhere + growth foundations"
   **CI proof: the `Evidence` check is green on the PR head** (run 34789025447 —
   LCP 1.5–2.0 s on all four routes, CLS 0, TBT ≤ 135 ms); performance is
   scored 9 (10 needs the live host).
-- **Specifications, honest:** sequence / molecular weight / CAS for the 12
-  products with verified values (transcribed, CAS check-digit validated;
+- **Specifications, honest:** sequence / molecular weight / CAS for the 11
+  products with transcribed values (from the 0001 seed, CAS check-digit validated;
   migration `0038`, update-only — `docs/MIGRATIONS_0038.md`); the panel omits
   what it does not know instead of printing "—"; the Control Room edits the
-  three fields (format-validated); the other 32 are **owner data** (Owner
-  Sprint row D5b counts them).
+  three fields (format-validated); the other 33 are **owner data** (Owner
+  Sprint row D5b counts them). The 11 come from the self-authored 0001 seed,
+  not from a supplier or the CAS registry — confirm before any "verified"
+  wording returns.
 - **Certificates in every build:** the 19 published certificates already in
   the live table are mirrored from their migration, so `/test-results`, the
   15 batch-history permalinks (sitemap 73 → 89 with `/partners`) and the

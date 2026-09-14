@@ -6,9 +6,10 @@
 -- Janoshik task number (the certificate's own unique reference, used as the
 -- lot key so /verify-lot resolves to the exact report).
 --
--- COMPLIANCE: nothing is invented. Products absent from the catalog
--- (Tirzepatide, Retatrutide) and non-catalog items — 6 certificates in the
--- package — are intentionally NOT seeded; they have no listing to attach to.
+-- COMPLIANCE: nothing is invented. Non-catalog items in the package are NOT
+-- seeded (no listing to attach to). Tirzepatide and Retatrutide entered the
+-- catalog after this file was first written; their six certificates were
+-- added to this seed at that point (header corrected in opt cycle 12).
 -- Blend certificates report per-component content (no single purity %), so
 -- purity_percent is left null and identity confirmation carries the result.
 --

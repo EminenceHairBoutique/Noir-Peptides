@@ -2225,7 +2225,7 @@ publisher (landed 22:00Z). Owner-side durable option: the project's
 | 4.7 Performance | 9 | — | live Lighthouse (D4 + first probe) | **CI: Evidence run 34789025447 green** (`ci/latest.json` for the #44 head, 2026-09-13 23:29Z) · local: `evidence/lhci-*` 5-run medians |
 | 4.8 UI/UX | 8 | second review pass | D10 | local: `evidence/screens` re-shot 2026-09-13 |
 | 4.9 Accessibility | 9 | — | live axe (first probe) | local sweep 0/0 after two fixes · CI on the PR |
-| 4.10 Mobile | 9 | — | D10 | local: mobile 38/38 (the suite count changed with the reduced-motion + rewards specs) |
+| 4.10 Mobile | 9 | — | D10 | CI: mobile 56/56 under vite preview (E2E job, run 34789025458) · local 56/56 |
 | 4.11 Admin | 9 | — | owner order dry-run | local: `test-admin-screens` (13 rows) · `test-back-in-stock` 18 ✓ |
 | 4.12 Observability | 8 | a recorded green live-probe run | D4 (`PROD_URL` / `CANONICAL_HOST`), D11 | `evidence/live/latest.json`: **none** |
 | 4.13 Hygiene | 9 | — (9 = 10) | — | lint 0/0 · unit chain green · 2026-09-13 |
