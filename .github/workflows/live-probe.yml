@@ -158,6 +158,8 @@ jobs:
       # #1–#4 all reported red while the same job's script was closing or
       # keeping the issue from the record. A missing record fails too:
       # unproven is not green.
+      # Runs after a failed step too (the verdict must still be reported), but
+      # not on a cancellation — same guard as this job's own.
       - name: Fail the run when the record is not green
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/live-probe.mjs --gate evidence/live-probe.json
