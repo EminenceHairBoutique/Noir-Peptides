@@ -2324,3 +2324,137 @@ checkout-session / btcpay file touched.
 **Rollback.** Revert the branch.
 
 ---
+
+## Cycle 12 — 2026-09-14 (addendum "Cycle 5+ — hold at nine; promote to ten only from live evidence")
+
+**HEAD before:** `a04f331` (`main`; PR #43 merged cycles 10 + 11 at 01:41Z after the owner merged
+#44 into the cycle-10 branch). **Branch:** `claude/opt-cycle-12-20260914` from `main`.
+
+### RECON
+
+- **Evidence at start (`scripts/evidence-latest.mjs`):** `ci/latest.json` **green** for `a04f331`
+  on `main` (run 34796722607: LCP 1511 / 1656 / 1509 / 1509 ms, CLS 0, TBT ≤ 156 ms, screens 372 / 0,
+  axe 0, crawls green). `live/latest.json`: **none** — 0 live-probe runs (cron `17 */6` had one slot
+  since the workflow reached `main`; GitHub cron is best-effort). Post-deploy smoke: **16 runs, every
+  production one failed in 2 s** — the gate has never executed (see below).
+- **Method (ultracode):** RECON ran as a workflow (`noir-cycle12-recon`, run `wf_23d8d950-8f2`):
+  8 lens readers (correctness, compliance/data honesty, security, performance, a11y/mobile,
+  hold-at-nine, growth/UI, ops/docs) over the merged tree → 63 findings → each judged by 3
+  adversarial verifiers (reproduce · already-covered · scope-and-value; majority rules) → 61
+  confirmed, 2 refuted → one synthesizer ranked them into 20 items. 198 agents, 11.5 M tokens,
+  78 min. Provenance: the journal under the session's `subagents/workflows/wf_23d8d950-8f2/`.
+- **Pre-verified by hand (primary sources) before planning:**
+  1. `api/_utils/auth.js:142` — `tier.startsWith("partner_")` makes `partner_pending` (the tier
+     `api/partners/apply.js` sets for any signed-in applicant) pass `requirePartner`. Real.
+  2. `scripts/generate-static-seo.mjs` — every category/route decision reads
+     `getVisibleCategories()` from the STATIC catalog; the Control Room's
+     `product_categories.soft_launch_hidden` flip + rebuild never reaches the prerender. Real.
+  3. Post-deploy smoke run 34796753523 on `a04f331`: `Error: https://noir-peptides-…vercel.app is
+     already used … set reuseExistingServer:true` — `playwright.config.js` always starts
+     `vite preview` even with a remote `E2E_BASE_URL`, so 0 tests have ever run against production.
+     Also learned: Vercel reports the production deployment as a per-deployment URL
+     (`noir-peptides-<hash>-sryle-eternal.vercel.app`), not a stable alias.
+  4. Purity: `src/lib/catalog.js:45` `purity_percent: 99` for every static product (and 0009 seeds
+     `99.0`), rendered as "≥ 99% PURE" / "≥ 99% (HPLC)" on every card, PDP and the specs panel that
+     promises "what is verified and nothing else" — while the site's own published certificates
+     say KPV 98.54 %, Semax 98.80 %, Tesamorelin 98.49 %. A seeded constant presented as a
+     measurement and contradicted by the site's own data: hard-rule territory (4.4 / 4.1), missed by
+     the cycle-11 specs pass. The cycle leads with it.
+  5. `node scripts/live-probe.mjs` against a local production build: 21/35 — every failure is a
+     local-vs-Vercel delta (canonical host, security headers, `dbEnvPresent`, the rails API), so the
+     probe's code path is sound; but its expected canonical host defaults to the probed host, so the
+     first real run is red on nine checks unless `CANONICAL_HOST` is set. Fixed this cycle.
+- **Not covered by this RECON (carry to cycle 13):** anything on the live hosts (sandbox egress);
+  StepPersonal / AiChat / admin runtime a11y; `api/btcpay/*`, `api/stripe-webhook.js` beyond the
+  body destructure (ask-before); `sw.js` navigation caching writes every route's HTML into the
+  `/index.html` shell slot (pre-existing, unverified); other public forms (contact, concierge,
+  research upload) for the same upsert / 200-on-failure / log-object patterns; the repo variables
+  `PROD_URL` / `CANONICAL_HOST` are not readable via API.
+
+### SCORE (before this cycle's work)
+
+All cards as reported at the end of cycle 11 (4.7 = 9 on the green CI run; 4.14 = 7; 4.8 = 8;
+4.12 = 8). Two of the confirmed findings would move cards DOWN under H-014 if left: the purity
+constant (4.4 → 8, arguably 4.1) and the never-executed production smoke (4.12's cycle-8 row was
+scored on a gate that had not run). Both are corrected in this cycle's delta, honestly.
+
+### PLAN (written before execution; one commit per item, in this order)
+
+1. **[4.4 / 4.1] Purity only from a published certificate.** Static fallback `purity_percent: null`;
+   card chip, PDP badge/COA panel row and the specs panel render the LATEST PUBLISHED certificate's
+   HPLC value (`98.54 % (HPLC, lot …)`) or nothing; `Home.jsx` hard-coded "≥ 99%" strings removed;
+   the PDP's per-product "Methods: HPLC / MS" / "Endotoxin: LAL tested" lines become
+   certificate-derived or generic. Migration `0039_null_seeded_purity.sql` (update-only, apply is
+   ask-before) + `docs/MIGRATIONS_0039.md`. Gate: no rendered purity value without a matching
+   published row; `test-dist-copy` asserts no "≥ 99" in dist. 0009 stays as history (never edited).
+2. **[4.2 / 4.14 / 4.9] Partner application hardening.** No blind upsert on email (existing
+   approved/rejected → untouched; another user's row → no write, no leak; signed-in → keyed by
+   user; resubmission refreshes only the free-text fields); a failed store is a 502 envelope, never
+   "received"; profile → `partner_pending` only on a NEW row and never for an approved partner;
+   scrubbed logs; capped fields; `requirePartner` no longer accepts `partner_pending`; the success
+   heading takes focus. Executed tests for each case + an E2E.
+3. **[4.12] Post-deploy smoke actually runs.** `playwright.config.js` omits `webServer` for a
+   remote `E2E_BASE_URL`; config test; `workflow_dispatch` input on `post-deploy.yml`; first executed
+   run cited (the earlier "VERIFIED" cycle-8 row corrected).
+4. **[4.12 / 4.5 / 4.6] Live probe:** expected canonical host = `CANONICAL_HOST` || the site's
+   configured production host (localhost only when probing localhost); a `rails available` check
+   (≥ 1 payable rail); sitemap floor from `prerender-meta.json` counts instead of a CI-build
+   constant; host-config checks grouped in the issue body; first record via manual dispatch after
+   merge.
+5. **[4.6 / 4.1] Soft-launch hides reach the rebuild:** the generator unions the DB column with
+   the static flags when DB env is present; `prerender-meta.json` lists hidden categories; the
+   probe asserts no hidden-category product in the live sitemap; RUNBOOK sentence corrected.
+6. **[4.14] Referral program real end-to-end:** referral input on step 2 posting `referralCode`
+   (a hint; both rails already consume it); `GET /api/account/referral-code` issues the server
+   code on demand; the account page shows the server code, never a locally generated one.
+7. **[4.5 / 4.2] Loyalty deduction atomic:** compare-and-swap update (`.eq("loyalty_points",
+   read)`) with one retry, a `redeem_shortfall` ledger row instead of a silent clamp; migration
+   `0040_loyalty_nonnegative.sql` (check constraint NOT VALID; apply ask-before). Executed
+   concurrency test through the fulfilment harness.
+8. **[4.9 / 4.7 / 4.4] ProductCard without link-in-link** (stretched link, chip as a sibling) and
+   ONE certificate source for `/shop` (the filter/compare column reads the same map as the chips);
+   request budget −1; a render test that no `<a>` nests in an `<a>`.
+9. **[4.7 / 4.9] Shell parity on the 8 category pages and 15 permalinks**, permalink hydration
+   from the seed (CLS), shell links underlined, LHCI gate +3 URLs (`/shop/tissue-repair-research`,
+   `/test-results/bpc-157`, `/partners`), measured through `perf-lhci` before shipping.
+10. **[4.7] Shell-parity gate** `scripts/test-shell-parity.mjs` (JS blocked → largest text block
+    area vs hydrated) in the E2E job.
+11. **[4.9 / 4.10] Checkout a11y:** step change moves focus to the step heading; payment error is a
+    live region; `#order-summary` focusable and focused by the jump link; programmatic scrolls
+    honour reduced motion (`src/lib/motion.js`). Specs extended.
+12. **[4.10 / 4.9] CartRecoveryNudge** clears the bottom nav (same offset as the consent sheet),
+    region semantics, focus destination on dismiss, suppressed while consent is open; a flag-on
+    mobile spec in its own lane (the flag stays off everywhere documented).
+13. **[4.9 / 4.1] AgeGate** takes, traps and restores focus; the page behind is inert; a keyboard
+    E2E without the ack seed.
+14. **[4.11 / 4.3 / 4.13] D2 proves 0038**, `db:verify` gains a per-migration feature-presence
+    section (columns via PostgREST HEAD; 0038 via the spec-row count), a migration-doc convention
+    gate for every migration ≥ 0032, RUNBOOK §1/§6 + checklist to 0038.
+15. **[4.13 / 4.5 / 4.4 / 4.6] Owner-doc drift sweep:** the Copilot "auth wall" block rewritten
+    (catalog is public — hard rule), `PAYMENTS_STRIPE_LIVE_ACK` documented and surfaced on the
+    Owner Sprint D8 row (presence only), dead `STRIPE_US_SHIPPING_RATE_ID` removed, spec counts
+    11 / 33 everywhere, "verified" → "transcribed" for the 0001-sourced specs, tracker cells,
+    0019 header; a doc-drift test.
+16. **[4.3 / 4.4] COA storage hygiene:** replaced objects removed on re-upload; `lookupByLot` seed
+    fallback; mirror rows carry no synthetic `created_at`; migration `0041_coa_bucket_limits.sql`
+    (apply ask-before).
+17. **[4.2] Evidence / live-probe workflows split** into a read-only job and a write-only publish
+    job (`contents: write` never runs PR-branch code).
+18. **[4.11 / 4.14] Control Room Partners tab** shows every application field and lets the owner
+    pick the tier on approve.
+19. **[4.13 / 4.7] Hygiene:** dead client loyalty helpers deleted (the second earning rate), the
+    modulepreload bound split (route vs vendor).
+20. **[4.7] Measured-only probes** (ship on a win, else the number goes in the log): Plex Mono
+    preload; plain cards + `memo(ProductCard)` for `/shop` TBT.
+21. §F report, PLAYBOOK, docs, full gate the way CI runs it (mobile under `vite preview`,
+    all-routes axe, `perf-lhci`), push, Draft PR (C6), watch CI, post-deploy + live-probe dispatch.
+
+Deferred to cycle 13 (confirmed, not planned, to keep the cycle finishable): `text-[…]` typography
+scale + ratchet (767 sites); shop card density lever; account "Points activity" ledger + a Control
+Room redemptions StatCard; `dist/app.html` for the SPA fallback (no PublicLanding preload on
+client-only routes); the ProductDetail label double-fetch; `sw.js` navigation-cache shell slot.
+
+Generators: Inversion + adversarial verification (the workflow) led; Data honesty (purity, spec
+provenance wording); Failure injection (partner rebind, concurrent redemption, remote-URL smoke);
+Ops dry run (D2 proof, doc drift); Accessibility sweep (five keyboard/SR gaps on the money path);
+Cost/perf measurement lane (parity, gate coverage, two probes).
