@@ -21,7 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { scanCopy } from "../src/lib/complianceScan.js";
 import { buildCsp } from "./csp.mjs";
-import { renderedText, ACCEPTED } from "./_copy-scan.mjs";
+import { scanText, ACCEPTED } from "./_copy-scan.mjs";
 import { parseSitemapPaths } from "./_sitemap-routes.mjs";
 import { readJson, axeSummary, lighthouseMedians } from "./_evidence-fold.mjs";
 import { PRODUCTION_HOST } from "../lib/siteUrl.js";
@@ -95,7 +95,8 @@ for (const route of pages) {
   let host = null, pathname = null;
   try { const u = new URL(can); host = u.host; pathname = u.pathname.replace(/\/+$/, "") || "/"; } catch { /* absent */ }
   check(`canonical ${route}`, host === canonicalHost && pathname === route, can, `https://${canonicalHost}${route}`, undefined, HOST);
-  const got = scanCopy(renderedText(r.text)).findings.map((f) => `${f.category}:${f.term.toLowerCase()}`).sort();
+  // Opt cycle 12: the same text the dist gate scans (the RUO disclaimer constant removed).
+  const got = scanCopy(scanText(r.text)).findings.map((f) => `${f.category}:${f.term.toLowerCase()}`).sort();
   const want = (ACCEPTED[route] || []).slice().sort();
   check(`scanner ${route}`, JSON.stringify(got) === JSON.stringify(want), got, want, want.length ? "accepted negations only (H-006)" : "zero findings");
 }
