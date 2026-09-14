@@ -60,7 +60,8 @@ console.log("\nOwner Sprint panel:");
   const byId = (rows) => Object.fromEntries(rows.map((r) => [r.id, r]));
   let m = byId(d.rows);
   ok(d.rows.length === 13 && d.rows.map((r) => r.id).join() === "D1,D2,D3,D4,D5,D5b,D6,D7,D8,D9,D10,D11,D12", "thirteen rows D1–D12 (+ D5b specs) in order");
-  ok(m.D2.status === "grey" && /missing: 0031/.test(m.D2.detail) && /no CLI ledger/.test(m.D2.detail), `pre-migration database → D2 grey with the missing list (${m.D2.detail.slice(0, 60)}…)`);
+  // 0039's data probe ("no product at the seeded 99.0") is trivially true on a fresh database, so the pre-migration row may read partial rather than grey.
+  ok(["grey", "partial"].includes(m.D2.status) && /missing: 0031/.test(m.D2.detail) && /no CLI ledger/.test(m.D2.detail), `pre-migration database → D2 not green, with the missing list (${m.D2.detail.slice(0, 60)}…)`);
   ok(m.D5.status === "grey" && /1 published/.test(m.D5.detail), "one published certificate with nothing linked → D5 grey, counts shown");
   ok(m.D4.status === "grey" && m.D8.status === "grey" && m.D9.status === "grey", "no env → D4 / D8 / D9 grey");
   ok(["D1", "D3", "D7", "D10", "D11", "D12"].every((k) => m[k].status === "grey" && m[k].how), "owner-only steps are grey and carry a command or screen");
@@ -70,7 +71,11 @@ console.log("\nOwner Sprint panel:");
   FAULTS.missingTables = []; FAULTS.missingColumns = [];
   FIXTURES.labs.push({ id: 1, name: "Janoshik", public_lookup_url_template: "https://janoshik.com/verify/{code}" });
   FIXTURES.server_errors = [{ id: 1 }];
-  FIXTURES.products = [{ id: "bpc-157", name: "BPC-157", sds_file_url: null, code_name: "Compound A-7" }];
+  // Opt cycle 12: 0038 / 0039 are proven by data — 11 products with a molecular weight, none at purity 99.0.
+  FIXTURES.products = [
+    { id: "bpc-157", name: "BPC-157", sds_file_url: null, code_name: "Compound A-7", molecular_weight: "1419.53 g/mol", purity_percent: null },
+    ...Array.from({ length: 10 }, (_, i) => ({ id: `p-${i}`, name: `P ${i}`, sds_file_url: null, code_name: null, molecular_weight: `${100 + i} g/mol`, purity_percent: null })),
+  ];
   FIXTURES.product_categories = [{ slug: "tissue-repair-research", soft_launch_hidden: false }];
   FIXTURES.coas.length = 0;
   FIXTURES.coas.push({ id: 1, product_id: "bpc-157", is_published: true, cas_number: "137525-51-0", lab_lookup_code: "JAN-1", file_url: "/api/coa-file/1.pdf", file_path: "coas/1/x.pdf" });
@@ -79,11 +84,11 @@ console.log("\nOwner Sprint panel:");
   const ENV2 = { VITE_SITE_URL: "https://www.noirpeptides.com", BTCPAY_URL: "https://btc.example", BTCPAY_API_KEY: "k", BTCPAY_STORE_ID: "s", BTCPAY_WEBHOOK_SECRET: "w", VITE_GA_MEASUREMENT_ID: "G-1" };
   d = await deriveOwnerSprint(ENV2);
   m = byId(d.rows);
-  ok(m.D2.status === "green" && /7\/7 proven/.test(m.D2.detail), `all columns present → D2 green (${m.D2.detail.slice(0, 40)}…)`);
+  ok(m.D2.status === "green" && /9\/9 proven/.test(m.D2.detail) && /0040 not provable/.test(m.D2.detail), `all columns present + data probes (0038 / 0039) → D2 green, 0040 named as unprovable (${m.D2.detail.slice(0, 60)}…)`);
   ok(m.D5.status === "green" && /2 published certificate\(s\): 2 lab-linked, 2 with CAS, 2 with a file; 1 lab\(s\), 1 with a lookup template/.test(m.D5.detail), `every published certificate lab-linked + CAS + file, lab has a template → D5 green (${m.D5.detail})`);
   ok(m.D6.status === "partial" && /1 product\(s\) with a code name/.test(m.D6.detail), "a code name set → D6 partial (the sign-off is the owner's)");
-  ok(m.D5b.status === "grey" && /1 products: 0 with a sequence/.test(m.D5b.detail), `no specs on record → D5b grey with counts (${m.D5b.detail.slice(0, 40)}…)`);
-  FIXTURES.products[0].peptide_sequence = "GEPPPGKPADDAGLV"; FIXTURES.products[0].molecular_weight = "1419.53 g/mol"; FIXTURES.products[0].cas_number = "137525-51-0";
+  ok(m.D5b.status !== "green" && /11 products: 0 with a sequence/.test(m.D5b.detail), `sequences absent → D5b not green, counts shown (${m.D5b.detail.slice(0, 60)}…)`);
+  for (const row of FIXTURES.products) { row.peptide_sequence = "GEPPPGKPADDAGLV"; row.molecular_weight = row.molecular_weight || "1419.53 g/mol"; row.cas_number = "137525-51-0"; }
   d = await deriveOwnerSprint(ENV2); m = byId(d.rows);
   ok(m.D5b.status === "green", "every product with all three specs → D5b green");
   ok(m.D4.status === "partial" && m.D8.status === "partial" && m.D9.status === "partial", "env present → D4 / D8 / D9 partial (presence only)");

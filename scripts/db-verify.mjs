@@ -170,6 +170,49 @@ async function main() {
     }
   }
 
+  // ── Feature presence per migration (opt cycle 12) ──────────────────────
+  // The hand-applied production database has no CLI ledger, so "did 00NN get
+  // applied?" is answered by the column, table or data it produced. Read-only:
+  // HEAD requests that select one column (400 → column missing, 404 → table
+  // missing) and two exact counts for the update-only migrations.
+  console.log(bold("\nFeature presence (migration → what it produced)\n"));
+  const featureProbes = [
+    ["0025", "client_errors", "id", "client_errors table", "docs/RUNBOOK.md §1"],
+    ["0028", "product_variants", "inventory_count", "tracked inventory", "docs/RUNBOOK.md §1"],
+    ["0029", "orders", "tracking_url", "fulfilment / tracking", "docs/RUNBOOK.md §1"],
+    ["0031", "coas", "cas_number", "coas.cas_number", "docs/RUNBOOK.md §6"],
+    ["0032", "labs", "id", "labs table", "docs/MIGRATIONS_0032_0033.md"],
+    ["0033", "products", "sds_file_url", "products.sds_file_url", "docs/MIGRATIONS_0032_0033.md"],
+    ["0034", "product_categories", "soft_launch_hidden", "product_categories.soft_launch_hidden", "docs/MIGRATIONS_0034.md"],
+    ["0035", "server_errors", "id", "server_errors table", "docs/RUNBOOK.md §6"],
+    ["0036", "products", "code_name", "products.code_name", "docs/MIGRATIONS_0036.md"],
+    ["0037", "coas", "file_path", "coas.file_path", "docs/MIGRATIONS_0037.md"],
+  ];
+  const headSelect = async (table, column) => {
+    const res = await fetch(`${URL}/rest/v1/${table}?select=${encodeURIComponent(column)}&limit=1`, { method: "HEAD", headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+    return res.status === 200 || res.status === 206 ? true : res.status === 400 || res.status === 404 ? false : null;
+  };
+  const countWhere = async (table, filter) => {
+    const res = await fetch(`${URL}/rest/v1/${table}?select=*&${filter}`, { method: "HEAD", headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, Prefer: "count=exact", Range: "0-0" } });
+    const cr = res.headers.get("content-range") || "";
+    return cr.includes("/") ? Number(cr.split("/")[1]) : null;
+  };
+  const featureRows = [];
+  for (const [id, table, column, what, doc] of featureProbes) {
+    const present = await headSelect(table, column);
+    featureRows.push({ id, what, doc, state: present === true ? "ok" : present === false ? "missing" : "unknown" });
+  }
+  const mwRows = await countWhere("products", "molecular_weight=not.is.null");
+  featureRows.push({ id: "0038", what: `transcribed specs (${mwRows ?? "?"} products with a molecular weight; needs ≥ 11)`, doc: "docs/MIGRATIONS_0038.md", state: mwRows == null ? "unknown" : mwRows >= 11 ? "ok" : "missing" });
+  const seeded99 = await countWhere("products", "purity_percent=eq.99");
+  featureRows.push({ id: "0039", what: `seeded purity cleared (${seeded99 ?? "?"} products still at 99.0; needs 0)`, doc: "docs/MIGRATIONS_0039.md", state: seeded99 == null ? "unknown" : seeded99 === 0 ? "ok" : "missing" });
+  featureRows.push({ id: "0040", what: "loyalty_points ≥ 0 check constraint — not visible through the API", doc: "docs/MIGRATIONS_0040.md (verify SQL)", state: "unknown" });
+  for (const f of featureRows) {
+    const mark = f.state === "ok" ? green("✅") : f.state === "missing" ? red("⛔") : yellow("⚠️ ");
+    console.log(`  ${mark}  ${f.id}  ${f.what.padEnd(58)}  ${f.doc}`);
+    if (f.state === "missing") drift = true;
+  }
+
   // ── Verdict + fix commands ─────────────────────────────────────────────
   if (drift) {
     console.log(red(bold("\n⛔ DRIFT DETECTED.")) + " Reconcile before launch:");
