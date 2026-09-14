@@ -19,9 +19,11 @@ on:
         description: "Site to probe (default: the PROD_URL variable, else the Vercel deployment)"
         required: false
 
+# Opt cycle 12 (4.2): the probe job runs with a read-only token; only the
+# publish job (the checked-in publisher on the probe's artifact, plus the
+# issue upsert) holds contents: write and issues: write.
 permissions:
-  contents: write
-  issues: write
+  contents: read
 
 concurrency:
   group: live-probe
@@ -32,6 +34,8 @@ jobs:
     name: HTTP · axe · Lighthouse against production
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: read
     env:
       PROD_URL: ${{ inputs.url || vars.PROD_URL || 'https://noir-peptides.vercel.app' }}
       CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}
@@ -78,8 +82,25 @@ jobs:
           path: evidence/
           retention-days: 30
 
+  publish:
+    name: Publish the record + keep the single issue current
+    needs: probe
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/download-artifact@v4
+        with:
+          name: live-probe-${{ github.run_id }}
+          path: evidence/
       - name: Publish the record to the `evidence` branch
-        if: always()
         run: node scripts/evidence-publish.mjs live evidence/live-probe.json
 
       - name: Open, refresh or close the single "Live probe failing" issue
