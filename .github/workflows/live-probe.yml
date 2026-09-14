@@ -85,7 +85,9 @@ jobs:
   publish:
     name: Publish the record + keep the single issue current
     needs: probe
-    if: always()
+    # After a red probe as well (the issue must refresh), never after a
+    # cancelled one (no artifact to publish).
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

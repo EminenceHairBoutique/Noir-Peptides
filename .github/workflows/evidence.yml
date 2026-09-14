@@ -91,8 +91,12 @@ jobs:
   publish:
     name: Publish the summary to the evidence branch
     needs: evidence
+    # Runs after a red evidence job too (the red summary is the point) but
+    # never after a CANCELLED one: a superseded push cancels the build before
+    # it uploads, and `always()` then failed here on a missing artifact
+    # (cycle 12, PR #46) — a red that was nobody's code.
     if: >-
-      always() &&
+      !cancelled() &&
       (github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
