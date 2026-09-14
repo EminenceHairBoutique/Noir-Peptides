@@ -16,6 +16,7 @@ import { getAllCoas } from "../lib/coas";
 import { getApprovedProductLabels } from "../lib/labelsApi";
 import ProductCard from "../components/ProductCard";
 import { getLatestCoaMap, getSeedLatestCoaMap } from "../lib/coas";
+import { formatPurity } from "../lib/labVerify";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import SEO from "../components/SEO";
 import BottomSheet from "../components/ui/BottomSheet";
@@ -36,7 +37,8 @@ const money = (n) => `$${Number(n || 0).toLocaleString()}`;
 const COMPARE_ROWS = [
   { key: "sizes", label: "Vial sizes" },
   { key: "price", label: "From price", render: (p) => money(p.price) },
-  { key: "purity_percent", label: "Purity", render: (p) => (p.purity_percent ? `≥ ${p.purity_percent}%` : "—") },
+  // Opt cycle 12: purity only from the latest published certificate (ctx.latestCoaMap).
+  { key: "purity_percent", label: "Purity (latest certificate)", render: (p, ctx) => formatPurity(ctx?.latestCoaMap?.[p.id]) || "—" },
   { key: "molecular_weight", label: "Molecular weight" },
   { key: "peptide_sequence", label: "Sequence" },
   { key: "form", label: "Form" },
@@ -171,12 +173,12 @@ export default function Shop() {
     switch (sortParam) {
       case "price-asc": result.sort((a, b) => a.price - b.price); break;
       case "price-desc": result.sort((a, b) => b.price - a.price); break;
-      case "purity-desc": result.sort((a, b) => (b.purity_percent || 0) - (a.purity_percent || 0)); break;
+      case "purity-desc": result.sort((a, b) => (Number(latestCoaMap?.[b.id]?.purity_percent) || 0) - (Number(latestCoaMap?.[a.id]?.purity_percent) || 0)); break;
       case "name-asc": result.sort((a, b) => String(a.displayName || a.name).localeCompare(String(b.displayName || b.name))); break;
       default: result.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
     }
     return result;
-  }, [products, categories, activeCategory, query, sizes, inStockOnly, coaOnly, featuredOnly, newOnly, priceCap, sortParam, variantsByProduct, coaProductIds]);
+  }, [products, categories, activeCategory, query, sizes, inStockOnly, coaOnly, featuredOnly, newOnly, priceCap, sortParam, variantsByProduct, coaProductIds, latestCoaMap]);
 
   const updateSort = (value) => {
     const p = new URLSearchParams(searchParams);
@@ -477,7 +479,7 @@ export default function Shop() {
                           let val;
                           if (row.key === "sizes") val = sizeLabel(p);
                           else if (row.key === "coa") val = coaProductIds.has(p.id) ? "Yes" : "—";
-                          else if (row.render) val = row.render(p);
+                          else if (row.render) val = row.render(p, { latestCoaMap });
                           else val = p[row.key] || "—";
                           return <td key={p.id} className="p-3 text-se-bone/80 align-top">{val}</td>;
                         })}

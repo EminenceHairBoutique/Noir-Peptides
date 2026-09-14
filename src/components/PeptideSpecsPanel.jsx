@@ -3,6 +3,7 @@
 // values. A value that is not on record is OMITTED (opt cycle 11): the panel
 // states what is verified and nothing else — no "—" placeholders.
 import React from "react";
+import { formatPurity } from "../lib/labVerify";
 
 function Row({ label, value }) {
   if (value === null || value === undefined || value === "") return null;
@@ -19,11 +20,12 @@ function Row({ label, value }) {
   );
 }
 
-export default function PeptideSpecsPanel({ product = {} }) {
-  const purity =
-    product.purity_percent !== undefined && product.purity_percent !== null
-      ? `≥ ${product.purity_percent}% (HPLC)`
-      : null;
+export default function PeptideSpecsPanel({ product = {}, latestCoa = null }) {
+  // Opt cycle 12: purity is the latest PUBLISHED certificate's HPLC result or
+  // nothing — never product.purity_percent (a seeded constant until 0039).
+  const certPurity = formatPurity(latestCoa);
+  const lot = latestCoa?.lot || latestCoa?.lot_number || latestCoa?.batch_number || null;
+  const purity = certPurity ? `${certPurity} (HPLC${lot ? `, lot ${lot}` : ""})` : null;
 
   return (
     <div className="glass-panel">

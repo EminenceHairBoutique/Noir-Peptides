@@ -3,6 +3,7 @@ import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import COABadge from "./COABadge";
 import { getLatestCoaMap } from "../lib/coas";
+import { formatPurity } from "../lib/labVerify";
 
 const LabelPreview = lazy(() => import("./labels/LabelPreview"));
 
@@ -95,8 +96,10 @@ const ProductCard = ({ product, label = null, latestCoa: latestCoaProp }) => {
         {/* Purity + stock chips. Opt cycle 11 (4.8 F6): one wrapping row —
             two absolute corners collided on a 163 px card at 390 px. */}
         <div className="absolute top-2 left-2 right-2 md:top-3 md:left-3 md:right-3 flex flex-wrap items-start justify-between gap-1">
-          {product.purity_percent != null ? (
-            <div className="badge badge-new">≥ {product.purity_percent}% PURE</div>
+          {/* Purity chip only from the latest PUBLISHED certificate (opt cycle 12);
+              a product without one shows no purity claim at all. */}
+          {formatPurity(latestCoa) ? (
+            <div className="badge badge-new">{formatPurity(latestCoa)} HPLC</div>
           ) : <span />}
           <div
             className={`badge ${

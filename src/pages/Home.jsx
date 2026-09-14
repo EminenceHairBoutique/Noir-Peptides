@@ -117,10 +117,10 @@ export default function Home() {
                 aria-hidden="true"
               >
                 {[
-                  { label: "BPC-157", spec: "5 mg · ≥ 99%" },
-                  { label: "CJC-1295", spec: "2 mg · ≥ 98%" },
-                  { label: "NAD+", spec: "500 mg · ≥ 99%" },
-                  { label: "GHK-Cu", spec: "50 mg · ≥ 99%" },
+                  { label: "BPC-157", spec: "5 mg" },
+                  { label: "CJC-1295", spec: "2 mg" },
+                  { label: "NAD+", spec: "500 mg" },
+                  { label: "GHK-Cu", spec: "50 mg" },
                 ].map((v, i) => (
                   <div
                     key={v.label}

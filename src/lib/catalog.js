@@ -42,7 +42,12 @@ function staticProducts({ category } = {}) {
     cas_number: p.specs?.cas ?? null,
     category_slug: p.category_slug,
     price: p.price,
-    purity_percent: 99,
+    // Opt cycle 12 (4.4 / 4.1): purity is NEVER a constant. The site's own
+    // published certificates (KPV 98.54 %, Semax 98.80 %, Tesamorelin 98.49 %)
+    // contradicted the seeded "≥ 99 %"; every surface now reads the latest
+    // published certificate or shows nothing. Migration 0039 nulls the seeded
+    // value in the database (apply is an owner step).
+    purity_percent: null,
     form: "Lyophilized powder",
     storage_temp: "-20°C",
     research_use_only: true,

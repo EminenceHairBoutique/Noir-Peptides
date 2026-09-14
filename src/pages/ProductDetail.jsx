@@ -30,6 +30,7 @@ import {
   shipCutoffStatement,
 } from "../config/business";
 import { getCoasForProduct } from "../lib/coas";
+import { formatPurity } from "../lib/labVerify";
 import { getProductLabel } from "../lib/labelsApi";
 import MediaGallery from "../components/product3d/MediaGallery";
 import StickyBuyBar from "../components/StickyBuyBar";
@@ -259,6 +260,15 @@ export default function ProductDetail() {
     categories.find((c) => c.slug === product.category_slug)?.name ||
     "Research Material";
   const remainingForFreeShip = Math.max(0, FREE_SHIP_THRESHOLD - lineTotal);
+  // Opt cycle 12: purity / methods / endotoxin are read from the latest
+  // PUBLISHED certificate only — never from a seeded product constant.
+  const latestCert = coas[0] || null;
+  const certPurity = formatPurity(latestCert);
+  const certMethods = latestCert
+    ? [(latestCert.hplc || latestCert.purity_percent != null) && "HPLC", latestCert.ms_confirmed === true && "MS"]
+        .filter(Boolean)
+        .join(" / ")
+    : "";
   const specProduct = {
     ...product,
     vial_size_mg: selectedVariant?.vial_size_mg ?? product.vial_size_mg,
@@ -327,9 +337,11 @@ export default function ProductDetail() {
                 ) : (
                   <div className="vial-visual h-full w-full" aria-hidden="true" />
                 )}
-                <div className="absolute top-4 left-4 badge badge-new">
-                  ≥ {product.purity_percent}% PURE
-                </div>
+                {certPurity ? (
+                  <div className="absolute top-4 left-4 badge badge-new">
+                    {certPurity} HPLC
+                  </div>
+                ) : null}
                 {isOut && (
                   <div className="absolute top-4 right-4 badge badge-archive">
                     Out of stock
@@ -555,7 +567,7 @@ export default function ProductDetail() {
 
               {/* Specs (null-tolerant) */}
               <div className="mb-8">
-                <PeptideSpecsPanel product={specProduct} />
+                <PeptideSpecsPanel product={specProduct} latestCoa={latestCert} />
               </div>
 
               {/* Batch traceability */}
@@ -572,7 +584,7 @@ export default function ProductDetail() {
                   </div>
                   <div className="flex justify-between border-b border-se-concrete/50 py-1">
                     <dt className="text-se-steel">Methods</dt>
-                    <dd className="text-se-bone">HPLC · MS</dd>
+                    <dd className="text-se-bone">{certMethods || "Per lot — see certificate"}</dd>
                   </div>
                   <div className="flex justify-between border-b border-se-concrete/50 py-1">
                     <dt className="text-se-steel">COA status</dt>
@@ -603,18 +615,24 @@ export default function ProductDetail() {
                   </h2>
                 </div>
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[12px] font-accent mb-4">
+                  {/* Opt cycle 12: every value below comes from the latest published
+                      certificate; a row with no certificate value is omitted. */}
                   <div className="flex justify-between border-b border-se-concrete/50 py-1">
                     <dt className="text-se-steel">Purity</dt>
-                    <dd className="text-se-bone">≥ {product.purity_percent}% (HPLC)</dd>
+                    <dd className="text-se-bone">{certPurity ? `${certPurity} (HPLC)` : "Per lot — see certificate"}</dd>
                   </div>
-                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
-                    <dt className="text-se-steel">Methods</dt>
-                    <dd className="text-se-bone">HPLC / MS</dd>
-                  </div>
-                  <div className="flex justify-between border-b border-se-concrete/50 py-1">
-                    <dt className="text-se-steel">Endotoxin</dt>
-                    <dd className="text-se-bone">LAL tested</dd>
-                  </div>
+                  {certMethods ? (
+                    <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                      <dt className="text-se-steel">Methods</dt>
+                      <dd className="text-se-bone">{certMethods}</dd>
+                    </div>
+                  ) : null}
+                  {latestCert?.endotoxin ? (
+                    <div className="flex justify-between border-b border-se-concrete/50 py-1">
+                      <dt className="text-se-steel">Endotoxin</dt>
+                      <dd className="text-se-bone">{String(latestCert.endotoxin)}</dd>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between border-b border-se-concrete/50 py-1">
                     <dt className="text-se-steel">Lot</dt>
                     <dd className="text-se-bone break-all">
