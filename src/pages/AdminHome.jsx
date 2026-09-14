@@ -26,6 +26,7 @@ import {
  ToggleLeft, ListChecks } from "lucide-react";
 import SEO from "../components/SEO";
 import { adminGet, adminSend, adminUpload } from "../lib/adminApi";
+import { PARTNER_TIERS } from "../../lib/partnerTiers.js";
 import { getProducts } from "../lib/catalog";
 import { scanCopy } from "../lib/complianceScan";
 
@@ -917,11 +918,13 @@ function Partners() {
   };
   useEffect(load, []);
 
+  const [tierById, setTierById] = useState({});
   const act = async (id, action) => {
     setBusyId(id); setErr(null);
     try {
-      await adminSend("/api/admin/partner-application-update", "POST", { applicationId: id, action });
-      setApps((a) => a.map((x) => (x.id === id ? { ...x, status: action === "approve" ? "approved" : "rejected" } : x)));
+      const partnerTier = tierById[id] || "wholesale";
+      await adminSend("/api/admin/partner-application-update", "POST", { applicationId: id, action, ...(action === "approve" ? { partnerTier } : {}) });
+      setApps((a) => a.map((x) => (x.id === id ? { ...x, status: action === "approve" ? "approved" : "rejected", partner_tier: action === "approve" ? partnerTier : null } : x)));
     } catch (e) { setErr(e.message); }
     finally { setBusyId(null); }
   };
@@ -949,9 +952,29 @@ function Partners() {
             </div>
             <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] uppercase tracking-wide ${badge(a.status)}`}>{a.status || "pending"}</span>
           </div>
+          {/* Opt cycle 12: every field the applicant filled, so the owner can
+              review without opening the database. */}
+          <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-[12px] font-accent mb-2">
+            {[
+              ["Applicant", a.full_name], ["Institution", a.business_name], ["Email", a.email], ["Phone", a.phone],
+              ["Country", a.country], ["Volume", a.monthly_volume], ["Materials of interest", a.interested_in],
+              ["Website / page", a.website_or_instagram], ["Submitted", a.created_at ? String(a.created_at).slice(0, 10) : null],
+              ["Reviewed", a.reviewed_at ? `${String(a.reviewed_at).slice(0, 10)}${a.reviewed_by ? ` · ${a.reviewed_by}` : ""}` : null],
+              ["Tier", a.partner_tier],
+            ].filter(([, v]) => v).map(([k, v]) => (
+              <React.Fragment key={k}>
+                <dt className="text-se-steel">{k}</dt>
+                <dd className="text-se-bone/80 break-words">{v}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
           {a.message && <p className="text-[12.5px] text-se-bone/60 font-accent mb-2">{a.message}</p>}
           {a.status !== "approved" && a.status !== "rejected" && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor={`tier-${a.id}`} className="text-[11px] text-se-steel font-accent">Tier on approve</label>
+              <select id={`tier-${a.id}`} value={tierById[a.id] || "wholesale"} onChange={(e) => setTierById((t) => ({ ...t, [a.id]: e.target.value }))} className="text-[11px] bg-se-charcoal border border-se-concrete text-se-bone px-2 py-1">
+                {PARTNER_TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
               <button onClick={() => act(a.id, "approve")} disabled={busyId === a.id} className="text-[11px] rounded border border-emerald-500/30 text-emerald-300 px-3 py-1 hover:bg-emerald-500/10 disabled:opacity-40">Approve</button>
               <button onClick={() => act(a.id, "reject")} disabled={busyId === a.id} className="text-[11px] rounded border border-red-500/30 text-red-300 px-3 py-1 hover:bg-red-500/10 disabled:opacity-40">Reject</button>
             </div>
