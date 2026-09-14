@@ -4,7 +4,7 @@
   "sha": "aef09958d6d596133332fee7eb3ae79c4d7d5ba0",
   "ref": "main",
   "run_url": "https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34828821181",
-  "generated_at": "2026-09-14T09:52:07.325Z",
+  "generated_at": "2026-09-14T10:14:56.890Z",
   "build": {
     "mode": "e2e",
     "dbEnvPresent": false,
@@ -35,7 +35,7 @@
     "overflow": [],
     "consoleErrors": [],
     "skipped": [],
-    "seconds": 277,
+    "seconds": 300,
     "pass": true
   },
   "axe": {
@@ -55,55 +55,55 @@
     "routes": {
       "/": {
         "runs": 3,
-        "lcpMs": 1507,
+        "lcpMs": 1661,
         "cls": 0,
-        "tbtMs": 557,
-        "perf": 86,
+        "tbtMs": 320,
+        "perf": 92,
         "pass": false
       },
       "/shop": {
         "runs": 3,
-        "lcpMs": 1652,
+        "lcpMs": 1656,
         "cls": 0,
-        "tbtMs": 125,
-        "perf": 99,
+        "tbtMs": 41,
+        "perf": 100,
         "pass": true
       },
       "/product/bpc-157": {
         "runs": 3,
-        "lcpMs": 1656,
+        "lcpMs": 1655,
         "cls": 0,
-        "tbtMs": 11,
+        "tbtMs": 37,
         "perf": 100,
         "pass": true
       },
       "/test-results": {
         "runs": 3,
-        "lcpMs": 1507,
+        "lcpMs": 1511,
         "cls": 0,
-        "tbtMs": 0,
+        "tbtMs": 23,
         "perf": 100,
         "pass": true
       },
       "/shop/tissue-repair-research": {
         "runs": 3,
-        "lcpMs": 1654,
+        "lcpMs": 1656,
         "cls": 0.009,
-        "tbtMs": 0,
+        "tbtMs": 8,
         "perf": 100,
         "pass": true
       },
       "/test-results/bpc-157": {
         "runs": 3,
-        "lcpMs": 1652,
+        "lcpMs": 1656,
         "cls": 0,
-        "tbtMs": 0,
+        "tbtMs": 1,
         "perf": 100,
         "pass": true
       },
       "/partners": {
         "runs": 3,
-        "lcpMs": 1655,
+        "lcpMs": 1657,
         "cls": 0,
         "tbtMs": 0,
         "perf": 100,
