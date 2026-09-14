@@ -70,8 +70,11 @@ jobs:
           npx --yes @lhci/cli@0.14.0 upload --config=evidence/lighthouserc.live.json
           npx --yes @lhci/cli@0.14.0 assert --config=evidence/lighthouserc.live.json
 
+      # Its non-zero exit on a red site is swallowed on purpose: this job must
+      # still upload the artifact. The RUN's verdict is decided in the publish
+      # job, from the record itself (`--gate`), never from this step's outcome
+      # — a `steps.<id>` reference does not cross a job boundary.
       - name: Fold the record and set the verdict
-        id: verdict
         continue-on-error: true
         run: node scripts/live-probe.mjs --finalize evidence/live-probe.json
 
@@ -148,8 +151,13 @@ jobs:
               await github.rest.issues.create({ owner, repo, title, labels: [label], body });
             }
 
-      - name: Fail the run when the probe is not green
-        if: steps.verdict.outcome != 'success'
-        run: |
-          echo "::error::Live probe is not green — see evidence/live-probe.json and the 'Live probe failing' issue."
-          exit 1
+      # Opt cycle 12 follow-up: the gate reads the RECORD this job downloaded
+      # and published. The previous guard (`if: steps.verdict.outcome !=
+      # 'success'`) named a step in the OTHER job: it read as the empty string,
+      # so the step always ran and this job could never pass — live-probe runs
+      # #1–#4 all reported red while the same job's script was closing or
+      # keeping the issue from the record. A missing record fails too:
+      # unproven is not green.
+      - name: Fail the run when the record is not green
+        if: always()
+        run: node scripts/live-probe.mjs --gate evidence/live-probe.json
