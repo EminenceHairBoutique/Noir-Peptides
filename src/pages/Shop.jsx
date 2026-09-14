@@ -11,6 +11,26 @@ import { motion as Motion } from "framer-motion";
 
 const ANIMATED_CARDS = 8;
 
+// Opt cycle 12 (4.7 TBT): cards past the fold mount in a plain <div>, not a
+// motion component with `initial={false}` — 36 motion instances (each with
+// its own value stores and context reads) were still paid at mount.
+function CardFrame({ index, children }) {
+  if (index >= ANIMATED_CARDS) return <div className="relative">{children}</div>;
+  return (
+    <Motion.div
+      // Opt cycle 11 (4.7 TBT): only the first eight cards (the fold on any
+      // width) run the entrance animation. 44 simultaneous tweens put /shop
+      // over the 200 ms TBT budget in CI.
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: Math.min(index * 0.04, 0.4), ease: [0.2, 0, 0, 1] }}
+      className="relative"
+    >
+      {children}
+    </Motion.div>
+  );
+}
+
 import { getProducts, getCategories, getAllVariants } from "../lib/catalog";
 import { getApprovedProductLabels } from "../lib/labelsApi";
 import ProductCard from "../components/ProductCard";
@@ -410,15 +430,7 @@ export default function Shop() {
                 {filtered.map((product, i) => {
                   const selected = compareIds.includes(product.id);
                   return (
-                    <Motion.div
-                      key={product.id}
-                      // Opt cycle 11 (4.7 TBT): only the first eight cards (the fold on
-                      // any width) run the entrance animation; the other 36 mount static.
-                      // 44 simultaneous tweens put /shop over the 200 ms TBT budget in CI.
-                      initial={i < ANIMATED_CARDS ? { opacity: 0, y: 15 } : false} animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: Math.min(i * 0.04, 0.4), ease: [0.2, 0, 0, 1] }}
-                      className="relative"
-                    >
+                    <CardFrame key={product.id} index={i}>
                       {compareMode && (
                         <button
                           type="button"
@@ -432,7 +444,7 @@ export default function Shop() {
                         </button>
                       )}
                       <ProductCard product={product} label={labelByProduct[product.id] || null} latestCoa={latestCoaMap ? latestCoaMap[product.id] || null : undefined} />
-                    </Motion.div>
+                    </CardFrame>
                   );
                 })}
               </div>

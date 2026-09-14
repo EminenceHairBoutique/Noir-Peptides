@@ -194,4 +194,7 @@ const ProductCard = ({ product, label = null, latestCoa: latestCoaProp }) => {
   );
 };
 
-export default ProductCard;
+// Opt cycle 12 (4.7 TBT): the grid re-renders on every facet, query or
+// compare change and on the certificate map's arrival; a card whose product,
+// label and certificate are unchanged has nothing to redo.
+export default React.memo(ProductCard);
