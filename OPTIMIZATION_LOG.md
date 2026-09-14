@@ -2495,10 +2495,34 @@ Cost/perf measurement lane (parity, gate coverage, two probes).
 | + L4 initial render as a transition (`lhci-c12-L4`) | 1655 · **77** | 1653 · **32** | 1506 · **53** | longest task 180–270 → 90–140 |
 
 **Lighthouse lane, final tree (7 URLs, median of 3):**
-_pending — the close-out commit fills this from `evidence/lhci-cycle12-final/medians.json`._
+`evidence/lhci-cycle12-final` (default E2E build, serve-dist, mobile simulation, 3 runs per URL, 340 s):
+
+| URL | LCP | TBT | CLS | perf | every run |
+| --- | --- | --- | --- | --- | --- |
+| `/` | 1655 ms | 3 ms | 0 | 100 | LCP 1655–1659 · TBT 2–31 |
+| `/shop` | 1652 ms | 36 ms | 0 | 100 | LCP 1505–1653 · TBT 33–63 |
+| `/product/bpc-157` | 1654 ms | 60 ms | 0 | 100 | LCP 1653–1655 · TBT 55–100 |
+| `/test-results` | 1504 ms | 34 ms | 0 | 100 | LCP 1504–1508 · TBT 29–36 |
+| `/shop/tissue-repair-research` | 1653 ms | 10 ms | 0.009 | 100 | LCP 1653–1654 · TBT 8–15 |
+| `/test-results/bpc-157` | 1654 ms | 5 ms | 0 | 100 | LCP 1507–1655 · TBT 4–15 |
+| `/partners` | 1653 ms | 6 ms | 0 | 100 | LCP 1653–1658 · TBT 2–7 |
+
+No run on any URL outside the budgets (LCP ≤ 2500 · TBT ≤ 200 · CLS ≤ 0.1); the first lane on the same items had two red medians and runs at 2.7–2.85 s (item 20). The CI Evidence run on the PR is the H-014 proof.
 
 **Full gate (the way CI runs it):**
-_pending — the close-out commit fills this from the gate chain (lint · unit · parity · QR · bytes · E2E · mobile under vite preview · all-routes axe · flag-on lane · LHCI)._
+Second pass on the finished tree (the first pass caught three things, all fixed and re-run: the copy scan on the category shells, the E2E read of an empty-shell route 1.5 s early, the sweep's skip-link check after the age gate's new focus handover — `588bb50`, `40b5f8c`). Logs under the session scratchpad `gate2/`.
+
+| lane | how CI runs it | result |
+| --- | --- | --- |
+| lint | `npm run lint` (`--max-warnings 0`) | 0 errors · 0 warnings |
+| unit chain | `npm run test:unit` (incl. `test-coa-state`, `test-purity-honesty`, `test-partner-apply`, `test-dist-copy`, `test-route-preload`) | green, every script |
+| shell parity | `node scripts/test-shell-parity.mjs` (12 families) | all pass |
+| QR round trip · bytes & requests | `npm run test:qr` · `node scripts/test-bytes-budget.mjs` | all pass |
+| E2E (Chromium) | `npx playwright test` against serve-dist | **41 / 41** |
+| mobile | `npm run test:mobile` under `vite preview`, no `E2E_BASE_URL` | **58 / 58** (cart-nudge skipped by design: flag off) |
+| all-routes axe | `A11Y_ALL_ROUTES=1 node scripts/a11y-sweep.mjs` (+ 6 authed views) | 0 critical / serious · 0 landmark · 0 keyboard (age-gate handover + skip link on 3 routes) |
+| flag-on lane | `VITE_FEATURE_CART_RECOVERY=1 npm run build:e2e` + `cart-nudge.spec` under `vite preview` | 1 / 1; default build restored after |
+| Lighthouse | `perf-lhci cycle12-final --runs 3` (7 URLs, the gate's config) | table above, all green |
 
 ### SCORECARD DELTA (H-014)
 
