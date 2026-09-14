@@ -117,6 +117,13 @@ Git → Deploy Hooks) and the flip triggers the rebuild itself; the row says
 "Rebuild triggered", "Static pages update on the next deploy" or "Rebuild
 request failed" — never nothing. See `docs/MIGRATIONS_0034.md`.
 
+Since opt cycle 12 the rebuild reads the flag from the database as well as
+from the static mirror (the union — a static hide always holds): a category
+you hide in the Control Room drops out of the home rail, `/shop`, the
+sitemap and its product pages on the next build. `dist/prerender-meta.json`
+records `hiddenCategories` and `hiddenSource` (`static` or `static+db`) for
+the build that is live; the live probe checks the sitemap against it.
+
 ### Errors tab — client and server (opt cycles 4–6)
 
 - **Client** (migration 0025): browser errors, grouped by signature.

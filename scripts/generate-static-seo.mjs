@@ -27,9 +27,6 @@ import {
   getAllProducts,
   getCategories,
   getProductsInCategory,
-  getVisibleCategories,
-  getVisibleProducts,
-  getVisibleProductsInCategory,
   hiddenCategorySlugs as staticHiddenCategorySlugs,
 } from "../src/data/tier1Catalog.js";
 import { HERO_DISCLAIMER, DISCLAIMER_FULL } from "../src/config/compliance.js";
@@ -75,6 +72,34 @@ const DEFAULT_DESCRIPTION =
   "Batch-documented peptide reference materials for laboratory research. COA available. For research use only. Not for human or veterinary use.";
 
 const PRODUCTION_DEFAULT = "https://www.noirpeptides.com";
+
+// ── Category visibility at build: static ∪ database (opt cycle 12, 4.6) ────
+// The Control Room flips product_categories.soft_launch_hidden and triggers a
+// rebuild; before this cycle the rebuild read only the static mirror's flag,
+// so a hidden category's pages stayed prerendered and in the sitemap. The
+// union below never subtracts: a static hide holds even if the row disagrees.
+let hiddenSlugs = staticHiddenCategorySlugs();
+let hiddenSource = "static";
+const visibleCategories = () => getCategories().filter((c) => !hiddenSlugs.has(c.slug));
+const visibleProducts = () => getAllProducts().filter((p) => !hiddenSlugs.has(p.category_slug));
+const visibleProductsInCategory = (slug) => (hiddenSlugs.has(slug) ? [] : getAllProducts().filter((p) => p.category_slug === slug));
+async function fetchHiddenCategoriesAtBuild() {
+  const url = String(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+  const key = process.env.VITE_SUPABASE_ANON_KEY || "";
+  if (!url || !key) return null;
+  try {
+    const res = await fetch(`${url}/rest/v1/product_categories?select=slug,soft_launch_hidden&soft_launch_hidden=eq.true`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) throw new Error(`product_categories fetch ${res.status}`);
+    const rows = await res.json();
+    if (!Array.isArray(rows)) throw new Error("malformed product_categories response");
+    return new Set(rows.map((r) => String(r.slug)));
+  } catch (e) {
+    console.warn(`[seo] category visibility fetch failed (${e.message}) — static soft-launch flags only`);
+    return null;
+  }
+}
 
 // ── Resolve a SAFE absolute site URL ────────────────────────────────────────
 // The guard's purpose is to never ship localhost/empty canonicals or OG URLs.
@@ -642,7 +667,7 @@ const FOOTER_NAV = [
 function renderFooterNav() {
   const li = (l) => `<li><a href="${escapeHtml(l.href)}">${escapeHtml(l.label)}</a></li>`;
   const links = FOOTER_NAV.map(li).join("");
-  const cats = getVisibleCategories()
+  const cats = visibleCategories()
     .map((c) => li({ href: `/shop/${c.slug}`, label: c.name }))
     .join("");
   return `<nav aria-label="Site"><ul>${links}</ul></nav>` +
@@ -1194,8 +1219,13 @@ async function main() {
   // (src/data/tier1Catalog.js) so the static HTML and the DB never drift.
   // Sept-11 T7: storefront surfaces use the VISIBLE views; a soft-launch-
   // hidden category never reaches the home rail, /shop, the sitemap or a PDP.
-  const homeCategories = getVisibleCategories();
-  const hiddenSlugs = staticHiddenCategorySlugs();
+  const dbHidden = await fetchHiddenCategoriesAtBuild();
+  if (dbHidden) {
+    hiddenSlugs = new Set([...staticHiddenCategorySlugs(), ...dbHidden]);
+    hiddenSource = "static+db";
+    console.log(`[seo] category visibility: ${dbHidden.size} hidden in the database, ${staticHiddenCategorySlugs().size} in the static mirror → ${hiddenSlugs.size} hidden (union)`);
+  }
+  const homeCategories = visibleCategories();
 
   // W2/W4: published COA rows for the trust-surface prerender (null when the
   // build has no database access — shell-only, honestly logged).
@@ -1466,8 +1496,8 @@ async function main() {
   // a current attestation, enforced server-side). Data is mirrored from the
   // same source as the SQL seed (src/data/tier1Catalog.js) so HTML and DB never
   // drift.
-  const catalogProducts = withDisplayNames(getVisibleProducts());
-  const catalogCategories = getVisibleCategories();
+  const catalogProducts = withDisplayNames(visibleProducts());
+  const catalogCategories = visibleCategories();
 
   const shopRoutes = [
     {
@@ -1489,7 +1519,7 @@ async function main() {
       bodyHtml: renderListBody(
         cat.name,
         cat.description,
-        withDisplayNames(getVisibleProductsInCategory(cat.slug)),
+        withDisplayNames(visibleProductsInCategory(cat.slug)),
         [
           { name: "Home", href: "/" },
           { name: "Shop", href: "/shop" },
@@ -1521,7 +1551,7 @@ async function main() {
     ],
     bodyHtml: renderProductBody(
       p,
-      withDisplayNames(getVisibleProductsInCategory(p.category_slug)).filter((r) => r.slug !== p.slug).slice(0, 6),
+      withDisplayNames(visibleProductsInCategory(p.category_slug)).filter((r) => r.slug !== p.slug).slice(0, 6),
       coaGroups.has(p.id)
     ),
   }));
@@ -1740,6 +1770,7 @@ async function main() {
     dbEnvPresent: hasDbEnv(),
     features: { calculator: BUILD_FEATURES.calculator, aiPublic: BUILD_FEATURES.aiPublic },
     hiddenCategories: [...hiddenSlugs].sort(),
+    hiddenSource,
     coaRowCount: Array.isArray(coaRows) ? coaRows.length : null,
     coaSource,
     sdsRowCount: Array.isArray(sdsRows) ? sdsRows.length : null,
