@@ -15,10 +15,10 @@
 
   Run: node scripts/test-purity-honesty.mjs   (in npm run test:unit)
 */
-import { build } from "esbuild";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { StaticRouter } from "react-router";
+import { bundleComponents } from "./_render-jsx.mjs";
 import path from "node:path";
 import fs from "node:fs";
 import { getAllProducts } from "../src/data/tier1Catalog.js";
@@ -28,32 +28,10 @@ let failures = 0;
 const ok = (c, m) => { if (c) console.log(`  ✓ ${m}`); else { failures++; console.error(`  ✗ ${m}`); } };
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
-const outfile = path.join(process.cwd(), `.purity-test-${Date.now()}.mjs`);
-fs.writeFileSync(path.join(process.cwd(), "scripts/_purity-entry.tmp.mjs"),
-  'export { default as ProductCard } from "../src/components/ProductCard.jsx";\nexport { default as PeptideSpecsPanel } from "../src/components/PeptideSpecsPanel.jsx";\nexport { getProducts } from "../src/lib/catalog.js";\n');
-try {
-  await build({
-    entryPoints: [path.join(process.cwd(), "scripts/_purity-entry.tmp.mjs")],
-    bundle: true, format: "esm", platform: "node", outfile, logLevel: "silent",
-    jsx: "automatic",
-    define: { "import.meta.env": "{}" },
-    external: ["react", "react-dom", "react-router", "react-router-dom", "lucide-react"],
-    plugins: [{ name: "stubs", setup(b) {
-      b.onResolve({ filter: /(^|\/)lib\/coas(\.js)?$/ }, () => ({ path: "coas-stub", namespace: "stub" }));
-      b.onResolve({ filter: /supabaseClient(\.js)?$/ }, () => ({ path: "sb-stub", namespace: "stub" }));
-      b.onLoad({ filter: /.*/, namespace: "stub" }, (a) => ({
-        contents: a.path === "coas-stub"
-          ? "export const getLatestCoaMap = () => Promise.resolve({}); export const getSeedLatestCoaMap = () => ({}); export const getSeedCoas = () => []; export const getAllCoas = async () => []; export const getCoasForProduct = async () => []; export const lookupByLot = async () => null;"
-          : "export const supabase = null;",
-        loader: "js",
-      }));
-    } }],
-  });
-} finally {
-  fs.rmSync(path.join(process.cwd(), "scripts/_purity-entry.tmp.mjs"), { force: true });
-}
-let mod;
-try { mod = await import(`file://${outfile}`); } finally { fs.rmSync(outfile, { force: true }); }
+const mod = await bundleComponents(
+  'export { default as ProductCard } from "../src/components/ProductCard.jsx";\nexport { default as PeptideSpecsPanel } from "../src/components/PeptideSpecsPanel.jsx";\nexport { getProducts } from "../src/lib/catalog.js";\n',
+  "purity"
+);
 const { ProductCard, PeptideSpecsPanel, getProducts } = mod;
 
 console.log("1. Static catalog carries no purity constant:");

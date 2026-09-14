@@ -12,7 +12,6 @@ import { motion as Motion } from "framer-motion";
 const ANIMATED_CARDS = 8;
 
 import { getProducts, getCategories, getAllVariants } from "../lib/catalog";
-import { getAllCoas } from "../lib/coas";
 import { getApprovedProductLabels } from "../lib/labelsApi";
 import ProductCard from "../components/ProductCard";
 import { getLatestCoaMap, getSeedLatestCoaMap } from "../lib/coas";
@@ -56,6 +55,9 @@ export default function Shop() {
   // a chip that arrives later wraps the price row and grows the page after a
   // scroll to the end (the bottom-nav "footer above the bar" gate).
   const [latestCoaMap, setLatestCoaMap] = useState(() => getSeedLatestCoaMap());
+  // One certificate source for the grid (opt cycle 12): the "COA on file"
+  // facet, the compare column and the card chips all read this map.
+  const coaProductIds = useMemo(() => new Set(Object.keys(latestCoaMap || {}).filter((id) => latestCoaMap[id])), [latestCoaMap]);
   useEffect(() => {
     let alive = true;
     getLatestCoaMap().then((map) => { if (alive) setLatestCoaMap(map); });
@@ -68,7 +70,6 @@ export default function Shop() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [variants, setVariants] = useState([]);
-  const [coaProductIds, setCoaProductIds] = useState(new Set());
   const [labelByProduct, setLabelByProduct] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -98,13 +99,12 @@ export default function Shop() {
     let active = true;
     setLoading(true);
     setError(false);
-    Promise.all([getProducts(), getCategories(), getAllVariants(), getAllCoas(), getApprovedProductLabels()])
-      .then(([p, c, v, coas, labels]) => {
+    Promise.all([getProducts(), getCategories(), getAllVariants(), getApprovedProductLabels()])
+      .then(([p, c, v, labels]) => {
         if (!active) return;
         setProducts(p);
         setCategories(c);
         setVariants(v);
-        setCoaProductIds(new Set((coas || []).map((x) => x.product_id).filter(Boolean)));
         setLabelByProduct(labels || {});
         setLoading(false);
       })

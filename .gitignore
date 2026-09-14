@@ -69,6 +69,7 @@ src/output.css
 .admin-labs-test-*.mjs
 .attestation-test-*.mjs
 .purity-test-*.mjs
+.render-test-*.mjs
 .partner-apply-*.mjs
 .restock-test-*.mjs
 .pricing-coherence-*.mjs
