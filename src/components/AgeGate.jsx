@@ -4,7 +4,7 @@
 // affirmation; the binding, logged consent is the research-use attestation at
 // registration/checkout. Claim-safe: states the 21+ requirement and the RUO
 // nature of the catalog only.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const ACK_KEY = "np_age_ack_v1";
 
@@ -34,6 +34,34 @@ export default function AgeGate() {
     }
   }, [ack]);
 
+  // Opt cycle 12 (4.9): a modal that takes and keeps focus. While the gate is
+  // up the page behind it is inert (no Tab into the catalog behind the 21+
+  // acknowledgement); focus starts on the primary button and wraps between
+  // the dialog's controls; Escape does nothing (the gate is mandatory). On
+  // confirm, focus lands on the page's main landmark.
+  const dialogRef = useRef(null);
+  const primaryRef = useRef(null);
+  useEffect(() => {
+    if (ack) return undefined;
+    const root = document.getElementById("root");
+    const outside = root ? [...root.children].filter((el) => !el.contains(dialogRef.current)) : [];
+    for (const el of outside) el.inert = true;
+    primaryRef.current?.focus();
+    const onKey = (e) => {
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const focusables = [...dialogRef.current.querySelectorAll("button:not([disabled]), a[href]")];
+      if (!focusables.length) return;
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      for (const el of outside) el.inert = false;
+    };
+  }, [ack, declined]);
+
   if (ack) return null;
 
   function confirm() {
@@ -43,10 +71,13 @@ export default function AgeGate() {
       /* ignore */
     }
     setAck(true);
+    // The dialog unmounts; give focus a destination instead of <body>.
+    setTimeout(() => document.getElementById("main")?.focus(), 0);
   }
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="age-gate-title"
@@ -75,6 +106,7 @@ export default function AgeGate() {
 
             <div className="mt-7 flex flex-col gap-3">
               <button
+                ref={primaryRef}
                 type="button"
                 onClick={confirm}
                 className="w-full rounded-lg bg-se-gold px-5 py-3 font-accent text-sm uppercase tracking-wide text-se-black hover:opacity-90"

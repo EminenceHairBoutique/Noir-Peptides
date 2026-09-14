@@ -91,3 +91,29 @@ test.describe("browse → product → cart journey", () => {
     await expect(page.locator('section:has(h2:text-matches("recently viewed", "i")) a[href="/products/bpc-157"]').first()).toBeVisible();
   });
 });
+
+// Opt cycle 12 (4.9): on a first visit the age gate takes focus, keeps it
+// (Tab wraps inside the dialog; the page behind is inert), and on confirm the
+// dialog is gone and focus is on the main landmark.
+test("first-visit keyboard path: the age gate traps focus and hands it to main", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem("np_age_ack_v1");
+    window.localStorage.setItem("np_cookie_consent", JSON.stringify({ necessary: true, analytics: false, marketing: false, timestamp: Date.now() }));
+  });
+  await page.goto("/shop");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("button", { name: /21 or older/i })).toBeFocused();
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press("Tab");
+    const inside = await page.evaluate(() => Boolean(document.activeElement?.closest("[role=dialog]")));
+    expect(inside, `Tab ${i + 1} stays inside the dialog`).toBe(true);
+  }
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Shift+Tab");
+  expect(await page.evaluate(() => Boolean(document.activeElement?.closest("[role=dialog]")))).toBe(true);
+  await page.getByRole("button", { name: /21 or older/i }).focus();
+  await page.keyboard.press("Enter");
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe("main");
+});
