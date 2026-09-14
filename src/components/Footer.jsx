@@ -80,6 +80,7 @@ const Footer = () => {
               <Link to="/shop/neuropeptide-research" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Neuropeptide Research</Link>
               <Link to="/shop/mitochondrial-metabolic-research" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Mitochondrial &amp; Metabolic Research</Link>
               <Link to="/deals" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Deals &amp; Bundle Pricing</Link>
+              <Link to="/partners" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Wholesale &amp; Institutional Supply</Link>
               <Link to="/test-results" className="block py-3 text-se-bone/60 hover:text-se-gold transition">Test Results (COA Library)</Link>
             </div>
           </div>

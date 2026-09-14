@@ -90,6 +90,41 @@ export const CONTACT_COPY = {
   ],
 };
 
+// ── /partners (opt cycle 11, 4.14b) ───────────────────────────────────────
+// Wholesale / institutional supply request. Logistics and eligibility copy
+// only: what an account is, what to include, what we will not provide. The
+// form posts to the existing POST /api/partners/apply; review is by hand in
+// the Control Room. Never a product benefit, never a use case.
+export const PARTNERS_COPY = {
+  heading: "WHOLESALE & INSTITUTIONAL SUPPLY",
+  intro:
+    "Recurring reference-material supply for laboratories, contract research organisations, and academic groups. Volume pricing is quoted per account after review.",
+  eligibility:
+    "Applications are reviewed individually. An approved account certifies institutional research use, accepts the Research-Use Agreement, and completes the same purchaser attestation as every other account. Every shipment carries the same batch documentation as the retail catalog.",
+  noGuidance:
+    "Noir Peptides provides no dosing, administration, or usage guidance to any account, institutional accounts included.",
+  lists: [
+    {
+      heading: "What to include:",
+      items: [
+        "Institution or business name and country",
+        "Expected monthly volume",
+        "Materials of interest",
+        "Documentation needs (per-batch COA, SDS, custom labelling)",
+      ],
+    },
+    {
+      heading: "What happens next:",
+      items: [
+        "We review the application and reply by email",
+        "Approved accounts receive their volume tier and ordering instructions",
+        "Orders ship with the same batch documentation as every retail order",
+      ],
+    },
+  ],
+  formNote: "Reviewed by hand. We reply by email to qualified applicants.",
+};
+
 // ── /deals and /test-results ──────────────────────────────────────────────
 // Both pages are DB-driven. ONLY the static explanatory shell is shared here.
 // The prerenderer emits this shell plus navigation links and NEVER any row
@@ -108,4 +143,11 @@ export const TEST_RESULTS_SHELL = {
   heading: "Test Results & Certificates of Analysis",
   intro:
     "Every batch is documented with third-party analytical testing — identity by mass spectrometry and purity by HPLC. Browse published certificates below, or verify the exact lot printed on your vial.",
+};
+
+// One source for the catalog page's intro: React (src/pages/Shop.jsx) and the
+// prerendered shell (scripts/generate-static-seo.mjs) must render the same
+// sentence — the shell paragraph is the page's largest first paint.
+export const SHOP_COPY = {
+  intro: "Batch-documented peptide reference materials for qualified laboratory research.",
 };

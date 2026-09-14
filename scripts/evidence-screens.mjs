@@ -58,6 +58,10 @@ const acknowledgeDialogs = (context) => context.addInitScript((consent) => {
 }, CONSENT);
 
 async function shoot(page, rec, file) {
+  // Opt cycle 11: with the paint-first loader the prerendered shell is on
+  // screen until React mounts; the fold shot is of the hydrated page (the
+  // shell frame itself is styled, see index.css). Bounded wait, never fails.
+  await page.waitForSelector("#root > main", { state: "detached", timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(400);
   rec.overflowPx = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   // The fold first (what a visitor sees at load), then a scroll-through so

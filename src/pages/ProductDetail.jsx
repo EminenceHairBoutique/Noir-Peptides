@@ -651,13 +651,13 @@ export default function ProductDetail() {
                       {/* W4: per-product batch-history permalink */}
                       <Link
                         to={`/test-results/${product.slug}`}
-                        className="inline-block text-[12px] text-se-gold underline underline-offset-2 font-accent"
+                        className="inline-flex items-center min-h-[44px] text-[12px] text-se-gold underline underline-offset-2 font-accent"
                       >
                         Full batch history for {product.name} →
                       </Link>
                       <Link
                         to="/test-results"
-                        className="inline-block text-[12px] text-se-gold underline underline-offset-2 font-accent"
+                        className="inline-flex items-center min-h-[44px] text-[12px] text-se-gold underline underline-offset-2 font-accent"
                       >
                         All certificates &amp; lot verification →
                       </Link>

@@ -17,6 +17,31 @@ export const LOG = []; // every write, for assertions
 export const STORAGE = {}; // bucket → { path: byteLength } (opt cycle 10: COA uploads)
 
 let nextId = 100;
+function splitTop(expr) {
+  const out = []; let depth = 0, cur = "";
+  for (const ch of expr) {
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if (ch === "," && depth === 0) { out.push(cur); cur = ""; } else cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+function clausePredicate(clause) {
+  const c = clause.trim();
+  let m = c.match(/^and\((.*)\)$/);
+  if (m) { const parts = splitTop(m[1]).map(clausePredicate); return (r) => parts.every((p) => p(r)); }
+  m = c.match(/^or\((.*)\)$/);
+  if (m) { const parts = splitTop(m[1]).map(clausePredicate); return (r) => parts.some((p) => p(r)); }
+  m = c.match(/^([\w.]+)\.(eq|is|neq)\.(.*)$/);
+  if (!m) throw new Error(`stub or(): unsupported clause "${c}"`);
+  const [, col, op, raw] = m;
+  const val = raw === "null" ? null : raw;
+  if (op === "eq") return (r) => String(r[col]) === String(val);
+  if (op === "neq") return (r) => String(r[col]) !== String(val);
+  return (r) => (val === null ? r[col] == null : String(r[col]) === String(val));
+}
+function orPredicate(expr) { const parts = splitTop(expr).map(clausePredicate); return (r) => parts.some((p) => p(r)); }
 function builder(table) {
   const filters = [];
   let mode = "select", payload = null, cols = "*", limit = null, wantCount = false;
@@ -45,7 +70,7 @@ function builder(table) {
       const hit = rows();
       for (const r of hit) Object.assign(r, payload);
       LOG.push({ table, op: "update", payload, count: hit.length });
-      return { data: hit, error: null };
+      return { data: hit.map((r) => ({ ...r })), error: null };
     }
     if (FAULTS.missingTables.includes(table)) return { data: null, error: { code: "42P01", message: `relation "public.${table}" does not exist` } };
     if (mode === "select" && cols !== "*") {
@@ -54,7 +79,9 @@ function builder(table) {
     }
     let out = rows();
     if (limit != null) out = out.slice(0, limit);
-    return { data: wantCount ? null : out, error: null, count: wantCount ? rows().length : undefined };
+    // Copies, like PostgREST: a row read before an update must not change
+    // underneath the handler (the restock flip compares before/after).
+    return { data: wantCount ? null : out.map((r) => ({ ...r })), error: null, count: wantCount ? rows().length : undefined };
   };
   const api = {
     select(c, opts) { if (c) cols = c; if (opts && opts.count) wantCount = true; return api; },
@@ -64,6 +91,9 @@ function builder(table) {
     upsert(p) { mode = "upsert"; payload = p; return api; },
     update(p) { mode = "update"; payload = p; return api; },
     eq(col, val) { filters.push((r) => String(r[col]) === String(val)); return api; },
+    // PostgREST `or()` filter string, the subset api/admin/catalog.js uses:
+    // "a.eq.1,and(b.eq.2,c.is.null)" (opt cycle 11, restock proof).
+    or(expr) { filters.push(orPredicate(expr)); return api; },
     order() { return api; },
     limit(n) { limit = n; return api; },
     async maybeSingle() { const r = run(); return { data: r.data ? r.data[0] || null : null, error: r.error }; },

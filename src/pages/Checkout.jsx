@@ -10,6 +10,7 @@ import SEO from "../components/SEO";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import CheckoutResearchCheckbox from "../components/CheckoutResearchCheckbox";
 import { trackBeginCheckout } from "../utils/track";
+import { REDEEM_INCREMENT, redeemDollars } from "../utils/loyalty";
 
 const money = (n) =>
   `$${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -237,7 +238,7 @@ export default function Checkout() {
                     </p>
                   </div>
 
-                  {pointsBalance >= 100 && (
+                  {pointsBalance >= REDEEM_INCREMENT && (
                     <div>
                       <label
                         htmlFor="redeem"
@@ -253,16 +254,16 @@ export default function Checkout() {
                       >
                         <option value={0}>Don&apos;t redeem points</option>
                         {Array.from(
-                          { length: Math.floor(pointsBalance / 100) },
-                          (_, i) => (i + 1) * 100
+                          { length: Math.floor(pointsBalance / REDEEM_INCREMENT) },
+                          (_, i) => (i + 1) * REDEEM_INCREMENT
                         ).map((p) => (
                           <option key={p} value={p}>
-                            {p.toLocaleString()} pts — ${((p / 100) * 5).toLocaleString()} off
+                            {p.toLocaleString()} pts — ${redeemDollars(p).toLocaleString()} off
                           </option>
                         ))}
                       </select>
                       <p className="text-[10px] text-se-steel/70 font-accent mt-1.5">
-                        100 pts = $5. Validated against your balance at payment.
+                        {REDEEM_INCREMENT} pts = ${redeemDollars(REDEEM_INCREMENT)}. Validated against your balance at payment.
                       </p>
                     </div>
                   )}

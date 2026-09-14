@@ -66,14 +66,21 @@ export default async function handler(req, res) {
       if (profErr) console.warn("Partner apply: profile update failed", profErr);
     }
 
-    await sendConciergeRequestEmail({
-      type: "partner_application",
-      payload: {
-        ...payload,
-        accountId: user?.id || null,
-        accountEmail: user?.email || null,
-      },
-    });
+    // Best-effort notification (opt cycle 11): the application is already
+    // stored and visible in the Control Room; a missing RESEND_API_KEY or a
+    // transport failure must not turn a saved application into a 500.
+    try {
+      await sendConciergeRequestEmail({
+        type: "partner_application",
+        payload: {
+          ...payload,
+          accountId: user?.id || null,
+          accountEmail: user?.email || null,
+        },
+      });
+    } catch (mailErr) {
+      console.warn("Partner apply: notification email failed", mailErr?.message || mailErr);
+    }
 
     return json(res, 200, { ok: true });
   } catch (e) {

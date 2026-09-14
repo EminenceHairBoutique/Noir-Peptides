@@ -212,6 +212,7 @@ its screen or command. The same twelve, with the exact command:
 | D3 | Repository private | GitHub → Settings → Danger zone |
 | D4 | Domain, `VITE_SITE_URL`, `PROD_URL` + `CANONICAL_HOST` variables | Vercel → Domains / Environment Variables; GitHub → Settings → Variables |
 | D5 | Labs, lookup codes, CAS, certificate files | Control Room → COA Manager (Upload PDF / JPG per certificate) |
+| D5b | Sequence · molecular weight · CAS for the 33 products without them (11 transcribed in cycle 11; never engine-invented) | Control Room → Catalog → product row → Specs (format-validated; the Owner Sprint tab counts coverage) |
 | D6 | Counsel: category posture, code names | Control Room → Catalog (soft-launch toggle; Code name per product) |
 | D7 | GLP-1 pricing | state the prices → re-seed |
 | D8 | BTCPay live smoke | `docs/LAUNCH_CHECKLIST.md` |

@@ -8,6 +8,7 @@ import AgeGate from "./components/AgeGate";
 const CartDrawer = lazy(() => import("./components/CartDrawer"));
 import useRouteAnalytics from "./hooks/useRouteAnalytics";
 import { FEATURES } from "./config/features";
+import CartRecoveryNudge from "./components/CartRecoveryNudge";
 
 // Layout
 import Navbar from "./components/Navbar";
@@ -64,6 +65,7 @@ const Success = lazy(() => import("./pages/Success"));
 const Cancel = lazy(() => import("./pages/Cancel"));
 const Account = lazy(() => import("./pages/Account"));
 const Contact = lazy(() => import("./pages/Contact"));
+const Partners = lazy(() => import("./pages/Partners"));
 const Faqs = lazy(() => import("./pages/Faqs"));
 const CoaPolicy = lazy(() => import("./pages/CoaPolicy"));
 const Quality = lazy(() => import("./pages/Quality"));
@@ -153,6 +155,7 @@ export default function App() {
       <Suspense fallback={null}>
         <CartDrawer />
       </Suspense>
+      {FEATURES.cartRecovery && !isBare && <CartRecoveryNudge />}
 
       <div
         className={`transition-all duration-300 ${
@@ -235,6 +238,7 @@ export default function App() {
               <Route path="/faq" element={<Page><Faqs /></Page>} />
               <Route path="/faqs" element={<Page><Faqs /></Page>} />
               <Route path="/contact" element={<Page><Contact /></Page>} />
+              <Route path="/partners" element={<Page><Partners /></Page>} />
 
               {/* ── GATED (auth + attestation) ── */}
               <Route path="/home" element={<Page><RequireAuth><ResearcherConsole /></RequireAuth></Page>} />

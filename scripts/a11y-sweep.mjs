@@ -14,7 +14,10 @@ import { sitemapRoutes } from "./_sitemap-routes.mjs";
 import { seedCart, fillCheckoutStep1, continueToPayment } from "../tests/e2e/fixtures/checkout.js";
 const [base = "http://localhost:4180", out = ".a11y-report.json"] = process.argv.slice(2);
 const exe = process.env.PLAYWRIGHT_CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const KEY_ROUTES = ["/", "/shop", "/product/bpc-157", "/test-results", "/documents", "/legal/ruo-agreement", "/verify-lot", "/login", "/faqs"];
+// Opt cycle 11: a certificate-bearing product page and a batch-history
+// permalink joined the key set — the first all-routes CI sweep found
+// target-size / link-in-text-block findings there that the key set missed.
+const KEY_ROUTES = ["/", "/shop", "/product/bpc-157", "/product/glow", "/test-results", "/test-results/bpc-157", "/documents", "/legal/ruo-agreement", "/verify-lot", "/login", "/faqs", "/partners"];
 // Opt cycle 9 (addendum B1): A11Y_ALL_ROUTES=1 sweeps EVERY route in the
 // sitemap (plus the key routes that are deliberately not in it, e.g. /login).
 // A11Y_ROUTES="/contact,/about" sweeps only those (for iterating on one page).

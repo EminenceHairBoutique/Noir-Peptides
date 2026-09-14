@@ -1,11 +1,53 @@
 # Noir Peptides — Launch Readiness
 
-_Last updated: 2026-09-13 (opt cycle 9)_
+_Last updated: 2026-09-13 (opt cycle 11)_
 
 This tracks the Launch Remediation work (6 tasks) and what remains before going
 live. Branch: `claude/noir-peptides-launch-UwkB3`.
 
 ---
+
+## ✅ Done (Sept-13 optimization cycle 11 — branch `claude/opt-cycle-11-20260913`, stacked on cycle 10, Draft PR)
+
+The addendum's "Cycle 4 — polish to nine everywhere + growth foundations"
+(`OPTIMIZATION_LOG.md`, cycle 11):
+
+- **Performance, moved:** a paint-first loader (`public/boot.js`) starts the
+  JavaScript wave after the first painted frame, and every prerendered shell
+  carries the route's largest above-the-fold paragraph. Lighthouse LCP
+  (mobile simulation, median of 5) on the four gated routes: `/` 3.1 → 1.4 s,
+  `/shop` 3.3 → 1.9 s, product page 3.1 → 1.5 s, `/test-results` 3.3 → 1.5 s.
+  **CI proof: the `Evidence` check is green on the PR head** (run 34789025447 —
+  LCP 1.5–2.0 s on all four routes, CLS 0, TBT ≤ 135 ms); performance is
+  scored 9 (10 needs the live host).
+- **Specifications, honest:** sequence / molecular weight / CAS for the 12
+  products with verified values (transcribed, CAS check-digit validated;
+  migration `0038`, update-only — `docs/MIGRATIONS_0038.md`); the panel omits
+  what it does not know instead of printing "—"; the Control Room edits the
+  three fields (format-validated); the other 32 are **owner data** (Owner
+  Sprint row D5b counts them).
+- **Certificates in every build:** the 19 published certificates already in
+  the live table are mirrored from their migration, so `/test-results`, the
+  15 batch-history permalinks (sitemap 73 → 89 with `/partners`) and the
+  product pages render them without database access; product cards show the
+  real "✓ COA · lot" chip.
+- **Growth foundations (4.14), zero product-benefit copy:** the promo /
+  points spend path is back on the routed checkout (server-validated hints;
+  the balance comes from the server; one redemption rate shared by client
+  and server, executed tests); `/partners` wholesale / institutional request
+  page on the existing apply endpoint (a saved application no longer 500s
+  when the email transport is unset); restock notices proven by execution;
+  a saved-cart return nudge behind `VITE_FEATURE_CART_RECOVERY` (default
+  off) with a drafted reminder template nothing sends.
+- **UI from the screenshot matrix:** consent sheet 39 % → 32 % of a phone
+  viewport and clear of the bottom nav; checkout step 1 gets a summary strip
+  at the top with a jump link; shop card chips no longer collide at 390 px;
+  design tokens have one source (`docs/DESIGN_TOKENS.md`, gated).
+
+**Owner Sprint status:** none complete. New for D2: migration `0038`. New
+decision: `VITE_FEATURE_CART_RECOVERY` (default off). PR #42 was closed by
+GitHub when the cycle-9 branch was deleted after #41 merged; **PR #43** is
+cycle 10 unchanged against `main`; cycle 11 stacks on it.
 
 ## ✅ Done (Sept-13 optimization cycle 10 — branch `claude/opt-cycle-10-20260913`, stacked on cycle 9, Draft PR)
 

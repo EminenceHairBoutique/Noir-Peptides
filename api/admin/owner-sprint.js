@@ -63,6 +63,12 @@ export async function deriveOwnerSprint(env = process.env) {
   const labs = await countOf("labs");
   const labsWithTemplate = await countOf("labs", (q) => q.not("public_lookup_url_template", "is", null));
 
+  // D5b — dry specs on record (opt cycle 11): sequence, molecular weight, CAS.
+  const total = await countOf("products");
+  const withSeq = await countOf("products", (q) => q.not("peptide_sequence", "is", null));
+  const withMw = await countOf("products", (q) => q.not("molecular_weight", "is", null));
+  const withCasP = await countOf("products", (q) => q.not("cas_number", "is", null));
+
   // D6 — the posture decisions that exist as data.
   const codeNamed = await countOf("products", (q) => q.not("code_name", "is", null));
   const hiddenCats = await countOf("product_categories", (q) => q.eq("soft_launch_hidden", true));
@@ -81,6 +87,10 @@ export async function deriveOwnerSprint(env = process.env) {
       status: published == null ? "grey" : published > 0 && withCode === published && withCas === published && withFile === published && (labsWithTemplate ?? 0) > 0 ? "green" : (withCode || withCas || withFile || labs) ? "partial" : "grey",
       detail: published == null ? "coas table not readable" : `${published} published certificate(s): ${withCode ?? "?"} lab-linked, ${withCas ?? "?"} with CAS, ${withFile ?? "?"} with a file; ${labs ?? "?"} lab(s), ${labsWithTemplate ?? "?"} with a lookup template`,
       how: "Control Room → COA Manager (needs 0032): add the lab, enter the lookup code + CAS per certificate, upload the PDF" },
+    { id: "D5b", title: "Dry specs on every product (sequence · MW · CAS)",
+      status: total == null ? "grey" : total > 0 && withSeq === total && withMw === total && withCasP === total ? "green" : (withSeq || withMw || withCasP) ? "partial" : "grey",
+      detail: total == null ? "products table not readable" : `${total} products: ${withSeq ?? "?"} with a sequence, ${withMw ?? "?"} with a molecular weight, ${withCasP ?? "?"} with a CAS. Only transcribed values — the engine never derives a spec.`,
+      how: "Control Room → Catalog → Specs per product (from the supplier's document or the certificate); migration 0038 seeds the 11 verified ones" },
     { id: "D6", title: "Counsel: category posture and code names",
       status: (codeNamed ?? 0) > 0 || (hiddenCats ?? 0) > 0 ? "partial" : "grey",
       detail: `${codeNamed ?? "?"} product(s) with a code name; ${hiddenCats ?? "?"} category(ies) soft-launch hidden. The sign-off itself is recorded in LAUNCH_READINESS.md.`,

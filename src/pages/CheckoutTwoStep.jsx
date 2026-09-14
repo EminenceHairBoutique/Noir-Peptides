@@ -28,6 +28,7 @@ import StepPayment from "../components/checkout/StepPayment";
 import { isStep1Valid } from "../lib/checkoutValidation";
 import { CHECKOUT_ATTESTATION_VERSION, CHECKOUT_ATTESTATION_IDS } from "../config/checkoutAttestations";
 import { trackBeginCheckout } from "../utils/track";
+import { REDEEM_INCREMENT, redeemDollars } from "../utils/loyalty";
 
 const money = (n) => `$${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const emptyAddr = { institution: "", contactName: "", line1: "", line2: "", city: "", state: "", zip: "", phone: "" };
@@ -101,6 +102,17 @@ export default function CheckoutTwoStep() {
   useEffect(() => { writeCheckoutDraft(form); }, [form]);
 
   const subtotal = Number(total) || 0;
+  const itemCount = items.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
+  // Opt cycle 11 (4.14): promo + points are optional hints; the server derives
+  // every dollar (computeAdjustments). Balance is the server-hydrated
+  // profiles.loyalty_points, so the select never offers points the server
+  // would reject.
+  const [promoCode, setPromoCode] = useState("");
+  const [redeemPoints, setRedeemPoints] = useState(0);
+  const pointsBalance = Math.max(0, Math.floor(Number(user?.loyaltyPoints) || 0));
+  const redeemable = Math.floor(pointsBalance / REDEEM_INCREMENT) * REDEEM_INCREMENT;
+  const pointsToRedeem = Math.min(Math.max(0, Math.floor(redeemPoints / REDEEM_INCREMENT) * REDEEM_INCREMENT), redeemable);
+  const rewardsEstimate = Math.min(redeemDollars(pointsToRedeem), subtotal);
   const step1Valid = useMemo(() => isStep1Valid(form), [form]);
 
   // A ref, not state: two clicks in the same task both see submitting=false.
@@ -145,9 +157,14 @@ export default function CheckoutTwoStep() {
     }
   };
 
-  const onPay = async (rail) => {
+  const onPay = async (rail, spend = {}) => {
     clearCheckoutDraft();
     if (!rail) return;
+    const discountCode = String(spend.discountCode ?? promoCode ?? "").trim().toUpperCase().slice(0, 32);
+    const points = Math.min(
+      Math.max(0, Math.floor((Number(spend.redeemPoints ?? redeemPoints) || 0) / REDEEM_INCREMENT) * REDEEM_INCREMENT),
+      redeemable
+    );
     setError(null);
     setSubmitting(true);
     try {
@@ -165,6 +182,10 @@ export default function CheckoutTwoStep() {
           complianceId: complianceId || undefined,
           requestToken: requestTokenRef.current,
           brand: "Noir Peptides",
+          // Hints only — the server validates the code and the balance and
+          // derives the dollars (lib/pricing.js computeAdjustments).
+          discountCode: discountCode || undefined,
+          redeemPoints: points > 0 ? points : undefined,
         }),
       });
       if (!res.ok) {
@@ -206,11 +227,29 @@ export default function CheckoutTwoStep() {
         <h1 className="sr-only">Checkout — step {step} of 2: {step === 1 ? "Personal" : "Payment"}</h1>
         <ProgressBar step={step} />
             <DisclaimerBanner className="mb-6" />
+            {step === 1 && (
+              /* Opt cycle 11 (4.8 F4): on one-column layouts the order summary
+                 sat 3 000 px down a 5 400 px page. A compact strip at the top
+                 of step 1 carries the count and subtotal and jumps to it. */
+              <div className="lg:hidden glass-panel px-4 py-3 mb-6 flex items-center justify-between gap-3" data-testid="summary-strip">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-accent text-se-bone">
+                    {itemCount} {itemCount === 1 ? "item" : "items"} · Subtotal {money(subtotal)}
+                  </p>
+                  <p className="text-[11px] font-accent text-se-steel">Shipping calculated at payment</p>
+                </div>
+                <a href="#order-summary" className="shrink-0 inline-flex items-center min-h-[44px] px-3 text-[11px] font-accent uppercase tracking-[0.14em] text-se-gold hover:text-se-bone">
+                  View summary
+                </a>
+              </div>
+            )}
             {step === 1 ? (
               <StepPersonal submitting={submitting} state={form} setState={setForm} subtotalDollars={subtotal}
                 showErrors={showErrors} onContinue={onContinue} user={user} />
             ) : (
               <StepPayment onBack={() => { setStep(1); window.scrollTo({ top: 0 }); }} onPay={onPay}
+                promoCode={promoCode} setPromoCode={setPromoCode}
+                redeemPoints={pointsToRedeem} setRedeemPoints={setRedeemPoints} pointsBalance={pointsBalance}
                 submitting={submitting} error={error} selectedRail={selectedRail} setSelectedRail={setSelectedRail} />
             )}
             {step === 1 && error && <p className="text-[12px] text-se-red-bright font-accent mt-4">{error}</p>}
@@ -218,7 +257,7 @@ export default function CheckoutTwoStep() {
 
           {/* Order summary */}
           <div className="lg:col-span-5">
-            <div className="sticky top-28 glass-panel p-6">
+            <div id="order-summary" className="sticky top-28 glass-panel p-6 scroll-mt-28">
               <h2 className="font-display text-[14px] tracking-[0.1em] mb-6">ORDER SUMMARY</h2>
               <div className="space-y-4">
                 {items.map((item) => (
@@ -243,9 +282,21 @@ export default function CheckoutTwoStep() {
                   <span className="text-se-steel">{form.shippingMethod ? "Calculated at payment" : "Select a method"}</span>
                 </div>
                 <p className="text-[10px] text-se-steel font-accent uppercase tracking-[0.14em]">Ships within the United States only</p>
+                {promoCode.trim() && (
+                  <div className="flex justify-between text-[13px] font-accent">
+                    <span className="text-se-bone/60">Promo code</span>
+                    <span className="text-se-steel">{promoCode.trim()} · validated at payment</span>
+                  </div>
+                )}
+                {pointsToRedeem > 0 && (
+                  <div className="flex justify-between text-[13px] font-accent" data-testid="rewards-estimate">
+                    <span className="text-se-bone/60">Rewards ({pointsToRedeem.toLocaleString()} pts)</span>
+                    <span>−{money(rewardsEstimate)}</span>
+                  </div>
+                )}
                 <div className="divider" />
                 <div className="flex justify-between text-[15px] font-accent font-medium">
-                  <span>Total</span><span>{money(subtotal)}</span>
+                  <span>Total</span><span>{money(Math.max(0, subtotal - rewardsEstimate))}</span>
                 </div>
                 <p className="text-[10px] text-se-steel/70 font-accent">Final total incl. shipping shown at payment; the server is authoritative on price.</p>
               </div>

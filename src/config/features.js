@@ -3,6 +3,7 @@
 //
 //   VITE_FEATURE_CALCULATOR  → /calculator (otherwise renders the 404 page)
 //   VITE_FEATURE_AI_PUBLIC   → /assistant  (otherwise renders the 404 page)
+//   VITE_FEATURE_CART_RECOVERY → saved-cart return nudge (opt cycle 11)
 //
 // Both default OFF. The server mirror (api/_utils/features.js) gates the AI
 // endpoints themselves from FEATURE_AI_PUBLIC, so a client flag alone cannot

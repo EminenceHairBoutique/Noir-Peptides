@@ -97,6 +97,7 @@ const FALLBACK_ACCESS = {
   role: "customer",
   attestationCompletedAt: null,
   attestationVersion: null,
+  loyaltyPoints: 0,
 };
 
 export const UserProvider = ({ children }) => {
@@ -114,7 +115,7 @@ export const UserProvider = ({ children }) => {
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "account_tier, partner_status, partner_tier, role, attestation_completed_at, attestation_version"
+          "account_tier, partner_status, partner_tier, role, attestation_completed_at, attestation_version, loyalty_points"
         )
         .eq("id", userId)
         .maybeSingle();
@@ -128,6 +129,10 @@ export const UserProvider = ({ children }) => {
         role: data?.role || "customer",
         attestationCompletedAt: data?.attestation_completed_at ?? null,
         attestationVersion: data?.attestation_version ?? null,
+        // Opt cycle 11 (4.14): the balance the server will honour at checkout
+        // (profiles.loyalty_points, maintained by the payment webhooks) — the
+        // client no longer displays a locally accrued number.
+        loyaltyPoints: Math.max(0, Math.floor(Number(data?.loyalty_points) || 0)),
       };
     } catch (_e) {
       return { ...FALLBACK_ACCESS };

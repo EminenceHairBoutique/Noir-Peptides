@@ -59,6 +59,11 @@ function write() {
     for (const f of old.slice(0, Math.max(0, old.length - KEEP_LIVE))) fs.rmSync(path.join(d, f));
   }
   if (!fs.existsSync(path.join(wt, "README.md"))) fs.writeFileSync(path.join(wt, "README.md"), README);
+  // Opt cycle 11: Vercel's Git integration deploys every pushed branch; this
+  // one has no site, so each push became a failed preview deployment. An
+  // ignoreCommand that exits 0 tells Vercel to skip the build for this
+  // branch (belt) — the code branches' vercel.json also disables it (braces).
+  fs.writeFileSync(path.join(wt, "vercel.json"), JSON.stringify({ ignoreCommand: "exit 0" }, null, 2) + "\n");
 }
 function commitAndPush() {
   git(wt, "add", "-A");

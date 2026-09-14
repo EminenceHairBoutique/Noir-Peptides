@@ -1330,6 +1330,37 @@ function SdsRow({ row, onSaved, onError }) {
    counsel raised is therefore a data entry here, not a deploy. The server
    holds the text to the public-copy rules and an empty value clears it.
    Hidden until the API returns the 0036 column. */
+/* ── Dry specs (opt cycle 11, 4.4) ──────────────────────────────────────────
+   Sequence, molecular weight and CAS as the supplier document or certificate
+   states them. The server validates the shapes (CAS check digit, "N g/mol")
+   and scans for use language; blank clears. The panel on the product page
+   shows only what is on record. */
+function SpecsRow({ row, onSaved, onError }) {
+  const [edit, setEdit] = useState({ peptide_sequence: row.peptide_sequence ?? "", molecular_weight: row.molecular_weight ?? "", cas_number: row.cas_number ?? "" });
+  const [busy, setBusy] = useState(false);
+  const dirty = edit.peptide_sequence !== (row.peptide_sequence ?? "") || edit.molecular_weight !== (row.molecular_weight ?? "") || edit.cas_number !== (row.cas_number ?? "");
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await adminSend("/api/admin/catalog", "PATCH", { kind: "product", id: row.id, peptide_sequence: edit.peptide_sequence.trim(), molecular_weight: edit.molecular_weight.trim(), cas_number: edit.cas_number.trim() });
+      onSaved("product", r.product, null);
+    } catch (e) { onError(e.message); }
+    finally { setBusy(false); }
+  };
+  const inp = "rounded-lg border border-white/12 bg-white/[0.03] px-2 py-1 text-se-bone text-[12px] font-mono focus:border-se-gold focus:outline-none";
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-2 pl-8 border-t border-white/5" data-testid="specs-row">
+      <span className="text-[11px] uppercase tracking-wide text-se-steel shrink-0">Specs</span>
+      <input type="text" placeholder="Sequence (as documented)" className={`${inp} flex-1 min-w-[220px]`} value={edit.peptide_sequence} onChange={(e) => setEdit((st) => ({ ...st, peptide_sequence: e.target.value }))} />
+      <input type="text" placeholder="MW, e.g. 1419.53 g/mol" className={`${inp} w-[170px]`} value={edit.molecular_weight} onChange={(e) => setEdit((st) => ({ ...st, molecular_weight: e.target.value }))} />
+      <input type="text" placeholder="CAS, e.g. 137525-51-0" className={`${inp} w-[150px]`} value={edit.cas_number} onChange={(e) => setEdit((st) => ({ ...st, cas_number: e.target.value }))} />
+      <button onClick={save} disabled={!dirty || busy} className="text-[11px] rounded border border-se-gold/40 text-se-gold px-3 py-1 hover:bg-se-gold/10 disabled:opacity-30">
+        {busy ? "Saving…" : "Save"}
+      </button>
+    </div>
+  );
+}
+
 function CodeNameRow({ row, onSaved, onError }) {
   const supported = "code_name" in row;
   const [edit, setEdit] = useState(row.code_name ?? "");
@@ -1514,6 +1545,7 @@ function CatalogManager() {
                 <>
                   <SdsRow row={p} onSaved={onSaved} onError={setErr} />
                   <CodeNameRow row={p} onSaved={onSaved} onError={setErr} />
+                  <SpecsRow row={p} onSaved={onSaved} onError={setErr} />
                 </>
               )}
               {open.has(p.id) && vs.map((v) => (

@@ -25,11 +25,12 @@ const ok = (cond, msg) => {
 // folds the client to null and reads ~45 KB lighter — that is not the
 // number a buyer sees). Raise only with a reason in OPTIMIZATION_LOG.md.
 const BUDGET = {
-  "/": { kb: 370, requests: 30 },
-  "/shop": { kb: 390, requests: 42 },
-  "/product/bpc-157": { kb: 410, requests: 56 },
-  "/test-results": { kb: 380, requests: 34 },
-  "/faqs": { kb: 370, requests: 30 },
+  // +1 request per route since opt cycle 11: /boot.js, the paint-first loader.
+  "/": { kb: 372, requests: 31 },
+  "/shop": { kb: 392, requests: 43 },
+  "/product/bpc-157": { kb: 412, requests: 57 },
+  "/test-results": { kb: 382, requests: 35 },
+  "/faqs": { kb: 372, requests: 31 },
 };
 const HEAVY = /vendor-three|vendor-pdf|jsQR|LabelPreview-|\bbrowser-/;
 const browser = await chromium.launch({ executablePath: fs.existsSync(exe) ? exe : undefined });

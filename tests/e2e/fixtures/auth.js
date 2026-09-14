@@ -38,11 +38,12 @@ export function sessionFor(user = E2E_USER) {
 }
 
 /** Profile row the app reads through PostgREST. `attested: false` → stale/absent attestation. */
-export function profileFor({ attested = true, version = "v1.0" } = {}) {
+export function profileFor({ attested = true, version = "v1.0", points = 0 } = {}) {
   return {
     account_tier: "customer", partner_status: "none", partner_tier: null, role: "customer",
     attestation_completed_at: attested ? "2026-09-01T00:00:00Z" : null,
     attestation_version: attested ? version : null,
+    loyalty_points: points,
   };
 }
 

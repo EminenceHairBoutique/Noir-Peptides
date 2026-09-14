@@ -1,11 +1,12 @@
 // src/components/PeptideSpecsPanel.jsx
 // Technical specification panel for a research peptide. Mono font for
-// values. Missing values render as "—" gracefully.
+// values. A value that is not on record is OMITTED (opt cycle 11): the panel
+// states what is verified and nothing else — no "—" placeholders.
 import React from "react";
 
 function Row({ label, value }) {
-  const display =
-    value === null || value === undefined || value === "" ? "—" : value;
+  if (value === null || value === undefined || value === "") return null;
+  const display = value;
   return (
     <div className="flex items-start justify-between gap-6 py-3 border-b border-se-concrete/60">
       <span className="text-[11px] font-accent uppercase tracking-[0.16em] text-se-steel shrink-0">

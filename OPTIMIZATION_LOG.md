@@ -1997,3 +1997,330 @@ applied to live (0037 is additive and unapplied), no price / visibility /
 flag change, no pricing / shipping / checkout-session / btcpay file touched.
 
 **Rollback.** Revert the branch.
+
+---
+
+## Cycle 11 — 2026-09-13 (addendum "Cycle 4 — polish to nine everywhere + growth foundations")
+
+**HEAD before:** `24900d9` (cycle-10 branch, PR #42 Draft, stacked on #41).
+**Branch:** `claude/opt-cycle-11-20260913`, stacked on cycle 10.
+
+### RECON
+
+- **CI on #42:** CI green (incl. the mobile step); DB gates green; Migration
+  hygiene was red on `0037` (bare Postgres has no `storage.buckets`) — guarded,
+  green expected on the re-run; Evidence red on Lighthouse only (CI medians
+  `/` 2968 · `/shop` 3285 · PDP 2746 · `/test-results` 3276 ms). #41: DB gates
+  green on run #2. Both PRs carry one engine comment naming the LCP gate.
+- **The mechanism, measured (H-012), unthrottled at 390 px:**
+
+  | route | JS blocked: LCP candidate at FCP | with JS: what wins |
+  | --- | --- | --- |
+  | `/` | shell `<p>` 26,496 px² at 116 ms | React hero `<p>` **29,991** px² at 484 ms (larger) |
+  | `/shop` | shell `<p>` 26,358 px² | React RUO `<p>` **32,791** px² at 416 ms (larger) |
+  | `/product/bpc-157` | shell `<p>` **54,003** px² | nothing larger — the shell should win, but it never gets a frame |
+  | `/test-results` | shell `<p>` 35,154 px² | React `<p>` **40,464** px² at 400 ms (larger) |
+
+  With JS present the shell is replaced before the first frame is presented
+  (the first candidate with JS is the cookie banner's paragraph at 72 ms), so
+  the observed LCP is always React's paint and the simulator charges the
+  whole pre-paint request graph to it. Two conditions make the paint the
+  shell's: the JS wave must start **after** the first frame, and each shell
+  paragraph must be **at least as large** as React's largest above-the-fold
+  text on that route (the PDP already is — it is the route nearest the
+  budget in CI, 2586 ms).
+- **From the screenshot matrix (cycle 9 run, 4.8 notes in the log's plan):**
+  consent dialog covered every fold (fixed in the matrix; product fix F2
+  below); PDP spec rows show "—" for sequence / MW / CAS on all 44 (the
+  static catalog and the 0009 seed carry none by design; 12 verified values
+  exist in the retired 0001 rows); About/Deals `whileInView` blanks (matrix
+  fixed); checkout summary at the bottom on mobile; cart badge 1 vs 4.
+- **Growth (4.14) reality:** the routed checkout sends no `redeemPoints` /
+  `discountCode` while the account page promises points; partner pricing is
+  dormant schema; `api/partners/apply.js` has no page; restock is done but
+  source-grep-tested only; no scheduler writes to the site.
+- **Tokens (4.8):** `tailwind.config.js` is dead (a different brand, zero
+  references), `src/input.css` unreferenced, three dead `--font-family-*`
+  `@theme` lines, hex values duplicated between `:root` and `@theme`; 37 hex
+  / 9 rgba / 23 arbitrary-colour literals and 737 `text-[…]` sizes in JSX.
+
+### PLAN (written before execution; one commit per item, in this order)
+
+1. **[4.7] Paint-first loader + shell parity**, measured through
+   `scripts/perf-lhci.mjs` (5 runs), shipped only on a win: `public/boot.js`
+   (external `src` script — the only loader shape the CSP gate lets through;
+   waits two frames, then appends the modulepreloads and the module script);
+   the generator strips Vite's entry tag + vendor preloads from the template
+   and feeds the per-route chunk list to the loader; shell paragraphs sized
+   ≥ React's (`/`, `/shop`, `/test-results`), `/shop`'s intro un-drifted via a
+   shared constant, the hero disclaimer in the `/` shell; tests updated
+   (route-preload extractor, routing's 404 literal, bytes +1 request, SW
+   install list).
+2. **[4.4] Specs — verified only:** the 12 transcribed values (from the retired
+   0001 rows) into the static catalog + an update-only migration `0038`;
+   Control Room fields for sequence / MW / CAS (format-validated); the panel
+   omits empty rows; `test-product-specs` reports the count; the other 32 are
+   owner data (D5b in the Owner Sprint).
+3. **[4.4/4.6] Batch-history permalinks in every build** from a static mirror of
+   the 19 seeded certificates; PDP ↔ permalink links in the crawlable HTML;
+   sitemap 73 → 88.
+4. **[4.14] Growth foundations:** executed loyalty-coherence test + the spend
+   path wired on step 2 (client only); `/partners` request page on the existing
+   endpoint; executed restock test; abandoned-cart nudge + draft template
+   behind a default-off flag; tokens audit (dead config removed, ratchet test,
+   `docs/DESIGN_TOKENS.md`).
+5. **[4.8] UI:** consent as a bottom sheet at ≤ 640 px; checkout summary strip;
+   cart-badge investigation; re-shot matrix + per-route notes.
+6. §F report, PLAYBOOK, docs, full gate, push, Draft PR (C6).
+
+Generators: Cost/perf (bytes & requests) leads with a *structural* change
+measured through the gate; Data honesty (specs never fabricated; 12
+transcribed, 32 escalated); Buyer walk (the matrix notes); Failure injection
+(loader fallback when rAF never fires); Regulator walk (wholesale + cart copy).
+
+### EXECUTION — results
+
+| # | Item | Commit(s) | Result |
+| --- | --- | --- | --- |
+| 1 | [4.7] Paint-first loader + shell parity | `7f8958c` | **Shipped on a measured win** (5 runs, LHCI lane): `/` 3097 → 1366 ms · `/shop` 3313 → 1862 · PDP 3140 → 1503 · `/test-results` 3264 → 1504; CLS 0; TBT flat. Final tree re-measured below. `public/boot.js` is an external `src` script — the only loader shape the CSP gate admits (H-015); no CSP edit. |
+| 2 | [4.4] Specs, verified only | `f7e02c5` | 11 products with transcribed sequence / MW / CAS (TB-500 excluded: the retired row annotated parent-protein values; CJC-1295 has no CAS in the source). `0038_product_specs.sql` update-only, byte-generated; panel omits unknown rows; Control Room fields format-validated; Owner Sprint **D5b** counts coverage (11 / 44 → owner data). |
+| 3 | [4.4/4.6] Batch permalinks in every build | `a6082e5` | `src/data/coaSeed.js` mirrored from migration 0019 (19 rows, 15 products; byte-compared); `/test-results` + 15 permalinks + PDP certificate cards in env-less builds; `coaSource: "db" \| "seed"` in `prerender-meta.json`; crawlable "Full batch history" link on every PDP with certificates. Sitemap 73 → 88. |
+| 3b | QR chunk on first paint | `50bd5e1` | The seeded cards mounted `QrCode`, which eagerly imported the encoder; `test-bytes-budget` caught it. Import now waits for the card to come within 200 px of the viewport (probed: 0 requests at load, 1 on scroll, image renders). |
+| 4a | [4.14] Loyalty coherence | `3f12405` + `84f671e` | One redemption rate (`src/utils/loyalty.js`, imported by `lib/rewards.js` and every spend control; the hard-coded "100 pts = $5" is gone); 38 executed assertions on the real `computeAdjustments` / `validateLoyaltyRedemption` / `validateDiscount`; pricing proven identity-blind (partner pricing dormant, ask-before); spend path on step 2 posts `discountCode` / `redeemPoints` as hints, never dollars; balance hydrated from `profiles.loyalty_points`; E2E spec (350 pts → 100/200/300; 40 pts → no select). The step-2 helper text failed axe contrast at 3.88:1 on first sweep — fixed. |
+| 4b | [4.14] `/partners` | `8b40481` | Wholesale / institutional request page on the existing `POST /api/partners/apply` (which turned a SAVED application into a 500 when RESEND was unset — email now best-effort); logistics copy only, one accepted negation; prerendered + linked + preloaded; executed handler test (honeypot, 400s, column mapping, 405). |
+| 4c | [4.14] Restock proof | `9266023` | `notifyBackInStock` executed through the real PATCH handler with an observable email stub: 18 assertions (flip-only, variant vs product scope, one-shot `notified`, cap 200, unconfigured/failing transport, audit log). Stub fix: row COPIES — the old stub returned the fixture object and hid every before/after comparison. |
+| 4d | [4.14] Cart recovery, default off | `91718b4` | `VITE_FEATURE_CART_RECOVERY` (fourth flag; documented-not-set; read-only on the flags screen); client nudge reads CartContext only, never the checkout draft; `cartReminderHtml` drafted with no sender (a server-sent reminder needs a write-capable scheduler → escalated). |
+| 4e | [4.8] Design tokens | `99d1b15` | `tailwind.config.js` (another brand, zero references) + `src/input.css` deleted; `:root` is the single hex source, `@theme inline` maps onto it; four dead tokens removed; gate with a literal ratchet (hex 37 · rgba 9 · arbitrary 26 · palette re-typed 6); computed colours identical before/after (13 selectors, 0 diffs); CSS −572 B. |
+| 5 | [4.8] UI from the matrix | `035ba9c` (+ cookie offset) | F2 consent sheet 331 → 271 px at 390 (39 % → 32 %) and clear of the 52 px bottom nav; F4 checkout summary strip + jump link; F5 not reproducible (executed: badge 1 throughout); F6 card chips one wrapping row (they collided), tighter padding, form line hidden < 480 px, real "✓ COA · lot" chips (24 px targets; date hidden < 480). Card 386 → 359 px; `/shop` 11 291 → 10 554 px. |
+| 5b | CI follow-ups on PR #44 | `753056c`, `629128c` | axe: 24 px batch-history links, underlined permalink link, key routes widened (+`/product/glow`, `/test-results/bpc-157`, `/partners`); `/shop` TBT: eight animated cards + content-visibility, 128 → 64 ms locally. Vercel: `vercel.json` `git.deploymentEnabled.evidence=false` + skip-build file written into the evidence branch. |
+| 6 | Report, PLAYBOOK, docs, gate, PR | this commit | below |
+
+**Matrix (re-shot on the final tree, 4.8 per-route notes):**
+Re-shot twice on the final tree (`scripts/evidence-screens.mjs`, 372 views = 89
+sitemap routes + 4 gated views × 4 widths; 0 failing, 0 horizontal overflow,
+0 console errors). Fold shots now wait for hydration (the first re-shoot
+caught the raw pre-hydration document on a product page — that frame is
+what a slow device sees for ≈0.4–1 s, so it is now styled as a branded frame;
+nothing hidden). Per-route notes, 390 px unless stated:
+- **`/`** — wordmark, overline, one paragraph, two CTAs, legal links. No change.
+- **`/shop`** — chips no longer collide; cards 359 px tall, page 10.5k px
+  (was 11.3k); the 15 products with published certificates show a real
+  "✓ COA · lot" chip instead of "COA on request". The 44-card grid is still a
+  long scroll: the density lever left (a label-preview thumbnail per card) is
+  measured separately next cycle.
+- **`/product/bpc-157`** — back link, render, IDENTITY / PURITY / BATCH tabs,
+  category overline, name, description, price, size chips above the fold;
+  certificate cards further down with a QR that loads only when scrolled
+  to; "Full batch history" and "All certificates" links are 24 px targets.
+  Technical specification rows render only for known values (11 products).
+- **`/test-results`, `/test-results/<slug>` (15)** — the certificate table and
+  counters are prerendered from the mirrored seed and hydrate without a
+  swap (CLS 0); the in-paragraph product link is underlined.
+- **`/partners`** (new) — overline, heading, intro, eligibility and
+  no-guidance paragraphs, the form on its own card; axe clean.
+- **`/checkout` step 1** — RUO banner, "Signed in as", then the new summary
+  strip ("1 item · Subtotal $44 · Shipping calculated at payment · VIEW
+  SUMMARY") above the contact card; the jump lands the summary card at the
+  top of the viewport.
+- **`/checkout` step 2** — payment rails, then the promo input and (with a
+  balance) the points select, fulfilment statements, Back / Complete
+  payment; helper text at full steel contrast.
+- **`/cart`, `/about`, `/deals`, `/faqs`, `/contact`, `/documents`,
+  `/legal/*`, `/research/*`** — unchanged; the About / Deals `whileInView`
+  blanks of the cycle-9 matrix are gone (the matrix scrolls through before
+  the full-page shot).
+- **First visit** — the age gate is the covering dialog (required, 21+); the
+  cookie sheet, once the gate is passed, is 271 px tall and clears the
+  bottom nav.
+
+**Final-tree LHCI (median of 5, same lane as CI):**
+| route | cycle 10 (CI, `main` 37f01ad) | cycle 11 B1 (loader + parity) | **final tree** (specs, seeded certificates, cards, tokens, shell frame) | budget |
+| --- | --- | --- | --- | --- |
+| `/` | 3130 ms | 1366 ms | **1505 ms** · TBT 33 · CLS 0 · perf 100 | ≤ 2500 |
+| `/shop` | 3630 ms | 1862 ms | **1872 ms** · TBT 128 · CLS 0 · perf 98 | ≤ 2500 |
+| `/product/bpc-157` | 3482 ms | 1503 ms | **1503 ms** · TBT 53 · CLS 0 · perf 100 | ≤ 2500 |
+| `/test-results` | 3308 ms | 1504 ms | **1503 ms** · TBT 40 · CLS 0 · perf 100 | ≤ 2500 · CLS ≤ 0.1 |
+
+The first final-tree run showed `/test-results` at **CLS 0.263** (over the
+gate): with seeded rows in the HTML and the loader, React mounted the page as
+"Loading…" and refilled it when the fetch resolved, moving the footer twice.
+Fixed by hydrating the page from the mirrored rows (`getSeedCoas()`), re-run:
+CLS 0. `evidence/lhci-cycle11-final2/`, local, mobile simulation, 5 runs per
+route, median.
+
+**CI, first Evidence runs on PR #44 (`ci/latest.json` for `cb08150`, run
+34784572145):** LCP **passes on all four routes** — `/` 1657 · `/shop` 1509 ·
+PDP 1510 · `/test-results` 1512 ms (the H-014 CI proof); screens 372 / 0
+failing; crawls green. Two reds, both fixed on the branch afterwards:
+`/shop` TBT 228 ms (budget 200; runners are slower than the sandbox) → eight
+animated cards + `content-visibility` below the fold, 128 → **64 ms**
+locally (5 runs, LCP/CLS unchanged); axe 40 serious on surfaces the seed
+mirror made visible in CI for the first time (`target-size` on the PDP
+batch-history links, `link-in-text-block` on the 15 permalink pages) →
+fixed, and the local key-route sweep widened so it cannot miss them again.
+`/` is bimodal on the local lane (1.37–1.5 s or ≈1.85 s across runs; always
+under budget) — noted, not chased.
+
+**CI, final (head `72b80dc`, Evidence run 34789025447, 23:29Z): GREEN.**
+LCP `/` 1659 · `/shop` 2047 · `/product/bpc-157` 1510 · `/test-results`
+1514 ms (budget 2500); CLS 0; TBT 51 / 135 / 135 / 82 ms (budget 200);
+screens, axe (all routes), link and hygiene crawls green. With `CI`
+(lint · unit · build, migration hygiene, E2E + mobile), `DB gates` and
+GitGuardian green on the same head, PR #44 is fully green — the first
+green Evidence run since the gate was created in cycle 9.
+
+**CI, second finding (E2E job, mobile step, run 34787382668):** 12 mobile
+failures that the local mobile runs had not shown — because the local runs
+went through `serve-dist` while CI's `test:mobile` uses `vite preview`
+(H-011, again). Under preview the page hydrates *after* the tests' first
+measurements: (1) the service worker never registered — `main.jsx` waited
+for the window `load` event, which had already fired by the time the
+paint-first loader ran the module (a real production regression of B1:
+no offline shell on a fast load) → register immediately when
+`document.readyState === "complete"`; (2) the tap-target gate on the
+certificate surfaces (card COA chip 131×28, "View certificate image"
+167×20, "Verify this lot" 71×17, the PDP batch-history links, the inline
+"enter or scan a lot number" link) → 44 px controls / 24 px line box; the
+"COA on request" placeholder now has the chip's height and the shop grid
+seeds its certificate map synchronously so the price row never wraps
+after first paint; (3) the bottom-nav "footer above the bar" spec scrolled
+the un-hydrated shell → it waits for the hydrated footer. Mobile suite
+under `vite preview`: 56/56. Lever B (`content-visibility`) was reverted
+along the way — an instant scroll to the end landed short of the real
+page height; the hoisted certificate map (one state update instead of 44)
+replaced it: `/shop` TBT 100 ms locally (5 runs), LCP/CLS unchanged.
+
+**Vercel:** every pushed code head deploys ("Deployment has completed" on
+the cycle 9, 10 and 11 heads); the failed deployments the owner saw were
+the orphan `evidence` branch (a push per Evidence run, no site). Fixed
+twice over: `git.deploymentEnabled.evidence=false` in `vercel.json` and a
+skip-build `vercel.json` written into the evidence branch by the
+publisher (landed 22:00Z). Owner-side durable option: the project's
+"Ignored Build Step" — escalated.
+
+### SCORECARD DELTA (H-014)
+
+| # | Scorecard | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| 4.4 | Trust | 9 | 9 | permalinks + certificate cards in every build, real COA chips on cards, 11 verified spec sets; still 9: 33 spec sets and every 10-condition are owner data (D5, D5b) |
+| 4.5 | Commerce | 9 | 9 | the spend path exists and is proven; BTCPay idempotency still escalated; 10 = live smoke (D8) |
+| 4.6 | SEO | 9 | 9 | sitemap 73 → 89 with crawlable batch history; 10 = D4 |
+| 4.7 | Performance | 7 | **9** | **CI Evidence green on head `72b80dc`** (run 34789025447: LCP `/` 1659 · `/shop` 2047 · PDP 1510 · `/test-results` 1514 ms, CLS 0, TBT ≤ 135 ms — every hard budget met); with CI, DB gates, hygiene, E2E and mobile all green on the same head this is the H-014 nine. 10 = live Lighthouse on the real host (D4 + a recorded live-probe run) |
+| 4.8 | UI/UX | 7 | **8** | per-route review done from a re-shot matrix, four defects fixed, tokens single-sourced and gated; 9 = a second clean review pass after the owner's iPhone walk (D10) |
+| 4.11 | Admin | 9 | 9 | spec fields + D5b; unchanged otherwise |
+| 4.12 | Observability | 8 | 8 | the live probe is on `main` since #41 merged but has no green run recorded in `evidence/live/` yet (no repo variables set) |
+| 4.14 | Growth | — | **7** | foundations executed (loyalty coherence, wholesale request, restock proof, cart recovery flagged off); 8 = first real wholesale application or redemption observed; 9 = attributed repeat order |
+| others | — | — | unchanged (4.1 9, 4.2 9, 4.3 9, 4.9 9, 4.10 9, 4.13 9) |
+
+### TEN-TRACKER (§F)
+
+| Card | Score | Blocks 9 (engine) | Blocks 10 (owner) | Evidence (path · date) |
+| --- | --- | --- | --- | --- |
+| 4.1 Legal | 9 | — | live scanner = 0 on the real host (D4); counsel (D6) | CI: `ci/latest.json` 37f01ad (main) · 2026-09-13 |
+| 4.2 Security | 9 | — | D1 · D3 · D12 | CI: DB gates green on #41/#42 heads · 2026-09-13 |
+| 4.3 Data | 9 | — | D2 (apply 0031–0038), `db:verify` on prod | CI: DB gates · local `test-coa-seed-sync`, `test-product-specs` |
+| 4.4 Trust | 9 | — | D5 · D5b (33 spec sets) | local: `test-prerender-coverage` (seed branch), sitemap 89 · 2026-09-13 |
+| 4.5 Commerce | 9 | — | D8 (+ BTCPay idempotency key, ask-before) | local: `test-pricing-coherence` 38 ✓, `checkout-rewards.spec` 2 ✓ |
+| 4.6 SEO | 9 | — | D4 | local: link-depth, routing, jsonld-shapes on 95 pages |
+| 4.7 Performance | 9 | — | live Lighthouse (D4 + first probe) | **CI: Evidence run 34789025447 green** (`ci/latest.json` for the #44 head, 2026-09-13 23:29Z) · local: `evidence/lhci-*` 5-run medians |
+| 4.8 UI/UX | 8 | second review pass | D10 | local: `evidence/screens` re-shot 2026-09-13 |
+| 4.9 Accessibility | 9 | — | live axe (first probe) | local sweep 0/0 after two fixes · CI on the PR |
+| 4.10 Mobile | 9 | — | D10 | local: mobile 38/38 (the suite count changed with the reduced-motion + rewards specs) |
+| 4.11 Admin | 9 | — | owner order dry-run | local: `test-admin-screens` (13 rows) · `test-back-in-stock` 18 ✓ |
+| 4.12 Observability | 8 | a recorded green live-probe run | D4 (`PROD_URL` / `CANONICAL_HOST`), D11 | `evidence/live/latest.json`: **none** |
+| 4.13 Hygiene | 9 | — (9 = 10) | — | lint 0/0 · unit chain green · 2026-09-13 |
+| 4.14 Growth | 7 | first observed redemption / application (data, not code) | attributed repeat order | local: the four executed tests above |
+
+### OWNER SPRINT STATUS (§D)
+
+**D1–D12: none evidenced** (`evidence/live/latest.json` absent; no DB gate on
+prod; no repo variables). What moved: **#41 merged** (the live probe now
+exists on `main` — it needs `PROD_URL` / `CANONICAL_HOST` to target the real
+host); D2's list ends at **0038**; **D5b** is a new Owner Sprint row
+(specs: 11 / 44 products carry sequence · MW · CAS — the other 33 are yours
+to enter in the Control Room catalog editor, never the engine's to invent);
+**D10** now has a re-shot matrix to walk against. The Control Room → Owner
+Sprint tab shows each row's live status.
+
+### EVIDENCE PROVENANCE (§F)
+
+- **From CI (read through `scripts/evidence-latest.mjs` at RECON):**
+  `ci/latest.json` for `37f01ad` (**main**, Evidence run 34780258445 —
+  red on Lighthouse only: LCP 3130 / 3630 / 3482 / 3308 ms, CLS 0, axe 0,
+  crawls green). This is the pre-cycle-11 baseline on `main`; the cycle-11
+  PR's Evidence run is the proof that 4.7 crosses to 9.
+- **From this sandbox (2026-09-13):** every number in the tables above,
+  `evidence/screens/*` re-shot on the final tree, `evidence/lhci-*` medians
+  (ignored, not committed).
+- **Live:** none (`evidence/live/latest.json` absent — the probe has not
+  recorded a run; set the repo variables so it targets the real host).
+
+### GENERATOR YIELDS (cycle 11)
+
+Cost/perf 1 (the lead item: a structural change measured through the gate,
+shipped on a win after ten cycles of "measured, not moved") · Data honesty 3
+(transcribed specs / TB-500 excluded; seeded certificates, never synthetic;
+COA chips only from real rows) · Buyer walk 4 (matrix at 390: chips, sheet,
+summary strip, chip clipping) · Regulator walk 2 (wholesale copy; cart
+reminder draft) · Failure injection 3 (loader fallback; restock transports;
+QR chunk on a page that never scrolls) · Ops dry run 2 (spec fields + D5b;
+restock end to end) · Inversion 2 (dead config; dead tokens) · Accessibility
+sweep 2 (contrast, target size — both on brand-new surfaces) · Competitor
+delta not run.
+
+### ESCALATIONS (owner-only; ranked)
+
+1. **PR #43** (cycle 10, unchanged; #42 was closed by GitHub when the
+   cycle-9 branch was deleted) → then **this cycle's PR**, stacked on it.
+   Merge order: #43, then cycle 11.
+2. **D4** repo variables `PROD_URL` / `CANONICAL_HOST` — the live probe is on
+   `main` now and runs every 6 h against the default `*.vercel.app` host until
+   they are set; 4.12 cannot move without a recorded run.
+3. **D2** apply `0031`–`0038` (`0038` is update-only, 11 rows; `docs/MIGRATIONS_0038.md`).
+4. **D5b** enter sequence · MW · CAS for the 33 products without them
+   (Control Room → Catalog; format-validated). Verify TB-500 and CJC-1295
+   with the supplier before entering — the engine would not transcribe them.
+5. **D1** `verify:rls` on prod · **D3** repo private → **D12** rotate.
+6. **BTCPay idempotency key** (`api/btcpay/create-invoice.js`, ask-before) — unchanged.
+7. **Partner pricing** — dormant by design and now *asserted* dormant; turning
+   it on touches `lib/pricing.js` (ask-before). Say if you want a proposal.
+8. **Cart reminder email** — the template exists, nothing sends it; a
+   server-sent version needs a write-capable scheduled workflow (the only
+   cron is the read-only live probe). Decide whether you want it at all.
+9. **Code names on order lines** (`lib/pricing.js`) — unchanged.
+10. **Vercel project setting** — the evidence-branch deployments are stopped
+    in code (both `vercel.json`s); the durable owner-side setting is the
+    project's "Ignored Build Step" / Git branch filter, if you prefer it there.
+11. D6 · D7 · D8 · D9 · D10 (walk the re-shot matrix) · D11 · `VERCEL_DEPLOY_HOOK_URL`.
+
+### What I'd do differently
+
+Look at the gate before the fix (H-015): the CSP gate settled the loader's
+shape in one read, after cycle 10 had planned a hashed inline script. And
+never trust a harness that returns its own fixture objects: the restock
+before/after comparison was invisible until the stub returned copies —
+half a cycle of "it works" tests could have been written against that.
+The seed mirror also changed a production behaviour the E2E build had never
+exercised (the QR encoder on first paint); the bytes gate caught it, which
+is what gates are for.
+
+### PR DRAFT (opened as a Draft per addendum C6, base = the cycle-10 branch)
+
+**Title:** Opt cycle 11 — LCP under 2 s (paint-first loader), verified specs, certificates in every build, growth foundations, matrix fixes
+
+**Summary.** The addendum's "Cycle 4". Performance moved on a structural
+change measured through the Lighthouse lane (all four gated routes
+3.1–3.3 s → 1.4–1.9 s); 11 verified spec sets with an update-only migration;
+the 19 published certificates mirrored so trust pages and permalinks render
+in every build; loyalty coherence executed and the spend path restored;
+`/partners`; restock proven; cart recovery flagged off; design tokens
+single-sourced; four matrix defects fixed.
+
+**Honest state.** 4.7 is 8 until the CI Evidence run on this PR is green.
+No migration applied to live (0038 unapplied), no price / visibility /
+flag change (the new flag defaults off), no pricing / shipping /
+checkout-session / btcpay file touched.
+
+**Rollback.** Revert the branch.
+
+---

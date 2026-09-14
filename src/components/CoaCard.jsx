@@ -119,7 +119,7 @@ export default function CoaCard({ coa, productName, origin = "", showQr = true }
             href={coa.file_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 inline-flex items-center gap-2 text-sm text-se-gold hover:underline"
+            className="mt-2 inline-flex items-center gap-2 min-h-[44px] text-sm text-se-gold hover:underline"
           >
             <FileText size={15} />
             {/* Labelled by the asset's real type (src/lib/coaTable) — an image
@@ -138,7 +138,7 @@ export default function CoaCard({ coa, productName, origin = "", showQr = true }
           <QrCode value={verifyUrl} size={104} alt={`Verify lot ${lot}`} />
           <Link
             to={`/verify-lot?lot=${encodeURIComponent(lot)}`}
-            className="text-[11px] text-se-steel hover:text-se-gold tracking-wide"
+            className="inline-flex items-center min-h-[44px] px-2 text-[11px] text-se-steel hover:text-se-gold tracking-wide"
           >
             Verify this lot
           </Link>

@@ -15,6 +15,7 @@ export const FLAG_INVENTORY = [
   { env: "VITE_FEATURE_CALCULATOR", surface: "/calculator page (client bundle; baked at build)", scope: "client" },
   { env: "VITE_FEATURE_AI_PUBLIC", surface: "/assistant page (client bundle; baked at build)", scope: "client" },
   { env: "FEATURE_AI_PUBLIC", surface: "public AI endpoints (concierge, research assistant, summarizer, semantic search)", scope: "server" },
+  { env: "VITE_FEATURE_CART_RECOVERY", surface: "saved-cart return nudge (client bundle; baked at build)", scope: "client" },
 ];
 
 export function flagStates(env = process.env) {

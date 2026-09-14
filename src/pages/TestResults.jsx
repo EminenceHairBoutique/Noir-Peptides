@@ -15,7 +15,7 @@ import { Search, ChevronDown } from "lucide-react";
 import SEO from "../components/SEO";
 import BatchHistoryTable from "../components/BatchHistoryTable";
 import QrVerifyExplainer from "../components/QrVerifyExplainer";
-import { getAllCoas } from "../lib/coas";
+import { getAllCoas, getSeedCoas } from "../lib/coas";
 import { getAllProducts, getCategories } from "../data/tier1Catalog";
 import { deriveCoaStats, filterCoas, groupByProduct, hasAnyCas } from "../lib/coaStats";
 
@@ -34,8 +34,12 @@ const inputCls =
 export default function TestResults() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const [coas, setCoas] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Opt cycle 11 (4.7 CLS): start from the mirrored published certificates —
+  // the same rows the prerendered HTML carries — so hydration does not swap
+  // a table for "Loading…" and back (CLS 0.26 on the Lighthouse lane). The
+  // live answer replaces them as soon as it arrives.
+  const [coas, setCoas] = useState(() => getSeedCoas());
+  const [loading, setLoading] = useState(() => getSeedCoas().length === 0);
   const [lotQuery, setLotQuery] = useState("");
   const [expanded, setExpanded] = useState({}); // product_id -> bool
 

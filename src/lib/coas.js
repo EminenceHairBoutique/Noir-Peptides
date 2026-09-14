@@ -5,6 +5,7 @@
 // the verifiable, batch-specific COA is the core trust signal (Task 3).
 
 import { supabase } from "./supabaseClient";
+import { COA_SEED } from "../data/coaSeed.js";
 import { selectDegrading } from "./pgSelect";
 
 // Columns that exist before migration 0032 — the degradation target, so a
@@ -36,8 +37,28 @@ function normalize(row) {
 }
 
 /** All published COAs, newest test first. Returns [] on error / none. */
+// Opt cycle 11: without a client (or when the database cannot be reached) the
+// mirrored seed — the same published certificates the database holds — is
+// shown rather than nothing. An EMPTY answer from a reachable database stays
+// empty: the database is the record.
+const seedAll = () => COA_SEED.filter((r) => r.is_published).map(normalize);
+const seedFor = (productId) => seedAll().filter((r) => r.product_id === productId);
+
+/**
+ * Synchronous first paint for the trust pages: the mirrored published
+ * certificates, normalised like a database row. Pages seed their state with
+ * this so the hydrated view matches the prerendered rows (no layout shift
+ * while the database answers), then replace it with the live answer.
+ */
+export function getSeedCoas() {
+  return seedAll();
+}
+export function getSeedCoasForProduct(productId) {
+  return seedFor(productId);
+}
+
 export async function getAllCoas() {
-  if (!supabase) return [];
+  if (!supabase) return seedAll();
   try {
     const { data, error } = await selectDegrading(
       (cols) =>
@@ -49,16 +70,17 @@ export async function getAllCoas() {
       COA_COLUMNS,
       COA_COLUMNS_BASE
     );
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) return seedAll();
     return data.map(normalize);
   } catch {
-    return [];
+    return seedAll();
   }
 }
 
 /** Published COAs for one product, newest first. */
 export async function getCoasForProduct(productId) {
-  if (!supabase || !productId) return [];
+  if (!productId) return [];
+  if (!supabase) return seedFor(productId);
   try {
     const { data, error } = await selectDegrading(
       (cols) =>
@@ -70,10 +92,10 @@ export async function getCoasForProduct(productId) {
       COA_COLUMNS,
       COA_COLUMNS_BASE
     );
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) return seedFor(productId);
     return data.map(normalize);
   } catch {
-    return [];
+    return seedFor(productId);
   }
 }
 
@@ -113,25 +135,39 @@ export async function lookupByLot(lot) {
 // cards fall back to their static behavior.
 let _latestCoaPromise = null;
 
+// Opt cycle 11: the same mirrored seed the other readers fall back to, so a
+// card never says "COA on request" for a product whose certificates are
+// already published (env-less builds, a failed client query).
+function latestFromRows(rows) {
+  const map = {};
+  for (const row of rows) {
+    // rows arrive newest-first; keep the first (latest) per product
+    if (row.product_id && !map[row.product_id]) map[row.product_id] = normalize(row);
+  }
+  return map;
+}
+const seedLatest = () =>
+  latestFromRows([...seedAll()].sort((a, b) => String(b.tested_at || "").localeCompare(String(a.tested_at || ""))));
+
+/** Synchronous first paint for card grids: the mirrored published rows (see getSeedCoas). */
+export function getSeedLatestCoaMap() {
+  return seedLatest();
+}
+
 export function getLatestCoaMap() {
   if (!_latestCoaPromise) {
     _latestCoaPromise = (async () => {
-      if (!supabase) return {};
+      if (!supabase) return seedLatest();
       try {
         const { data, error } = await supabase
           .from("coas")
           .select("id, product_id, lot_number, batch_number, tested_at, file_url")
           .order("tested_at", { ascending: false, nullsFirst: false })
           .limit(500);
-        if (error || !Array.isArray(data)) return {};
-        const map = {};
-        for (const row of data) {
-          // rows arrive newest-first; keep the first (latest) per product
-          if (row.product_id && !map[row.product_id]) map[row.product_id] = normalize(row);
-        }
-        return map;
+        if (error || !Array.isArray(data)) return seedLatest();
+        return latestFromRows(data);
       } catch {
-        return {};
+        return seedLatest();
       }
     })();
   }
