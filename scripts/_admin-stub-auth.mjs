@@ -2,4 +2,5 @@
 export async function requireAdmin() { return { id: "admin-test", email: "admin@example.test" }; }
 export async function requireUser() { return { id: "user-test" }; }
 export async function requirePartner() { return { id: "partner-test" }; }
-export async function getUserFromReq() { return null; }
+// Tests set globalThis.__STUB_USER to simulate a signed-in caller (opt cycle 12).
+export async function getUserFromReq() { return globalThis.__STUB_USER ?? null; }

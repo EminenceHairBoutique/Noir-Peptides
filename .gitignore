@@ -68,6 +68,10 @@ src/output.css
 .coa-table-test-*.mjs
 .admin-labs-test-*.mjs
 .attestation-test-*.mjs
+.purity-test-*.mjs
+.partner-apply-*.mjs
+.restock-test-*.mjs
+.pricing-coherence-*.mjs
 .a11y-report.json
 .perf-report.json
 .lh-run.mjs

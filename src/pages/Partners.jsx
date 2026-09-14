@@ -3,7 +3,7 @@
 // the Control Room "Partners" tab reviews applications by hand. Copy lives in
 // src/data/pageCopy.js (PARTNERS_COPY) so the prerendered HTML, the corpus
 // gate and this page read one source. No product benefit, no use case.
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import SEO from "../components/SEO";
 import { PARTNERS_COPY } from "../data/pageCopy";
@@ -24,6 +24,12 @@ export default function Partners() {
     website: "", // honeypot
   });
   const [status, setStatus] = useState("idle");
+  // The success panel replaces the form; move focus to its heading so
+  // keyboard and screen-reader users land on the confirmation (opt cycle 12).
+  const successRef = useRef(null);
+  useEffect(() => {
+    if (status === "success") successRef.current?.focus();
+  }, [status]);
 
   const update = (key) => (e) => setForm((p) => ({ ...p, [key]: e.target.value }));
 
@@ -110,7 +116,7 @@ export default function Partners() {
             <div>
               {status === "success" ? (
                 <div className="glass-panel p-10 text-center" role="status">
-                  <h2 className="font-display text-[22px] tracking-[0.04em] mb-3">APPLICATION RECEIVED</h2>
+                  <h2 ref={successRef} tabIndex={-1} className="font-display text-[22px] tracking-[0.04em] mb-3 outline-none">APPLICATION RECEIVED</h2>
                   <p className="text-[14px] text-se-bone/55 font-accent">{PARTNERS_COPY.formNote}</p>
                 </div>
               ) : (
