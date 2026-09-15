@@ -87,6 +87,12 @@ published record itself, and two new gates keep that honest. The site's own
 red (host configuration, no payable rail, the product page's main-thread
 block) is unchanged by this.
 
+**Proven live (2026-09-15):** after that fix merged, a probe run against
+production reported `red (27/37 checks) — failing: rails available,
+lighthouse — host config: 9 check(s)` from the record itself, so the run now
+says what is wrong instead of failing blindly; the `/shop` copy-scanner red
+also cleared against the live site. The site's own blockers are unchanged.
+
 **Owner Sprint status:** none complete. New for D2: migrations `0039`,
 `0040`, `0041`. D4 (`PROD_URL` / `CANONICAL_HOST`) is the single blocker for
 a meaningful live probe and for every 10; **D8 (a payable rail) blocks any
