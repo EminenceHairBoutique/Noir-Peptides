@@ -99,7 +99,7 @@ export async function checkRateLimit(req, res, options = {}) {
     // Fetch existing record for this key within the current window.
     const { data, error } = await supabaseServer
       .from("rate_limits")
-      .select("id, request_count, window_start")
+      .select("request_count, window_start")
       .eq("key", key)
       .maybeSingle();
 
