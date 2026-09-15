@@ -74,6 +74,15 @@ console.log("\nEverything else fails, and says why:");
   // Only the exact string "green" passes: no truthiness, no prefix match.
   const nearly = gate(write("nearly.json", record({ verdict: "greenish", failing: [] })));
   ok(nearly.code === 1, `a verdict that merely starts with "green" → exit 1 (${nearly.code})`);
+
+  // The probe writes a record after the HTTP phase and folds axe + Lighthouse
+  // in later. A run that died in between leaves an HTTP-only record that can
+  // say "green" while two thirds of the probe never ran.
+  const unfolded = gate(write("unfolded.json", { schema: 1, kind: "live", checks: [{ id: "status /", pass: true }], counts: { pass: 21, fail: 0 }, gates: { http: true }, failing: [], verdict: "green" }));
+  ok(unfolded.code === 1 && /never finalised/.test(unfolded.err), `an HTTP-only record claiming green → exit 1, "unproven is not green" (${unfolded.code})`);
+
+  const badChecks = gate(write("badchecks.json", record({ checks: { "status /": true } })));
+  ok(badChecks.code === 1 && !/TypeError/.test(badChecks.err), `a record whose checks is not an array → exit 1, no crash (${badChecks.code})`);
 }
 
 console.log("\nThe workflow runs this gate, not a cross-job step outcome:");
@@ -81,7 +90,9 @@ console.log("\nThe workflow runs this gate, not a cross-job step outcome:");
   const yml = fs.readFileSync(".github/workflows/live-probe.yml", "utf8");
   const publish = yml.slice(yml.indexOf("\n  publish:"));
   ok(/run: node scripts\/live-probe\.mjs --gate evidence\/live-probe\.json/.test(publish), "the publish job's last step runs the gate on the downloaded record");
-  ok(!/^\s*if: steps\./m.test(publish), "no step in the publish job is guarded by a steps.<id> expression from another job");
+  // Catches the `${{ steps.x.outcome }}` spelling too, and ignores comments.
+  const code = publish.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
+  ok(!/steps\.[A-Za-z0-9_-]+\./.test(code), "no step in the publish job reads a steps.<id> expression at all (in any spelling)");
 }
 
 fs.rmSync(dir, { recursive: true, force: true });

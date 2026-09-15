@@ -66,7 +66,17 @@ if (args[0] === "--gate") {
     console.error(`::error::Live probe: no readable record at ${file} — the probe produced none, so production is UNPROVEN (not green).`);
     process.exit(1);
   }
-  const hostIds = new Set((rec.checks || []).filter((c) => c && c.group === "host-config").map((c) => c.id));
+  // A record the finalize step never folded (the probe died after the HTTP
+  // phase) can read `verdict: "green"` from the HTTP checks alone, with axe
+  // and Lighthouse never run. Unproven is not green: the three gate keys must
+  // all be present, which only --finalize writes.
+  const gates = rec.gates && typeof rec.gates === "object" ? rec.gates : {};
+  const unfolded = ["http", "axe", "lighthouse"].filter((k) => !(k in gates));
+  if (unfolded.length) {
+    console.error(`::error::Live probe: the record at ${file} was never finalised (no ${unfolded.join(", ")} gate) — the probe did not finish, so production is UNPROVEN (not green).`);
+    process.exit(1);
+  }
+  const hostIds = new Set((Array.isArray(rec.checks) ? rec.checks : []).filter((c) => c && c.group === "host-config").map((c) => c.id));
   const failing = Array.isArray(rec.failing) ? rec.failing : [];
   const hostFail = failing.filter((id) => hostIds.has(id));
   const rest = failing.filter((id) => !hostIds.has(id));

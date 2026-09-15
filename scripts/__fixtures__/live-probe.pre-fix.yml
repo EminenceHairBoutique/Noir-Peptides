@@ -1,0 +1,155 @@
+# Live probe (opt cycle 9 — addendum B2; scorecards 4.1 / 4.2 / 4.6 / 4.12).
+# The engine cannot reach production from its sandbox; this workflow can.
+# Every 6 hours (and on demand) it probes PROD_URL — a repository variable,
+# default the Vercel deployment; set CANONICAL_HOST (default: the site's
+# configured production host, lib/siteUrl.js) once the domain is
+# attached — with plain HTTP checks (scripts/live-probe.mjs), axe-core and
+# Lighthouse (median of 3), writes evidence/live-probe.json, publishes it to
+# the orphan `evidence` branch, and keeps ONE issue titled "Live probe
+# failing" open while anything is red (closed automatically when green).
+# This is the 4.12 uptime target. Nothing here writes to the site.
+name: Live probe
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Site to probe (default: the PROD_URL variable, else the Vercel deployment)"
+        required: false
+
+# Opt cycle 12 (4.2): the probe job runs with a read-only token; only the
+# publish job (the checked-in publisher on the probe's artifact, plus the
+# issue upsert) holds contents: write and issues: write.
+permissions:
+  contents: read
+
+concurrency:
+  group: live-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: HTTP · axe · Lighthouse against production
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      PROD_URL: ${{ inputs.url || vars.PROD_URL || 'https://noir-peptides.vercel.app' }}
+      CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Local build (the sitemap count production must at least match)
+        run: |
+          npm run build
+          echo "LOCAL_SITEMAP_COUNT=$(grep -o '<loc>' dist/sitemap.xml | wc -l)" >> "$GITHUB_ENV"
+
+      - name: HTTP checks
+        continue-on-error: true
+        run: node scripts/live-probe.mjs "$PROD_URL" evidence/live-probe.json
+
+      - name: axe-core against production
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_CHROMIUM_PATH: ""
+        run: node scripts/a11y-sweep.mjs "$PROD_URL" evidence/axe-live.json
+
+      - name: Lighthouse against production (3 runs × 4 routes, median)
+        continue-on-error: true
+        run: |
+          npx --yes @lhci/cli@0.14.0 collect --config=evidence/lighthouserc.live.json
+          npx --yes @lhci/cli@0.14.0 upload --config=evidence/lighthouserc.live.json
+          npx --yes @lhci/cli@0.14.0 assert --config=evidence/lighthouserc.live.json
+
+      - name: Fold the record and set the verdict
+        id: verdict
+        continue-on-error: true
+        run: node scripts/live-probe.mjs --finalize evidence/live-probe.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-probe-${{ github.run_id }}
+          path: evidence/
+          retention-days: 30
+
+  publish:
+    name: Publish the record + keep the single issue current
+    needs: probe
+    # After a red probe as well (the issue must refresh), never after a
+    # cancelled one (no artifact to publish).
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/download-artifact@v4
+        with:
+          name: live-probe-${{ github.run_id }}
+          path: evidence/
+      - name: Publish the record to the `evidence` branch
+        run: node scripts/evidence-publish.mjs live evidence/live-probe.json
+
+      - name: Open, refresh or close the single "Live probe failing" issue
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const rec = JSON.parse(fs.readFileSync("evidence/live-probe.json", "utf8"));
+            const title = "Live probe failing";
+            const label = "live-probe";
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const failed = (rec.checks || []).filter((c) => c.pass === false);
+            const fmt = (c) => `| \`${c.id}\` | \`${JSON.stringify(c.value)}\` | \`${JSON.stringify(c.expected)}\` |`;
+            const rows = failed.filter((c) => c.group !== "host-config").map(fmt);
+            const hostRows = failed.filter((c) => c.group === "host-config").map(fmt);
+            if (rec.axe && rec.axe.pass === false) rows.push(`| axe | ${rec.axe.seriousOrCritical} serious/critical (${(rec.axe.blockingRules || []).slice(0, 5).join(", ")}) | 0 |`);
+            for (const [route, v] of Object.entries((rec.lighthouse && rec.lighthouse.routes) || {})) if (!v.pass) rows.push(`| lighthouse ${route} | LCP ${v.lcpMs} ms · CLS ${v.cls} · TBT ${v.tbtMs} ms | ≤ 2500 · ≤ 0.1 · ≤ 200 |`);
+            for (const m of rec.missing || []) rows.push(`| ${m} | no result (step crashed) | a result |`);
+            const body = [
+              `**Site:** ${rec.url}  ·  **Verdict:** ${rec.verdict}  ·  **Run:** ${runUrl}  ·  **At:** ${rec.generated_at}`,
+              "",
+              "| check | got | expected |", "| --- | --- | --- |", ...rows,
+              ...(hostRows.length ? ["", "**Host configuration** — these read red until the repository variables `PROD_URL` (the real production origin) and `CANONICAL_HOST` (its host) are set; every build canonicalises to the configured production domain:", "", "| check | got | expected |", "| --- | --- | --- |", ...hostRows] : []),
+              "",
+              "_Refreshed automatically by the Live probe workflow every 6 h; this issue closes itself when the probe is green. Full record: `live/latest.json` on the `evidence` branch._",
+            ].join("\n");
+            try { await github.rest.issues.getLabel({ owner, repo, name: label }); }
+            catch { await github.rest.issues.createLabel({ owner, repo, name: label, color: "b60205", description: "Opened by the Live probe workflow" }); }
+            const open = (await github.rest.issues.listForRepo({ owner, repo, state: "open", labels: label, per_page: 10 })).data.find((i) => i.title === title);
+            if (rec.verdict === "green") {
+              if (open) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: open.number, body: `Green at ${rec.generated_at} — ${runUrl}. Closing.` });
+                await github.rest.issues.update({ owner, repo, issue_number: open.number, state: "closed", state_reason: "completed" });
+              }
+              return;
+            }
+            if (open) {
+              await github.rest.issues.update({ owner, repo, issue_number: open.number, body });
+              await github.rest.issues.createComment({ owner, repo, issue_number: open.number, body: `Still ${rec.verdict} at ${rec.generated_at} — ${runUrl}` });
+            } else {
+              await github.rest.issues.create({ owner, repo, title, labels: [label], body });
+            }
+
+      - name: Fail the run when the probe is not green
+        if: steps.verdict.outcome != 'success'
+        run: |
+          echo "::error::Live probe is not green — see evidence/live-probe.json and the 'Live probe failing' issue."
+          exit 1
