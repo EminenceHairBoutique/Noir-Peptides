@@ -4,7 +4,7 @@
   "sha": "5f4ac4c71b4f7cb2ab43aa4632c00f77def72c47",
   "ref": "claude/opt-cycle-12-20260914",
   "run_url": "https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/35018339301",
-  "generated_at": "2026-09-15T20:29:33.016Z",
+  "generated_at": "2026-09-15T20:47:22.858Z",
   "build": {
     "mode": "e2e",
     "dbEnvPresent": false,
@@ -13,14 +13,12 @@
   "gates": {
     "screens": true,
     "axe": true,
-    "lighthouse": false,
+    "lighthouse": true,
     "links": true,
     "hygiene": true
   },
-  "verdict": "red",
-  "failing": [
-    "lighthouse"
-  ],
+  "verdict": "green",
+  "failing": [],
   "missing": [],
   "screens": {
     "views": 372,
@@ -35,7 +33,7 @@
     "overflow": [],
     "consoleErrors": [],
     "skipped": [],
-    "seconds": 277,
+    "seconds": 302,
     "pass": true
   },
   "axe": {
@@ -55,62 +53,62 @@
     "routes": {
       "/": {
         "runs": 3,
-        "lcpMs": 1656,
+        "lcpMs": 1655,
         "cls": 0,
-        "tbtMs": 483,
-        "perf": 87,
-        "pass": false
+        "tbtMs": 0,
+        "perf": 100,
+        "pass": true
       },
       "/shop": {
         "runs": 3,
-        "lcpMs": 1655,
+        "lcpMs": 1658,
         "cls": 0,
-        "tbtMs": 14,
+        "tbtMs": 36,
         "perf": 100,
         "pass": true
       },
       "/product/bpc-157": {
         "runs": 3,
-        "lcpMs": 1654,
+        "lcpMs": 1656,
         "cls": 0,
-        "tbtMs": 11,
+        "tbtMs": 44,
         "perf": 100,
         "pass": true
       },
       "/test-results": {
         "runs": 3,
-        "lcpMs": 1508,
+        "lcpMs": 1655,
         "cls": 0,
-        "tbtMs": 9,
+        "tbtMs": 31,
         "perf": 100,
         "pass": true
       },
       "/shop/tissue-repair-research": {
         "runs": 3,
-        "lcpMs": 1653,
+        "lcpMs": 1654,
         "cls": 0.009,
-        "tbtMs": 0,
+        "tbtMs": 2,
         "perf": 100,
         "pass": true
       },
       "/test-results/bpc-157": {
         "runs": 3,
-        "lcpMs": 1654,
+        "lcpMs": 1655,
         "cls": 0,
-        "tbtMs": 0,
+        "tbtMs": 2,
         "perf": 100,
         "pass": true
       },
       "/partners": {
         "runs": 3,
-        "lcpMs": 1655,
+        "lcpMs": 1654,
         "cls": 0,
         "tbtMs": 0,
         "perf": 100,
         "pass": true
       }
     },
-    "pass": false
+    "pass": true
   },
   "links": {
     "exit": 0,
