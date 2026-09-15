@@ -21,14 +21,9 @@
 import { readdirSync, statSync, readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { scanCopy } from "../src/lib/complianceScan.js";
-import { renderedText, ACCEPTED, NEGATION } from "./_copy-scan.mjs";
-import { DISCLAIMER_FULL } from "../src/config/compliance.js";
-// Opt cycle 12: the site-wide RUO disclaimer sentence (src/config/compliance.js
-// DISCLAIMER_FULL — a negation) is rendered by React above every grid and, for
-// shell parity, by the prerendered /shop and category shells. That exact
-// constant is the only text removed before a page is scanned; one changed
-// character brings it back into the scan.
-const scanText = (html) => renderedText(html).split(DISCLAIMER_FULL).join(" ");
+// Opt cycle 12: scanText removes the exact site-wide RUO disclaimer constant
+// before scanning (shared with the live probe — see _copy-scan.mjs).
+import { scanText, ACCEPTED, NEGATION } from "./_copy-scan.mjs";
 
 const DIST = path.join(process.cwd(), "dist");
 const DUMP = process.argv.includes("--dump");

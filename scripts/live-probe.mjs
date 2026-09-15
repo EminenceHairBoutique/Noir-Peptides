@@ -10,6 +10,8 @@
     node scripts/live-probe.mjs <baseUrl> [outFile]        # the HTTP checks
     node scripts/live-probe.mjs --finalize [outFile]       # fold axe-live.json +
                                                            # lighthouse-live/ in, set the verdict
+    node scripts/live-probe.mjs --gate [recordFile]        # exit 0 only when the
+                                                           # RECORD says green (the CI gate)
   env: CANONICAL_HOST (default: the site's configured production host,
   lib/siteUrl.js — every build canonicalises to it wherever it is served),
   LOCAL_SITEMAP_COUNT (fallback floor when dist/prerender-meta.json is absent;
@@ -21,7 +23,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { scanCopy } from "../src/lib/complianceScan.js";
 import { buildCsp } from "./csp.mjs";
-import { renderedText, ACCEPTED } from "./_copy-scan.mjs";
+import { scanText, ACCEPTED } from "./_copy-scan.mjs";
 import { parseSitemapPaths } from "./_sitemap-routes.mjs";
 import { readJson, axeSummary, lighthouseMedians } from "./_evidence-fold.mjs";
 import { PRODUCTION_HOST } from "../lib/siteUrl.js";
@@ -48,6 +50,49 @@ if (args[0] === "--finalize") {
   for (const [route, v] of Object.entries(rec.lighthouse.routes || {})) console.log(`  lighthouse ${route}: LCP ${v.lcpMs} ms · CLS ${v.cls} · TBT ${v.tbtMs} ms · ${v.pass ? "pass" : "FAIL"}`);
   if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `verdict=${rec.verdict}\n`);
   process.exit(rec.verdict === "green" ? 0 : 1);
+}
+
+// ── --gate: the published RECORD is the verdict (opt cycle 12 follow-up) ───
+// The workflow runs the probe and the publish/gate step in two jobs, so the
+// gate cannot read the probe step's outcome: a `steps.<id>` reference never
+// crosses a job boundary — it reads as the empty string, and the gate that
+// used one could never pass (four runs reported red before anyone noticed,
+// because the site happened to be red too). The record the job just published
+// is the one source of truth both a human and this gate read.
+if (args[0] === "--gate") {
+  const file = args[1] || "evidence/live-probe.json";
+  const rec = readJson(file);
+  if (!rec || typeof rec.verdict !== "string") {
+    console.error(`::error::Live probe: no readable record at ${file} — the probe produced none, so production is UNPROVEN (not green).`);
+    process.exit(1);
+  }
+  // A record the finalize step never folded (the probe died after the HTTP
+  // phase) can read `verdict: "green"` from the HTTP checks alone, with axe
+  // and Lighthouse never run. Unproven is not green: the three gate keys must
+  // all be present, which only --finalize writes.
+  const gates = rec.gates && typeof rec.gates === "object" ? rec.gates : {};
+  const unfolded = ["http", "axe", "lighthouse"].filter((k) => !(k in gates));
+  if (unfolded.length) {
+    console.error(`::error::Live probe: the record at ${file} was never finalised (no ${unfolded.join(", ")} gate) — the probe did not finish, so production is UNPROVEN (not green).`);
+    process.exit(1);
+  }
+  const hostIds = new Set((Array.isArray(rec.checks) ? rec.checks : []).filter((c) => c && c.group === "host-config").map((c) => c.id));
+  const failing = Array.isArray(rec.failing) ? rec.failing : [];
+  const hostFail = failing.filter((id) => hostIds.has(id));
+  const rest = failing.filter((id) => !hostIds.has(id));
+  const pass = rec.counts && Number.isFinite(rec.counts.pass) ? rec.counts.pass : null;
+  const total = pass != null && Number.isFinite(rec.counts.fail) ? pass + rec.counts.fail : null;
+  const missing = Array.isArray(rec.missing) ? rec.missing : [];
+  console.log(
+    `live probe: ${rec.verdict}` +
+      (total != null ? ` (${pass}/${total} checks)` : "") +
+      (rest.length ? ` — failing: ${rest.join(", ")}` : "") +
+      (hostFail.length ? ` — host config: ${hostFail.length} check(s), set PROD_URL / CANONICAL_HOST` : "") +
+      (missing.length ? ` — missing: ${missing.join(", ")}` : "")
+  );
+  if (rec.verdict === "green") process.exit(0);
+  console.error(`::error::Live probe is not green (${rec.verdict}) — see live/latest.json on the evidence branch and the "Live probe failing" issue.`);
+  process.exit(1);
 }
 
 // ── The HTTP checks ────────────────────────────────────────────────────────
@@ -95,7 +140,8 @@ for (const route of pages) {
   let host = null, pathname = null;
   try { const u = new URL(can); host = u.host; pathname = u.pathname.replace(/\/+$/, "") || "/"; } catch { /* absent */ }
   check(`canonical ${route}`, host === canonicalHost && pathname === route, can, `https://${canonicalHost}${route}`, undefined, HOST);
-  const got = scanCopy(renderedText(r.text)).findings.map((f) => `${f.category}:${f.term.toLowerCase()}`).sort();
+  // Opt cycle 12: the same text the dist gate scans (the RUO disclaimer constant removed).
+  const got = scanCopy(scanText(r.text)).findings.map((f) => `${f.category}:${f.term.toLowerCase()}`).sort();
   const want = (ACCEPTED[route] || []).slice().sort();
   check(`scanner ${route}`, JSON.stringify(got) === JSON.stringify(want), got, want, want.length ? "accepted negations only (H-006)" : "zero findings");
 }
