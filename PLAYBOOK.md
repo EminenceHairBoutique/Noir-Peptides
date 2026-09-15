@@ -166,6 +166,21 @@ wins and the conflict is logged here so the prompt can be revised.
   gate on the data, not on a step outcome — data can be replayed at both
   poles, an outcome cannot.
 
+  *Sharpened the same night:* an adversarial panel turned H-018 on the gate
+  written to enforce it. `test-workflow-shape.mjs` recognised job keys only
+  at exactly two-space indentation, so any workflow it could not parse
+  produced zero findings — and zero findings printed a tick. A checker must
+  therefore assert that it PARSED what it claims to have checked (a file that
+  declares `jobs:` and yields none is a finding), and pin the ground truth it
+  expects to see (these two workflows have exactly these jobs), or the next
+  reformat blinds it silently. The same review found the three ways a
+  line-based scanner lies: it reads keys inside block scalars as code (a
+  heredoc `id:` masked the defect), it is broken by trailing comments (an
+  `id: build  # cached` un-registered the step and the checker then accused
+  every honest reference), and it silently skips the shapes it never learned
+  (a block-list `needs:`). Write the fixture for each before trusting the
+  scanner.
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
@@ -563,7 +578,14 @@ wins and the conflict is logged here so the prompt can be revised.
   both poles by `test-live-probe-gate.mjs`, and the whole class (a
   `steps.<id>` reference or a `needs:` that names something outside its job)
   is now caught by `test-workflow-shape.mjs` — itself proven against the
-  exact shape that shipped.
+  exact shape that shipped. Then the same rule was turned on that gate by an
+  adversarial panel (82 agents; 26 candidates, 7 confirmed): it could not
+  fail on a workflow it could not parse. Rewritten to parse indentation,
+  quoted keys, block scalars, comments and block-list `needs:`, to treat an
+  unparsed file as a finding, and to pin each workflow's job names; the live
+  probe's `--gate` now also fails closed on a record the probe never
+  finalised (HTTP-only records can read "green" with axe and Lighthouse never
+  run).
 - **2026-09-14 (cycle 12)** — added H-016 (a gate that has never executed
   is not a gate; evidence: 16 dead post-deploy runs behind a VERIFIED row,
   a live probe with zero runs) and H-017 (a median hides a race; read every
