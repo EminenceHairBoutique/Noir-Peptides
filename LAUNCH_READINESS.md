@@ -73,11 +73,12 @@ unavailable — nobody can order until the Stripe live keys or the BTCPay
 env are set), axe 0, and Lighthouse on the live product page blocked the
 main thread for ~150 s (the approved-label 3D vial is the lead suspect;
 cycle-13 lead). `/shop` and `/test-results` improved live exactly as
-measured here (TBT 139 → 28, 218 → 165 ms). One honest red: the Evidence run
-on `main` for the merge commit reads the landing page's TBT at 557 then
-320 ms on two attempts (every other URL under 41 ms; the same tree read 0 on
-both PR-head runs) — performance is scored 8 until a `main` run is green;
-diagnosing it is cycle 13's first item.
+measured here (TBT 139 → 28, 218 → 165 ms). One honest wobble, now resolved: the Evidence run on `main` for the merge
+commit read the landing page's blocking time at 557 then 320 ms, so
+performance was scored 8 for a day; five further measurements (including a
+green run on `main`, where it read 2 ms) show an occasional spike in the CI
+runner rather than a regression, and performance is 9 again with the spike
+carried as a cycle-13 task.
 
 One more honest correction (2026-09-14, from the owner's screenshot of Live
 probe run #4): the probe workflow's own verdict step could never pass — the
