@@ -149,6 +149,38 @@ wins and the conflict is logged here so the prompt can be revised.
   start the request after the paint. Corollary: `perf-lhci --urls` and five
   runs per route for any lever that changes WHEN something happens.
 
+- **H-018** [added cycle 12 follow-up] Check BOTH poles of a gate. H-016 says
+  a gate that has never executed is not a gate; the mirror image is a gate
+  that can never pass. Before a gate is trusted, run it on an input that must
+  fail AND on an input that must pass — and where the passing input cannot be
+  produced locally, synthesise it (a record, a fixture, a file) and execute
+  against that. Evidence: the cycle-12 split of `live-probe.yml` into a
+  read-only probe job and a write-capable publish job left the verdict step's
+  guard, `if: steps.verdict.outcome != 'success'`, in the publish job while
+  the `verdict` id stayed in the probe job. A `steps.<id>` reference does not
+  cross a job boundary: it reads as the empty string, `'' != 'success'` is
+  always true, so the step always ran and the run could never be green —
+  while the sibling `continue-on-error: true` steps made the probe job always
+  green. Four runs reported red and nobody looked, because the site was red
+  too. Corollary: when a gate's verdict lives in DATA (a published record),
+  gate on the data, not on a step outcome — data can be replayed at both
+  poles, an outcome cannot.
+
+  *Sharpened the same night:* an adversarial panel turned H-018 on the gate
+  written to enforce it. `test-workflow-shape.mjs` recognised job keys only
+  at exactly two-space indentation, so any workflow it could not parse
+  produced zero findings — and zero findings printed a tick. A checker must
+  therefore assert that it PARSED what it claims to have checked (a file that
+  declares `jobs:` and yields none is a finding), and pin the ground truth it
+  expects to see (these two workflows have exactly these jobs), or the next
+  reformat blinds it silently. The same review found the three ways a
+  line-based scanner lies: it reads keys inside block scalars as code (a
+  heredoc `id:` masked the defect), it is broken by trailing comments (an
+  `id: build  # cached` un-registered the step and the checker then accused
+  every honest reference), and it silently skips the shapes it never learned
+  (a block-list `needs:`). Write the fixture for each before trusting the
+  scanner.
+
 ## Generators (§3) — yield table
 
 | generator | cycles run | items shipped | last hit |
@@ -539,6 +571,21 @@ wins and the conflict is logged here so the prompt can be revised.
   and 11 tap-target/scroll findings. Rule sharpened: before pushing, run
   every suite the way its CI job runs it (`npm run test:mobile` with no
   `E2E_BASE_URL`, `npm run a11y` with `A11Y_ALL_ROUTES=1`).
+- **2026-09-14 (cycle 12 follow-up)** — added H-018 (check both poles of a
+  gate) after the owner's screenshot of Live probe run #4: the cycle-12
+  job split had made the workflow structurally incapable of reporting green.
+  Fixed by gating on the published record (`live-probe.mjs --gate`), proven at
+  both poles by `test-live-probe-gate.mjs`, and the whole class (a
+  `steps.<id>` reference or a `needs:` that names something outside its job)
+  is now caught by `test-workflow-shape.mjs` — itself proven against the
+  exact shape that shipped. Then the same rule was turned on that gate by an
+  adversarial panel (82 agents; 26 candidates, 7 confirmed): it could not
+  fail on a workflow it could not parse. Rewritten to parse indentation,
+  quoted keys, block scalars, comments and block-list `needs:`, to treat an
+  unparsed file as a finding, and to pin each workflow's job names; the live
+  probe's `--gate` now also fails closed on a record the probe never
+  finalised (HTTP-only records can read "green" with axe and Lighthouse never
+  run).
 - **2026-09-14 (cycle 12)** — added H-016 (a gate that has never executed
   is not a gate; evidence: 16 dead post-deploy runs behind a VERIFIED row,
   a live probe with zero runs) and H-017 (a median hides a race; read every

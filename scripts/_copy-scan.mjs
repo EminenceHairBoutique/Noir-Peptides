@@ -5,6 +5,8 @@
   The dist gate and the live probe apply the same standard to the same
   extraction so "scanner hits = 0" means the same thing in CI and on prod.
 */
+import { DISCLAIMER_FULL } from "../src/config/compliance.js";
+
 const decode = (s) => s
   .replace(/&amp;/g, "&").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"')
   .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n));
@@ -34,6 +36,15 @@ export function renderedText(html) {
 // route → sorted "category:term" list (lower-cased, duplicates kept so a
 // COUNT change is also a change). Regenerate with --dump after a deliberate
 // copy change and review the diff; never add a positive claim here.
+// Opt cycle 12: the site-wide RUO disclaimer sentence (DISCLAIMER_FULL, a
+// negation) is rendered by React above every grid and, for shell parity, by
+// the prerendered /shop and category shells. Every scanner consumer (the dist
+// gate AND the live probe) removes that exact constant before scanning — one
+// changed character brings it back — so /shop needs no allowlist entry and the
+// two readers can never disagree about it again (the live probe read /shop red
+// on 2026-09-14 when only the dist gate had the exemption).
+export const scanText = (html) => renderedText(html).split(DISCLAIMER_FULL).join(" ");
+
 export const ACCEPTED = {
   "/": ["human-use:for human use","therapeutic-benefit:cure","therapeutic-benefit:treat"],
   "/about": ["dosing:dosing","therapeutic-benefit:therapeutic","therapeutic-benefit:treatment"],

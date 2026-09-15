@@ -61,9 +61,36 @@ re-read of cycles 10 + 11 (a workflow: 8 readers, 3 verifiers per finding):
   the Owner Sprint D8 row, spec counts 11 / 33 and "transcribed" everywhere,
   D2 proves 0038–0041 by data, migration-doc and doc-drift gates.
 
+**Live evidence (after the merge, 09:35Z):** the post-deploy smoke
+**executed on production for the first time** (run 34828889535: the
+checkout / attestation server gates answer 401 to unauthenticated calls);
+the live probe recorded two runs (`live/latest.json` on the `evidence`
+branch, issue #45): HTTP checks green except the host configuration (the
+site canonicalises to `www.noirpeptides.com` but is probed at
+`noir-peptides.vercel.app` — set `PROD_URL` / `CANONICAL_HOST`), **no
+payable rail on the live site** (`/api/payment-rails` lists every rail as
+unavailable — nobody can order until the Stripe live keys or the BTCPay
+env are set), axe 0, and Lighthouse on the live product page blocked the
+main thread for ~150 s (the approved-label 3D vial is the lead suspect;
+cycle-13 lead). `/shop` and `/test-results` improved live exactly as
+measured here (TBT 139 → 28, 218 → 165 ms). One honest red: the Evidence run
+on `main` for the merge commit reads the landing page's TBT at 557 then
+320 ms on two attempts (every other URL under 41 ms; the same tree read 0 on
+both PR-head runs) — performance is scored 8 until a `main` run is green;
+diagnosing it is cycle 13's first item.
+
+One more honest correction (2026-09-14, from the owner's screenshot of Live
+probe run #4): the probe workflow's own verdict step could never pass — the
+cycle-12 job split left its guard reading a step in the other job, so every
+run reported red whatever the site did. The run now fails or passes on the
+published record itself, and two new gates keep that honest. The site's own
+red (host configuration, no payable rail, the product page's main-thread
+block) is unchanged by this.
+
 **Owner Sprint status:** none complete. New for D2: migrations `0039`,
 `0040`, `0041`. D4 (`PROD_URL` / `CANONICAL_HOST`) is the single blocker for
-a meaningful live probe and for every 10.
+a meaningful live probe and for every 10; **D8 (a payable rail) blocks any
+order at all.**
 
 ## ✅ Done (Sept-13 optimization cycle 11 — branch `claude/opt-cycle-11-20260913`, stacked on cycle 10, Draft PR)
 
