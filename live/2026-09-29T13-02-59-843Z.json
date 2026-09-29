@@ -2,9 +2,9 @@
   "schema": 1,
   "kind": "live",
   "url": "https://noir-peptides.vercel.app",
-  "canonicalHost": "noir-peptides.vercel.app",
-  "generated_at": "2026-09-14T05:05:18.460Z",
-  "run_url": "https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/34808293233",
+  "canonicalHost": "www.noirpeptides.com",
+  "generated_at": "2026-09-29T13:02:59.843Z",
+  "run_url": "https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/36572198376",
   "checks": [
     {
       "id": "status /",
@@ -14,9 +14,10 @@
     },
     {
       "id": "canonical /",
-      "pass": true,
+      "pass": false,
       "value": "https://noir-peptides.vercel.app/",
-      "expected": "https://noir-peptides.vercel.app/"
+      "expected": "https://www.noirpeptides.com/",
+      "group": "host-config"
     },
     {
       "id": "scanner /",
@@ -41,20 +42,17 @@
     },
     {
       "id": "canonical /shop",
-      "pass": true,
+      "pass": false,
       "value": "https://noir-peptides.vercel.app/shop",
-      "expected": "https://noir-peptides.vercel.app/shop"
+      "expected": "https://www.noirpeptides.com/shop",
+      "group": "host-config"
     },
     {
       "id": "scanner /shop",
       "pass": true,
-      "value": [
-        "therapeutic-benefit:therapeutic"
-      ],
-      "expected": [
-        "therapeutic-benefit:therapeutic"
-      ],
-      "note": "accepted negations only (H-006)"
+      "value": [],
+      "expected": [],
+      "note": "zero findings"
     },
     {
       "id": "status /product/bpc-157",
@@ -64,9 +62,10 @@
     },
     {
       "id": "canonical /product/bpc-157",
-      "pass": true,
+      "pass": false,
       "value": "https://noir-peptides.vercel.app/product/bpc-157",
-      "expected": "https://noir-peptides.vercel.app/product/bpc-157"
+      "expected": "https://www.noirpeptides.com/product/bpc-157",
+      "group": "host-config"
     },
     {
       "id": "scanner /product/bpc-157",
@@ -83,9 +82,10 @@
     },
     {
       "id": "canonical /product/5-amino-1mq",
-      "pass": true,
+      "pass": false,
       "value": "https://noir-peptides.vercel.app/product/5-amino-1mq",
-      "expected": "https://noir-peptides.vercel.app/product/5-amino-1mq"
+      "expected": "https://www.noirpeptides.com/product/5-amino-1mq",
+      "group": "host-config"
     },
     {
       "id": "scanner /product/5-amino-1mq",
@@ -102,9 +102,10 @@
     },
     {
       "id": "canonical /product/ahk-cu",
-      "pass": true,
+      "pass": false,
       "value": "https://noir-peptides.vercel.app/product/ahk-cu",
-      "expected": "https://noir-peptides.vercel.app/product/ahk-cu"
+      "expected": "https://www.noirpeptides.com/product/ahk-cu",
+      "group": "host-config"
     },
     {
       "id": "scanner /product/ahk-cu",
@@ -121,9 +122,10 @@
     },
     {
       "id": "canonical /test-results",
-      "pass": true,
+      "pass": false,
       "value": "https://noir-peptides.vercel.app/test-results",
-      "expected": "https://noir-peptides.vercel.app/test-results"
+      "expected": "https://www.noirpeptides.com/test-results",
+      "group": "host-config"
     },
     {
       "id": "scanner /test-results",
@@ -140,9 +142,10 @@
     },
     {
       "id": "canonical /verify-lot",
-      "pass": true,
+      "pass": false,
       "value": "https://noir-peptides.vercel.app/verify-lot",
-      "expected": "https://noir-peptides.vercel.app/verify-lot"
+      "expected": "https://www.noirpeptides.com/verify-lot",
+      "group": "host-config"
     },
     {
       "id": "scanner /verify-lot",
@@ -205,17 +208,25 @@
       "id": "sitemap url count",
       "pass": true,
       "value": 89,
-      "expected": "≥ 89 (local build)"
+      "expected": "≥ 89 (static 74 + live permalinks 15)"
     },
     {
       "id": "sitemap hosts",
-      "pass": true,
+      "pass": false,
       "value": [
         "noir-peptides.vercel.app"
       ],
       "expected": [
-        "noir-peptides.vercel.app"
-      ]
+        "www.noirpeptides.com"
+      ],
+      "group": "host-config"
+    },
+    {
+      "id": "sitemap honours hidden categories",
+      "pass": true,
+      "value": [],
+      "expected": [],
+      "note": "0 hidden in the live build"
     },
     {
       "id": "status /robots.txt",
@@ -225,9 +236,10 @@
     },
     {
       "id": "robots sitemap line",
-      "pass": true,
+      "pass": false,
       "value": "https://noir-peptides.vercel.app/sitemap.xml",
-      "expected": "https://noir-peptides.vercel.app/sitemap.xml"
+      "expected": "https://www.noirpeptides.com/sitemap.xml",
+      "group": "host-config"
     },
     {
       "id": "rails envelope",
@@ -250,6 +262,13 @@
       }
     },
     {
+      "id": "rails available",
+      "pass": false,
+      "value": [],
+      "expected": "≥ 1 payable rail",
+      "note": "a live checkout needs at least one rail the server can charge"
+    },
+    {
       "id": "unknown path → 404",
       "pass": true,
       "value": 404,
@@ -257,30 +276,34 @@
     }
   ],
   "counts": {
-    "pass": 35,
-    "fail": 0
+    "pass": 27,
+    "fail": 10
   },
   "gates": {
-    "http": true,
-    "axe": false,
+    "http": false,
+    "axe": true,
     "lighthouse": false
   },
   "failing": [
-    "axe",
+    "canonical /",
+    "canonical /shop",
+    "canonical /product/bpc-157",
+    "canonical /product/5-amino-1mq",
+    "canonical /product/ahk-cu",
+    "canonical /test-results",
+    "canonical /verify-lot",
+    "sitemap hosts",
+    "robots sitemap line",
+    "rails available",
     "lighthouse"
   ],
   "verdict": "red",
   "axe": {
-    "findings": 2,
-    "byImpact": {
-      "serious": 4
-    },
-    "seriousOrCritical": 4,
-    "blockingRules": [
-      "target-size (/product/bpc-157@1280)",
-      "target-size (/product/glow@1280)"
-    ],
-    "pass": false
+    "findings": 0,
+    "byImpact": {},
+    "seriousOrCritical": 0,
+    "blockingRules": [],
+    "pass": true
   },
   "lighthouse": {
     "budget": {
@@ -292,35 +315,59 @@
     "routes": {
       "/": {
         "runs": 3,
-        "lcpMs": 1228,
+        "lcpMs": 1552,
         "cls": 0,
-        "tbtMs": 13,
+        "tbtMs": 0,
         "perf": 100,
         "pass": true
       },
       "/shop": {
         "runs": 3,
-        "lcpMs": 1383,
+        "lcpMs": 1458,
         "cls": 0,
-        "tbtMs": 139,
-        "perf": 98,
+        "tbtMs": 50,
+        "perf": 100,
         "pass": true
       },
       "/product/bpc-157": {
         "runs": 3,
-        "lcpMs": 1370,
+        "lcpMs": 1513,
         "cls": 0,
-        "tbtMs": 153599,
-        "perf": 65,
+        "tbtMs": 151604,
+        "perf": 64,
         "pass": false
       },
       "/test-results": {
         "runs": 3,
-        "lcpMs": 1443,
+        "lcpMs": 1565,
         "cls": 0,
-        "tbtMs": 218,
+        "tbtMs": 205,
         "perf": 96,
         "pass": false
+      },
+      "/shop/tissue-repair-research": {
+        "runs": 3,
+        "lcpMs": 1515,
+        "cls": 0.009,
+        "tbtMs": 2,
+        "perf": 100,
+        "pass": true
+      },
+      "/test-results/bpc-157": {
+        "runs": 3,
+        "lcpMs": 1514,
+        "cls": 0,
+        "tbtMs": 2,
+        "perf": 100,
+        "pass": true
+      },
+      "/partners": {
+        "runs": 3,
+        "lcpMs": 1512,
+        "cls": 0,
+        "tbtMs": 0,
+        "perf": 100,
+        "pass": true
       }
     },
     "pass": false
