@@ -3,8 +3,8 @@
   "kind": "live",
   "url": "https://noir-peptides.vercel.app",
   "canonicalHost": "www.noirpeptides.com",
-  "generated_at": "2026-09-30T05:41:26.670Z",
-  "run_url": "https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/36674491115",
+  "generated_at": "2026-09-30T12:45:05.014Z",
+  "run_url": "https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/36716701785",
   "checks": [
     {
       "id": "status /",
@@ -315,7 +315,7 @@
     "routes": {
       "/": {
         "runs": 3,
-        "lcpMs": 1516,
+        "lcpMs": 1509,
         "cls": 0,
         "tbtMs": 0,
         "perf": 100,
@@ -323,47 +323,47 @@
       },
       "/shop": {
         "runs": 3,
-        "lcpMs": 1419,
-        "cls": 0,
-        "tbtMs": 29,
-        "perf": 100,
-        "pass": true
-      },
-      "/product/bpc-157": {
-        "runs": 3,
-        "lcpMs": 1366,
-        "cls": 0,
-        "tbtMs": 149927,
-        "perf": 65,
-        "pass": false
-      },
-      "/test-results": {
-        "runs": 3,
-        "lcpMs": 1408,
-        "cls": 0,
-        "tbtMs": 272,
-        "perf": 95,
-        "pass": false
-      },
-      "/shop/tissue-repair-research": {
-        "runs": 3,
-        "lcpMs": 1513,
-        "cls": 0.009,
-        "tbtMs": 24,
-        "perf": 100,
-        "pass": true
-      },
-      "/test-results/bpc-157": {
-        "runs": 3,
-        "lcpMs": 1512,
+        "lcpMs": 1385,
         "cls": 0,
         "tbtMs": 8,
         "perf": 100,
         "pass": true
       },
+      "/product/bpc-157": {
+        "runs": 3,
+        "lcpMs": 1507,
+        "cls": 0,
+        "tbtMs": 156429,
+        "perf": 66,
+        "pass": false
+      },
+      "/test-results": {
+        "runs": 3,
+        "lcpMs": 1361,
+        "cls": 0,
+        "tbtMs": 112,
+        "perf": 99,
+        "pass": true
+      },
+      "/shop/tissue-repair-research": {
+        "runs": 3,
+        "lcpMs": 1508,
+        "cls": 0.009,
+        "tbtMs": 0,
+        "perf": 100,
+        "pass": true
+      },
+      "/test-results/bpc-157": {
+        "runs": 3,
+        "lcpMs": 1508,
+        "cls": 0,
+        "tbtMs": 0,
+        "perf": 100,
+        "pass": true
+      },
       "/partners": {
         "runs": 3,
-        "lcpMs": 1362,
+        "lcpMs": 1508,
         "cls": 0,
         "tbtMs": 0,
         "perf": 100,
