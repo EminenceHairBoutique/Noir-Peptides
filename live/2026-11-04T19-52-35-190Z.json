@@ -3,8 +3,8 @@
   "kind": "live",
   "url": "https://noir-peptides.vercel.app",
   "canonicalHost": "www.noirpeptides.com",
-  "generated_at": "2026-10-17T10:54:38.459Z",
-  "run_url": "https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/39026633203",
+  "generated_at": "2026-11-04T19:52:35.190Z",
+  "run_url": "https://github.com/EminenceHairBoutique/Noir-Peptides/actions/runs/41900969473",
   "checks": [
     {
       "id": "status /",
@@ -315,39 +315,39 @@
     "routes": {
       "/": {
         "runs": 3,
-        "lcpMs": 1529,
+        "lcpMs": 1363,
         "cls": 0,
         "tbtMs": 0,
-        "perf": 99,
+        "perf": 100,
         "pass": true
       },
       "/shop": {
         "runs": 3,
-        "lcpMs": 1542,
+        "lcpMs": 1409,
         "cls": 0,
-        "tbtMs": 3,
-        "perf": 99,
+        "tbtMs": 0,
+        "perf": 100,
         "pass": true
       },
       "/product/bpc-157": {
         "runs": 3,
-        "lcpMs": 1534,
+        "lcpMs": 1363,
         "cls": 0,
-        "tbtMs": 150007,
-        "perf": 64,
+        "tbtMs": 153292,
+        "perf": 66,
         "pass": false
       },
       "/test-results": {
         "runs": 3,
-        "lcpMs": 1539,
+        "lcpMs": 1512,
         "cls": 0,
-        "tbtMs": 98,
-        "perf": 99,
+        "tbtMs": 52,
+        "perf": 100,
         "pass": true
       },
       "/shop/tissue-repair-research": {
         "runs": 3,
-        "lcpMs": 1379,
+        "lcpMs": 1362,
         "cls": 0.009,
         "tbtMs": 0,
         "perf": 100,
@@ -355,7 +355,7 @@
       },
       "/test-results/bpc-157": {
         "runs": 3,
-        "lcpMs": 1380,
+        "lcpMs": 1365,
         "cls": 0,
         "tbtMs": 0,
         "perf": 100,
@@ -363,7 +363,7 @@
       },
       "/partners": {
         "runs": 3,
-        "lcpMs": 1372,
+        "lcpMs": 1363,
         "cls": 0,
         "tbtMs": 0,
         "perf": 100,
